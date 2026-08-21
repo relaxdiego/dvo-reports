@@ -44,6 +44,28 @@ request as a stand-in. If work needs remembering, it is an issue.
 A `TODO` comment is allowed only as a note about the line it sits on. If it
 describes work, open an issue and let the comment reference it.
 
+## Driving GitHub from an agent session
+
+An agent working here normally holds a token scoped to this repository with
+write access to code, issues, workflows, deployments, and environments. So
+re-running a workflow is yours to do:
+
+```sh
+gh run list --limit 5
+gh run rerun <id> --failed
+gh run watch <id> --interval 15
+```
+
+**Actions secrets are not readable, by any token used here.** `gh secret list`
+is refused, and that is correct — see the rule about this repository being
+public. You cannot verify that `CLOUDFLARE_API_TOKEN` is set; you can only
+read the failure when it is not. Ask, rather than guessing.
+
+If the API refuses something with `403: Resource not accessible`, say so and
+ask. Do not retry it in a loop, and **never make an empty or throwaway commit
+just to trigger a workflow** — the history is public and permanent, and
+`workflow_dispatch` exists for exactly this.
+
 ## Structure
 
 - `backend/internal/report` — the report type and its validation. No HTTP, no
