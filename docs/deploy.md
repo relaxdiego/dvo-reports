@@ -15,7 +15,8 @@ project, which is why it is used here rather than GitHub Pages: Pages gives a
 repository one site and one custom domain, so a staging site would have meant
 a second repository.
 
-`.github/workflows/deploy.yml` picks the target from what triggered it:
+`.github/workflows/ci.yml` runs the checks first, then picks the deploy
+target from what triggered it:
 
 | Trigger        | Cloudflare branch | Lands on                          |
 | -------------- | ----------------- | --------------------------------- |
@@ -29,6 +30,10 @@ release:
 ```sh
 git tag -a v0.2.0 -m 'v0.2.0' && git push origin v0.2.0
 ```
+
+Nothing is published unless `make lint`, `make test`, and `make build` pass
+first: the deploy job needs the check job, which is why both live in one
+workflow file. GitHub cannot express that dependency across two.
 
 Pull requests opened from a fork get no preview. GitHub withholds secrets
 from them, so the deploy could not work, and the job is skipped rather than
