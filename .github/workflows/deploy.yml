@@ -1,0 +1,87 @@
+name: deploy
+
+# The frontend is a static bundle on Cloudflare Pages. One project serves
+# all three targets, told apart by the --branch given to wrangler:
+#
+#   push to main   -> staging     -> report-staging.relaxdiego.com
+#   tag v*         -> production  -> report.relaxdiego.com
+#   pull request   -> pr-<number> -> a throwaway preview URL
+#
+# VITE_API_BASE is baked in at build time, so each target is built on its
+# own. Its value comes from the GitHub Environment named below.
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    # Secrets are withheld from a pull request opened from a fork, so a
+    # preview cannot work there. Skip it rather than show a contributor a red
+    # check they have no way to fix.
+    if: >-
+      github.event_name != 'pull_request' ||
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    environment:
+      name: >-
+        ${{ startsWith(github.ref, 'refs/tags/v') && 'production'
+            || github.event_name == 'push' && 'staging'
+            || 'preview' }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Work out which target this is
+        id: target
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            echo "branch=production"
+          elif [[ "$GITHUB_EVENT_NAME" == push ]]; then
+            echo "branch=staging"
+          else
+            echo "branch=pr-${{ github.event.number }}"
+          fi >> "$GITHUB_OUTPUT"
+
+      - uses: jetify-com/devbox-install-action@v0.15.0
+        with:
+          enable-cache: true
+
+      - name: Cache npm
+        uses: actions/cache@v6
+        with:
+          path: ~/.npm
+          key: npm-${{ hashFiles('frontend/package-lock.json') }}
+          restore-keys: npm-
+
+      - name: Build the site
+        env:
+          # Where this build sends reports. Set VITE_API_BASE as a variable on
+          # the matching GitHub Environment; see docs/deploy.md.
+          VITE_API_BASE: ${{ vars.VITE_API_BASE }}
+        run: devbox run -- make build-frontend
+
+      - name: Publish to Cloudflare Pages
+        id: publish
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: >-
+            pages deploy frontend/dist
+            --project-name=dvo-reports
+            --branch=${{ steps.target.outputs.branch }}
+
+      - name: Say where it went
+        run: |
+          echo "Deployed \`${{ steps.target.outputs.branch }}\` to ${{ steps.publish.outputs.deployment-url }}" \
+            >> "$GITHUB_STEP_SUMMARY"

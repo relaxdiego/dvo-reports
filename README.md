@@ -11,6 +11,7 @@ Nothing is stored here.
 software. The city's site remains the system of record.
 
 - Frontend: <https://report.relaxdiego.com> (Preact + TypeScript, ~8 kB gzipped)
+  — staging at <https://report-staging.relaxdiego.com>
 - Backend: Go, one plain HTTP handler, no framework, no dependencies
 
 ## Why
@@ -64,7 +65,7 @@ frontend/
   src/api.ts           talking to the backend
   src/app.tsx          the form
 docs/
-  deploy.md            GitHub Pages + the backend host
+  deploy.md            Cloudflare Pages, staging, and the backend host
   upstream.md          what is still unknown about the city's site
 ```
 
