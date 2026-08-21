@@ -41,7 +41,7 @@ test-frontend: deps ## Run the frontend tests
 	cd frontend && npm run test
 
 .PHONY: lint
-lint: ## Vet the Go code and type check the frontend
+lint: deps ## Vet the Go code and type check the frontend
 	cd backend && go vet ./...
 	@unformatted=$$(gofmt -l backend); \
 	  if [ -n "$$unformatted" ]; then echo "gofmt needed:"; echo "$$unformatted"; exit 1; fi
