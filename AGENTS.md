@@ -3,6 +3,11 @@
 Read this before changing anything. It records the decisions that are not
 obvious from the code.
 
+**Picking the work up cold?** Read the open issues first — they are the only
+record of what is in flight. Then this file, then `docs/`. `README.md` says
+how far along the project is. Nothing about the current state is written into
+a file here, on purpose; see "Where work is tracked" below.
+
 ## What this is
 
 An unofficial, faster client for `reports.davaocity.gov.ph`. A citizen fills
@@ -22,6 +27,13 @@ is the system of record. This project stores nothing.
 - **Do not hide upstream errors from the logs, or show them to the citizen.**
   The city's site may return HTML or database errors. Log them; show the
   reporter a sentence they can act on.
+- **This repository is public. Nothing secret goes in it.** No tokens, API
+  keys, account IDs, or private hostnames — not in code, not in a test
+  fixture, not in a doc, not in a commit message. Credentials belong in
+  GitHub Actions secrets or in `.envrc.local`, which is gitignored;
+  `.envrc.local.example` carries the variable names and nothing else. The
+  same applies to a real citizen's report: no photograph of a real place, no
+  address, no contact detail, in the repo or in an issue.
 
 ## Where work is tracked
 
