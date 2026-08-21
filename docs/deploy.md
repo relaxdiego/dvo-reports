@@ -42,17 +42,39 @@ failing.
 ### One-time setup
 
 1. **Cloudflare Pages project** named `dvo-reports`, created with
-   *Direct Upload* (not the Git integration — this workflow pushes the build).
-   Set its production branch to `production`.
-2. **Custom domains.** Attach `report.relaxdiego.com` to the project as its
-   production domain. For staging, add a DNS `CNAME` record for
-   `report-staging` pointing at `staging.dvo-reports.pages.dev`, the branch
-   alias Cloudflare creates for the `staging` branch.
-3. **Repository secrets:** `CLOUDFLARE_API_TOKEN` (with the *Cloudflare Pages:
-   Edit* permission) and `CLOUDFLARE_ACCOUNT_ID`.
-4. **GitHub Environments** named `production`, `staging`, and `preview`. Give
+   *Direct Upload* (not the Git integration — this workflow pushes the build):
+
+   ```sh
+   npx wrangler pages project create dvo-reports --production-branch=production
+   ```
+
+   A Direct Upload project cannot be switched to Git integration later. To
+   change that decision you make a new project.
+
+2. **Repository secrets:** `CLOUDFLARE_API_TOKEN` and
+   `CLOUDFLARE_ACCOUNT_ID`. The token needs one permission —
+   *Account · Cloudflare Pages · Edit*.
+
+3. **GitHub Environments** named `production`, `staging`, and `preview`. Give
    each a variable `VITE_API_BASE` holding its backend URL. The frontend is
    baked at build time, so changing one needs a new deploy.
+
+4. **Custom domains, after the first deploy to each branch.** A branch alias
+   only exists once that branch has deployed at least once, so do this after
+   a push to `main` (staging) and after the first `v*` tag (production).
+
+   `report.relaxdiego.com` is the project's production domain: add it under
+   *Custom domains* in the Pages project and let Cloudflare create the record.
+
+   `report-staging.relaxdiego.com` points at a branch, which takes an extra
+   step. Add it as a custom domain the same way, then open DNS for the zone,
+   find the `CNAME` record named `report-staging`, and change its target from
+   `dvo-reports.pages.dev` to `staging.dvo-reports.pages.dev`.
+
+   **The record must stay proxied** (orange cloud). Cloudflare's docs are
+   explicit: with an unproxied record, or DNS hosted elsewhere, the custom
+   alias is served the *production* branch instead. That failure is silent —
+   staging would quietly show production.
 
 Consider requiring a reviewer on the `production` environment. It is the only
 thing standing between a tag and every citizen who uses the site.
