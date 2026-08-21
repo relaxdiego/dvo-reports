@@ -1,0 +1,15 @@
+# Copy this file to .envrc.local. It is gitignored. Nothing here is secret
+# today, but that is where a secret would go if the real upstream client ever
+# needs one.
+
+# Port the Go backend listens on. The Vite dev server proxies /api here.
+export PORT=8080
+
+# Origins allowed to call the backend from a browser, comma separated.
+# In development the Vite proxy makes /api same-origin, so this only matters
+# when you point the dev frontend at a deployed backend.
+export ALLOWED_ORIGINS=http://localhost:5173
+
+# Where the frontend sends reports. Leave unset in development: the Vite
+# proxy handles it. Set in production to the deployed backend's URL.
+# export VITE_API_BASE=https://api.report.relaxdiego.com

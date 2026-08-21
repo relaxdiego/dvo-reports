@@ -1,0 +1,11 @@
+# devbox / direnv
+.devbox/
+.direnv/
+.envrc.local
+
+# frontend
+node_modules/
+frontend/dist/
+
+# backend
+backend/bin/
