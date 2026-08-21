@@ -1,0 +1,55 @@
+name: Bug report
+description: Something in the app behaves incorrectly.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: >-
+        **Do not paste a real report here.** No photos of a real place, no
+        home address, no phone number or email. This tracker is public, and
+        the app exists to protect that information. Describe what happened
+        instead, or use made-up details.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what you got instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open the site
+        2. Pick "Pothole"
+        3. Attach two photos
+        4. Press "Send report"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where
+      options:
+        - Production (report.relaxdiego.com)
+        - Staging (report-staging.relaxdiego.com)
+        - A local checkout
+        - Not sure
+    validations:
+      required: true
+
+  - type: input
+    id: reference
+    attributes:
+      label: Reference number, if the report went through
+      description: The tracking number the app showed you. Safe to share.
+
+  - type: input
+    id: environment
+    attributes:
+      label: Browser and device
+      placeholder: Chrome on Android 14, Safari on iPhone, Firefox on Linux

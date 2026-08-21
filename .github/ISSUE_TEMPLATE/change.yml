@@ -1,0 +1,34 @@
+name: Feature or change request
+description: Something the app should do, or should do differently.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: >-
+        Describe the situation a reporter is in, not the solution you have in
+        mind. "Filing from a jeepney with one hand is hard" tells us more than
+        "add a floating button".
+    validations:
+      required: true
+
+  - type: textarea
+    id: idea
+    attributes:
+      label: What you would like to happen
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: constraints
+    attributes:
+      label: Does this fit the project?
+      description: >-
+        See AGENTS.md. These rules are not negotiable, and a request that
+        breaks one will be closed.
+      options:
+        - label: It does not require storing reports, photos, or personal data.
+        - label: It does not present this project as official city software.
+        - label: >-
+            It keeps the app small and fast on a phone, on a slow connection.

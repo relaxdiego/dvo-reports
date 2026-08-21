@@ -86,8 +86,13 @@ resulting reference number — never the report itself. See
 
 ## Contributing
 
-Issues and pull requests are welcome. The most useful contribution right now
-is documenting how the city's submit form actually works.
+Issues and pull requests are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md).
+GitHub Issues is the only place this project tracks bugs and requests. The
+most useful contribution right now is documenting how the city's submit form
+actually works.
+
+Please do not paste a real report into an issue: no photographs of a real
+place, no address, no contact details. The tracker is public.
 
 ## License
 

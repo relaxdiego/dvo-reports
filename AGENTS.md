@@ -23,6 +23,15 @@ is the system of record. This project stores nothing.
   The city's site may return HTML or database errors. Log them; show the
   reporter a sentence they can act on.
 
+## Where work is tracked
+
+GitHub Issues, and nowhere else. Do not create a `TODO.md`, a backlog file, a
+plan file, or a checklist in the repository, and do not add one to a pull
+request as a stand-in. If work needs remembering, it is an issue.
+
+A `TODO` comment is allowed only as a note about the line it sits on. If it
+describes work, open an issue and let the comment reference it.
+
 ## Structure
 
 - `backend/internal/report` — the report type and its validation. No HTTP, no

@@ -1,0 +1,29 @@
+name: Upstream finding
+description: Something you learned about how reports.davaocity.gov.ph works.
+labels: [upstream]
+body:
+  - type: markdown
+    attributes:
+      value: >-
+        The city's site has no documented API, so this is the most useful
+        thing you can contribute. See docs/upstream.md for what is still
+        unknown.
+
+  - type: textarea
+    id: finding
+    attributes:
+      label: What you found
+      description: >-
+        The endpoint, field names, a required token, the real category list —
+        whatever you worked out. Paste request and response shapes, with any
+        personal data removed.
+    validations:
+      required: true
+
+  - type: textarea
+    id: how
+    attributes:
+      label: How you found it
+      description: >-
+        So someone else can check it, and so we know how likely it is to
+        change.
