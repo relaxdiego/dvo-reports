@@ -225,6 +225,44 @@ describe('opening one report', () => {
   })
 })
 
+describe('choosing what the problem is', () => {
+  function chips() {
+    return [...root.querySelectorAll('.chip')].map((c) => c.textContent?.trim())
+  }
+
+  it('offers every kind until one is chosen, then only that one', () => {
+    act(() => render(<App />, root))
+
+    expect(chips()).toContain('Garbage')
+    expect(chips()).toContain('Stray animal')
+    expect(root.querySelector('.chips')!.className).toBe('chips')
+
+    click('Garbage')
+
+    // The rest are hidden by CSS, which jsdom cannot see. What it can see is
+    // the class that hides them, and that only one chip is pressed.
+    expect(root.querySelector('.chips')!.className).toBe('chips picked')
+    const pressed = root.querySelectorAll('[aria-pressed="true"]')
+    expect(pressed).toHaveLength(1)
+    expect(pressed[0].textContent).toContain('Garbage')
+  })
+
+  it('lets a reporter who picked the wrong one press it again to go back', () => {
+    act(() => render(<App />, root))
+
+    click('Garbage')
+    // The cross is decoration; the chip itself is the way back.
+    const chosen = root.querySelector<HTMLButtonElement>('.chip.on')!
+    expect(chosen.querySelector('.x')!.getAttribute('aria-hidden')).toBe('true')
+
+    act(() => chosen.click())
+
+    expect(root.querySelector('.chips')!.className).toBe('chips')
+    expect(root.querySelectorAll('[aria-pressed="true"]')).toHaveLength(0)
+    expect(chips()).toContain('Pothole')
+  })
+})
+
 describe('the photo field', () => {
   // `capture` would send a phone straight to the camera and hide the photos
   // the reporter already has.

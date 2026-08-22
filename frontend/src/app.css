@@ -77,12 +77,34 @@ button:focus-visible {
   background: transparent;
   color: var(--fg);
   cursor: pointer;
+  transition: opacity 150ms ease;
 }
 
 .chip.on {
   background: var(--accent);
   border-color: var(--accent);
   color: var(--accent-fg);
+}
+
+/* Once a kind is chosen the rest are clutter on a small screen, so they fade
+   and go. They are hidden rather than dimmed: a chip that is still there but
+   unreachable is worse than one that left. `allow-discrete` is what lets the
+   fade finish before `display: none` lands; a browser without it hides them
+   at once, which is the same outcome without the softness. */
+.chips.picked .chip:not(.on) {
+  opacity: 0;
+  display: none;
+  transition:
+    opacity 150ms ease,
+    display 150ms allow-discrete;
+}
+
+/* The chosen chip is the way back: pressing it again clears the choice and
+   brings the others out. The cross says so without a second control, which
+   a button cannot hold anyway. */
+.chip .x {
+  margin-inline-start: 0.5rem;
+  opacity: 0.7;
 }
 
 button.primary,
@@ -452,6 +474,11 @@ h2 {
 /* A reporter who asked for less motion still needs to see that something is
    happening, so the spinner pulses instead of turning. */
 @media (prefers-reduced-motion: reduce) {
+  .chip,
+  .chips.picked .chip:not(.on) {
+    transition: none;
+  }
+
   .spinner {
     animation: pulse 1.6s ease-in-out infinite;
   }

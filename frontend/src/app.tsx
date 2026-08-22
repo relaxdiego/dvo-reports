@@ -206,18 +206,26 @@ function ReportTab({ withSession }: { withSession: WithSession }) {
     <form onSubmit={onSubmit} noValidate>
       <fieldset disabled={sending}>
         <legend>What is the problem?</legend>
-        <div class="chips">
-          {CATEGORIES.map((c) => (
-            <button
-              key={c}
-              type="button"
-              class={draft.category === c ? 'chip on' : 'chip'}
-              aria-pressed={draft.category === c}
-              onClick={() => set('category', c)}
-            >
-              {CATEGORY_LABELS[c]}
-            </button>
-          ))}
+        <div class={draft.category ? 'chips picked' : 'chips'}>
+          {CATEGORIES.map((c) => {
+            const on = draft.category === c
+            return (
+              <button
+                key={c}
+                type="button"
+                class={on ? 'chip on' : 'chip'}
+                aria-pressed={on}
+                onClick={() => set('category', on ? '' : c)}
+              >
+                {CATEGORY_LABELS[c]}
+                {on && (
+                  <span class="x" aria-hidden="true">
+                    &times;
+                  </span>
+                )}
+              </button>
+            )
+          })}
         </div>
 
         <label for="description">Describe it</label>
