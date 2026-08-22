@@ -19,11 +19,13 @@
  */
 
 /**
- * The city's registration page, not their front page. Checked on 2026-08-23:
- * it answers 200 and carries the registration form itself, so a reporter
- * sent here lands on the thing they were sent for.
+ * The city's site, and not a deep link into it. Their registration form
+ * lives at /user.html and does answer, but opened on its own it draws
+ * broken — the page is built to be reached from their front page, and is
+ * not a page on its own. Sending a reporter to a broken page is worse than
+ * sending them one step further than they need to go.
  */
-const REGISTER_URL = 'https://reports.davaocity.gov.ph/user.html'
+const REGISTER_URL = 'https://reports.davaocity.gov.ph'
 
 export function Welcome({ onClose }: { onClose: () => void }) {
   return (

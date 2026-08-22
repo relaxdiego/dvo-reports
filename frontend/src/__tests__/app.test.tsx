@@ -957,10 +957,10 @@ describe('the welcome sheet', () => {
     const sheet = firstVisit()!
 
     expect(sheet.textContent).toContain('You need a city account first')
-    // The registration page itself, not the city's front page: a reporter
-    // sent for one thing should land on it.
+    // Their front page, not a deep link to the registration form: opened on
+    // its own that form draws broken. See welcome.tsx.
     const go = sheet.querySelector('a.gobutton')!
-    expect(go.getAttribute('href')).toBe('https://reports.davaocity.gov.ph/user.html')
+    expect(go.getAttribute('href')).toBe('https://reports.davaocity.gov.ph')
   })
 
   // The code is texted to the number the account was registered with, so the
