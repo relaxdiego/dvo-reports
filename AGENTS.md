@@ -203,6 +203,27 @@ at build time; name the environment you deployed to alongside them.
   `import()`. Do not import it from anywhere eagerly: Leaflet is fetched once
   there is a place to draw, which means after a photo is attached, and never
   on the first page load.
+- `frontend/brand/citizen-reporter.jpg` — the one piece of artwork. The home
+  screen icon and the picture a chat app shows are both cut from it by
+  `frontend/scripts/make-brand.mjs` (`make brand`), which needs a browser and
+  is never run by a build: what it writes into `frontend/public` is
+  committed. Change the artwork or the card's wording, run it, and commit
+  what changed. None of it is in the first page load, so none of it counts
+  against `make size`.
+
+  **The card carries the word "unofficial" in the picture itself.** A link
+  shared in a group chat is read by people who never open the page, so the
+  preview has to say what the header says. `site.webmanifest` names the icons
+  and nothing else on purpose — no `display`, no `start_url` — so the tile is
+  a tile and the browser does not start offering to install this as an app.
+
+  `og:image` in `frontend/index.html` has to be an absolute URL — a scraper is
+  not on this site when it resolves one — and it names the production host
+  even in a staging build. A staging link is not shared with citizens and
+  both builds serve the same picture, so one hard-coded host is worth more
+  than a build-time variable that can be forgotten and left showing nothing.
+  Keep the comments in that file to one line each: it is the one HTML a
+  citizen downloads, and Vite ships every byte of it.
 
 ## Conventions
 

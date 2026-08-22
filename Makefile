@@ -71,6 +71,13 @@ build-frontend: deps ## Build the static site into frontend/dist
 size: build-frontend ## Check the first page load against its size budget
 	cd frontend && node scripts/check-size.mjs dist
 
+# Not part of any build: what this writes is committed. It needs a browser,
+# the same one test-browser does. Run it after changing the artwork in
+# frontend/brand or the wording on the card, and commit the result.
+.PHONY: brand
+brand: deps ## Redraw the app tile and the social card from the artwork
+	cd frontend && node scripts/make-brand.mjs
+
 .PHONY: clean
 clean: ## Remove build output
 	rm -rf backend/bin frontend/dist
