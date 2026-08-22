@@ -66,6 +66,7 @@ Open <http://localhost:5173>. `make help` lists every target.
 backend/
   cmd/server/          the HTTP server
   internal/report/     what a report is, and what makes it valid
+  internal/photo/      what metadata a photo may carry onward
   internal/upstream/   the only code that knows about the city's site
   internal/api/        HTTP routes, limits, CORS
 frontend/
@@ -93,6 +94,17 @@ keeps none of it: the request is read into memory, passed to the city's site,
 and dropped. Logs record the category, the number of photos, and the
 resulting reference number — never the report itself. See
 [docs/upstream.md](docs/upstream.md).
+
+**Photos carry more than the picture.** A phone writes the camera model, the
+software version, every exposure setting, a private block from the
+manufacturer, a second copy of the image as a thumbnail, and where the
+photograph was taken. This backend removes almost all of it before the report
+goes on. What it keeps is a short, deliberate list: the date and time, the
+GPS position, and two identifiers Apple puts on a photo — kept so the place a
+photo was taken can be checked against the place the report names. The camera
+model, the software, the settings, the thumbnail, and every other embedded
+block are dropped. The list lives in `backend/internal/photo`, and the backend
+is the only place it is applied.
 
 **The map is the one exception, and it is your choice.** If you open the map
 to point at a place, your browser asks

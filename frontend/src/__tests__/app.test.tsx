@@ -238,14 +238,21 @@ describe('picking the place on a map', () => {
     delete navigator.geolocation
   })
 
-  /** The map arrives by dynamic import, so it needs longer than one tick. */
-  async function opened() {
-    for (let i = 0; i < 40; i++) {
-      await act(async () => { await new Promise((r) => setTimeout(r, 1)) })
-      if (root.querySelector('.leaflet-container')) return
+  /**
+   * Waits for something the dynamic import has to arrive before. Loading
+   * Leaflet is real work competing with the other test files, so this waits
+   * on a deadline rather than a tick count, which used to fail under load.
+   */
+  async function waitFor(what: string, selector: string) {
+    const until = Date.now() + 5000
+    while (Date.now() < until) {
+      await act(async () => { await new Promise((r) => setTimeout(r, 5)) })
+      if (root.querySelector(selector)) return
     }
-    throw new Error(`the map never appeared; the page says: ${root.textContent}`)
+    throw new Error(`${what} never appeared; the page says: ${root.textContent}`)
   }
+
+  const opened = () => waitFor('the map', '.leaflet-container')
 
   // Leaflet is tens of kilobytes. A reporter who types an address never pays
   // for it, so nothing may load it until the button is used.
@@ -320,10 +327,7 @@ describe('picking the place on a map', () => {
 
     act(() => render(<App />, root))
     click('Pick it on a map')
-    for (let i = 0; i < 40; i++) {
-      await act(async () => { await new Promise((r) => setTimeout(r, 1)) })
-      if (root.querySelector('[role="dialog"]')) break
-    }
+    await waitFor('the map sheet', '[role="dialog"]')
 
     const waiting = root.querySelector('[role="dialog"] [role="status"]')
     expect(waiting?.textContent).toContain('Finding where you are')

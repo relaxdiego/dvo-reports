@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/relaxdiego/dvo-reports/backend/internal/photo"
 	"github.com/relaxdiego/dvo-reports/backend/internal/report"
 	"github.com/relaxdiego/dvo-reports/backend/internal/upstream"
 )
@@ -263,6 +264,11 @@ func readPhoto(fh *multipart.FileHeader) (report.Photo, error) {
 	if err != nil {
 		return report.Photo{}, errors.New("could not read photo " + fh.Filename)
 	}
+	// The one place metadata is decided. A phone writes its model, its
+	// software, and where the picture was taken into the file; photo.Clean
+	// keeps the few fields this project sends on and drops the rest. It runs
+	// here, on the way in, so nothing downstream ever holds the original.
+	data = photo.Clean(data)
 	return report.Photo{
 		Filename: fh.Filename,
 		// Sniffed from the bytes, not read from the part's Content-Type

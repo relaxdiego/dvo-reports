@@ -74,11 +74,22 @@ just to trigger a workflow** — the history is public and permanent, and
   site works. It has no public API, so this code imitates its web form and
   will break when the form changes. Keep that blast radius here.
 - `backend/internal/api` — routes, size limits, CORS. Handlers stay thin.
+- `backend/internal/photo` — **the only place photo metadata is decided.** It
+  keeps a named few fields and drops everything else, by rebuilding the
+  metadata from nothing rather than deleting from what arrived, so a tag
+  survives only because that file names it. Do not add a second filter
+  anywhere, and do not strip in the frontend: `frontend/src/image.ts` carries
+  the original block across the resize precisely so this package can be the
+  one that judges it.
 - `frontend/src/validate.ts` — mirrors the backend rules so the reporter
   learns about a problem before uploading photos. If you change one, change
   both, and remember the backend's answer is the one that counts.
 - `frontend/src/image.ts` — shrinking photos before upload. This is the main
-  reason the client feels fast. Do not remove it.
+  reason the client feels fast. Do not remove it. It also copies the
+  original's metadata block onto the resized photo, unread: drawing to a
+  canvas would otherwise throw the date and the place away before the backend
+  could judge them. The tags describing the old pixels travel with it and are
+  wrong; `backend/internal/photo` drops them.
 - `frontend/src/map.tsx` — the OpenStreetMap place picker. It is the only
   code that talks to a third party, and it is loaded with a dynamic
   `import()` so that Leaflet is fetched only by a reporter who opens the map.
