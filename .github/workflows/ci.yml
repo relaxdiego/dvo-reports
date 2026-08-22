@@ -12,6 +12,9 @@ name: ci
 #
 # VITE_API_BASE is baked in at build time, so each target is built on its
 # own, with the value from the GitHub Environment named below.
+#
+# The backend is a container on Fly, one app per environment. It is not
+# deployed for a pull request: a preview talks to the staging backend.
 
 on:
   push:
@@ -51,6 +54,41 @@ jobs:
       - run: devbox run -- make lint
       - run: devbox run -- make test
       - run: devbox run -- make build
+
+  deploy-backend:
+    needs: check
+    # No per-preview backend. A pull request preview talks to staging.
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ startsWith(github.ref, 'refs/tags/v') && 'production' || 'staging' }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: superfly/flyctl-actions/setup-flyctl@1.5
+
+      # The app must already exist; creating it needs an account this
+      # repository has no access to. See docs/deploy.md.
+      - name: Deploy the backend
+        working-directory: backend
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          # Until the Fly apps and the token exist, say so loudly and stop.
+          # A red main here would mean nothing a reader could act on, and the
+          # secret cannot be checked from a job-level `if`.
+          if [[ -z "$FLY_API_TOKEN" ]]; then
+            echo "### Backend not deployed" >> "$GITHUB_STEP_SUMMARY"
+            echo "\`FLY_API_TOKEN\` is not set on this environment, so the" \
+              "backend was skipped. See docs/deploy.md." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            config=fly.production.toml
+          else
+            config=fly.staging.toml
+          fi
+          flyctl deploy --config "$config" --remote-only
 
   deploy:
     needs: check

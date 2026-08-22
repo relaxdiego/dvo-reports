@@ -1,0 +1,41 @@
+# Staging backend. See docs/deploy.md.
+#
+# The app has to exist before CI can deploy to it; creating it is a one-time
+# manual step, because it needs an account this repository has no access to.
+
+app = "dvo-reports-api-staging"
+# Singapore is the closest Fly region to Davao.
+primary_region = "sin"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  # Exact matches only, so every origin the browser app is served from has to
+  # be listed. While the custom domains are not set up, that is the Cloudflare
+  # Pages branch alias.
+  #
+  # Pull request previews get a per-deploy URL that cannot be listed ahead of
+  # time, so a preview cannot submit a report to this backend. That is a known
+  # gap, not a bug to chase.
+  ALLOWED_ORIGINS = "https://staging.dvo-reports.pages.dev"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  # Scale to zero. A cold start is a fraction of a second and the city's own
+  # API is slower than that. Set min_machines_running = 1 to buy it back.
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [[http_service.checks]]
+    grace_period = "5s"
+    interval = "30s"
+    method = "GET"
+    path = "/healthz"
+    timeout = "5s"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "256mb"

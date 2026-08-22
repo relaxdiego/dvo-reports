@@ -1,0 +1,37 @@
+# Production backend. See docs/deploy.md.
+#
+# The app has to exist before CI can deploy to it; creating it is a one-time
+# manual step, because it needs an account this repository has no access to.
+
+app = "dvo-reports-api"
+# Singapore is the closest Fly region to Davao.
+primary_region = "sin"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  # Exact matches only. This is the Pages project's production alias, which
+  # only exists once a v* tag has been released. It becomes
+  # https://report.relaxdiego.com at launch; see the pre-flight checklist.
+  ALLOWED_ORIGINS = "https://dvo-reports.pages.dev"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  # Scale to zero. A cold start is a fraction of a second and the city's own
+  # API is slower than that. Set min_machines_running = 1 to buy it back.
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [[http_service.checks]]
+    grace_period = "5s"
+    interval = "30s"
+    method = "GET"
+    path = "/healthz"
+    timeout = "5s"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "256mb"

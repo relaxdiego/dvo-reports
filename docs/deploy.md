@@ -81,40 +81,80 @@ thing standing between a tag and every citizen who uses the site.
 
 ## Backend
 
-`cmd/server` is an ordinary Go HTTP server with no cloud SDK. That keeps the
-hosting choice reversible:
+Two Fly apps, one per environment, built from `backend/Dockerfile`:
 
-- **Container host** (DigitalOcean App Platform, Fly.io, Cloud Run). Build
-  `backend` and run `bin/server`. It reads `PORT`, which all of them set.
-- **AWS Lambda** behind the [Lambda Web Adapter][lwa] layer. The adapter
-  speaks HTTP to the process, so no code changes. Put a Function URL or API
-  Gateway in front.
-- **DigitalOcean Functions** would need a small adapter, because its Go
-  runtime calls a `Main(...)` function rather than serving HTTP. That adapter
-  does not exist yet.
+| Environment | Fly app                    | Config                       |
+| ----------- | -------------------------- | ---------------------------- |
+| Staging     | `dvo-reports-api-staging`  | `backend/fly.staging.toml`   |
+| Production  | `dvo-reports-api`          | `backend/fly.production.toml`|
 
-Deploy the backend twice, once per environment, from the same commit as the
-frontend that talks to it.
+CI deploys them: a push to `main` deploys staging, a `v*` tag deploys
+production. A pull request does not get its own backend — a preview talks to
+staging.
 
-[lwa]: https://github.com/awslabs/aws-lambda-web-adapter
+Both apps scale to zero. The first request after an idle period waits for the
+machine to start, well under a second, and the city's own API is slower than
+that. Set `min_machines_running = 1` in the config to buy it back.
+
+### One-time setup
+
+This needs a Fly account, so it cannot be done from a session working in this
+repository.
+
+1. **Create the two apps**, without deploying:
+
+   ```sh
+   fly apps create dvo-reports-api-staging
+   fly apps create dvo-reports-api
+   ```
+
+2. **Make a deploy token** and add it as the `FLY_API_TOKEN` repository
+   secret:
+
+   ```sh
+   fly tokens create deploy -a dvo-reports-api-staging
+   fly tokens create deploy -a dvo-reports-api
+   ```
+
+   A token is scoped to one app, so either add both as environment-scoped
+   secrets on the `staging` and `production` GitHub Environments, or use one
+   org token for both. Environment-scoped is the safer of the two: a staging
+   deploy then cannot touch production.
+
+3. **Push to `main`.** CI builds the image and deploys staging. The app
+   answers at `https://dvo-reports-api-staging.fly.dev/healthz`.
+
+4. **Set `VITE_API_BASE`** on the matching GitHub Environment to the backend
+   for that environment, then redeploy the frontend. It is baked in at build
+   time.
 
 ### Environment
 
 | Variable          | Default                 | Meaning                                          |
 | ----------------- | ----------------------- | ------------------------------------------------ |
-| `PORT`            | `8080`                  | Listen port.                                     |
+| `PORT`            | `8080`                  | Listen port. Fly sets this.                      |
 | `ALLOWED_ORIGINS` | `http://localhost:5173` | Comma-separated origins allowed to call the API. |
+| `UPSTREAM`        | `city`                  | `echo` swaps in the stand-in client.             |
+| `UPSTREAM_BASE_URL` | the city's API        | Override for testing against a fake.             |
 
-`ALLOWED_ORIGINS` must name the frontend for that environment — the two are
-on different hosts, so a wrong value shows up as every submission failing in
-the browser with a CORS error. On staging it also has to include the
-Cloudflare preview URLs if you want pull request previews to work against the
-staging backend; those are `https://<something>.dvo-reports.pages.dev`, and
-the list is exact matches only.
+`ALLOWED_ORIGINS` is set in each `fly.*.toml`. It must name the frontend for
+that environment — the two are on different hosts, so a wrong value shows up
+as every submission failing in the browser with a CORS error. The list is
+exact matches only, which is why a pull request preview, whose URL is
+generated per deploy, cannot submit against the staging backend.
 
-### A note on cold starts
+**`UPSTREAM` must never be `echo` in a deployed environment.** Echo invents
+reference numbers, so a citizen would be told their report was filed when it
+was not. The default is the real client precisely so that reaching for Echo
+has to be deliberate.
 
-A function that sleeps answers the first report slowly, which is the exact
-problem this project exists to fix. If you deploy to Lambda or another
-scale-to-zero runtime, either keep one instance warm or accept that the first
-report of the day is slow.
+### Moving off Fly
+
+`cmd/server` is an ordinary Go HTTP server with no cloud SDK, and the
+Dockerfile is a plain multi-stage build. Anything that runs a container and
+sets `PORT` will do: DigitalOcean App Platform, Cloud Run, or AWS Lambda
+behind the [Lambda Web Adapter][lwa]. DigitalOcean Functions would need a
+small adapter, because its Go runtime calls a `Main(...)` function rather
+than serving HTTP; that adapter does not exist.
+
+[lwa]: https://github.com/awslabs/aws-lambda-web-adapter
