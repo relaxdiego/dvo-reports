@@ -16,6 +16,7 @@ import (
 	"strings"
 
 	"github.com/relaxdiego/dvo-reports/backend/internal/photo"
+	"github.com/relaxdiego/dvo-reports/backend/internal/place"
 	"github.com/relaxdiego/dvo-reports/backend/internal/report"
 	"github.com/relaxdiego/dvo-reports/backend/internal/upstream"
 )
@@ -33,6 +34,10 @@ type Config struct {
 	AllowedOrigins []string
 	// Log receives one line per request outcome. Required.
 	Log *slog.Logger
+	// Places names the street a pin sits on, the way the city's own form
+	// does. Optional: without it a report carries its coordinates alone,
+	// which is what happened before there was a geocoder at all.
+	Places *place.Client
 }
 
 // New returns the backend's HTTP routes.
@@ -57,6 +62,12 @@ func New(cfg Config) http.Handler {
 	mux.HandleFunc("GET /api/reports", func(w http.ResponseWriter, r *http.Request) {
 		myReports(w, r, cfg)
 	})
+	// The street under a pin. Read-only, and about a place rather than a
+	// person: it needs no session, and nothing about the answer is kept.
+	mux.HandleFunc("GET /api/place", func(w http.ResponseWriter, r *http.Request) {
+		namePlace(w, r, cfg)
+	})
+
 	mux.HandleFunc("GET /api/reports/{reference}", func(w http.ResponseWriter, r *http.Request) {
 		history(w, r, cfg)
 	})
@@ -327,4 +338,30 @@ func writeJSON(w http.ResponseWriter, status int, body any) {
 
 func writeError(w http.ResponseWriter, status int, msg string) {
 	writeJSON(w, status, map[string]string{"error": msg})
+}
+
+// namePlace answers with the street a pin sits on. A failure here is not the
+// citizen's problem: the form falls back to the coordinates, which the city
+// accepts, so this answers 200 with an empty address rather than an error
+// the reporter would have to do something about.
+//
+// The coordinates are never logged. They are a citizen's location.
+func namePlace(w http.ResponseWriter, r *http.Request, cfg Config) {
+	lat, errLat := strconv.ParseFloat(r.URL.Query().Get("lat"), 64)
+	lon, errLon := strconv.ParseFloat(r.URL.Query().Get("lon"), 64)
+	if errLat != nil || errLon != nil || lat < -90 || lat > 90 || lon < -180 || lon > 180 {
+		writeError(w, http.StatusBadRequest, "lat and lon must be coordinates")
+		return
+	}
+	if cfg.Places == nil {
+		writeJSON(w, http.StatusOK, place.Place{})
+		return
+	}
+	found, err := cfg.Places.Reverse(r.Context(), lat, lon)
+	if err != nil {
+		cfg.Log.Warn("reverse geocode failed", "err", err)
+		writeJSON(w, http.StatusOK, place.Place{})
+		return
+	}
+	writeJSON(w, http.StatusOK, found)
 }

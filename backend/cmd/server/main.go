@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/relaxdiego/dvo-reports/backend/internal/api"
+	"github.com/relaxdiego/dvo-reports/backend/internal/place"
 	"github.com/relaxdiego/dvo-reports/backend/internal/upstream"
 )
 
@@ -30,6 +31,7 @@ func main() {
 			Upstream:       pickUpstream(log),
 			AllowedOrigins: splitList(envOr("ALLOWED_ORIGINS", "http://localhost:5173")),
 			Log:            log,
+			Places:         place.New(os.Getenv("NOMINATIM_BASE_URL")),
 		}),
 		ReadHeaderTimeout: 5 * time.Second,
 		// Generous: a report carries photos over a phone connection.

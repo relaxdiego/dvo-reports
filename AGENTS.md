@@ -74,6 +74,15 @@ just to trigger a workflow** — the history is public and permanent, and
   site works. It has no public API, so this code imitates its web form and
   will break when the form changes. Keep that blast radius here.
 - `backend/internal/api` — routes, size limits, CORS. Handlers stay thin.
+- `backend/internal/place` — names the street under a pin, so the report
+  carries what the city's own form would have put in its location box. It is
+  the only part of the backend that talks to anyone but the city. It lives
+  here rather than in the browser because OpenStreetMap's terms want a
+  User-Agent saying who is calling, which a page cannot set — and this way a
+  citizen's location never leaves their device for a third party. One request
+  a second, no more; that limit is their policy, not a guess. A lookup that
+  fails is not an error: the report goes with its coordinates, as it did
+  before this existed.
 - `backend/internal/photo` — **the only place photo metadata is decided.** It
   keeps a named few fields and drops everything else, by rebuilding the
   metadata from nothing rather than deleting from what arrived, so a tag
@@ -87,7 +96,8 @@ just to trigger a workflow** — the history is public and permanent, and
   needs at least one photo and a pair of coordinates. It does **not** need
   the photo to carry the coordinates: a camera with its location switched
   off is ordinary, and that reporter moves the pin themselves rather than
-  being turned away. There is no address field; the map is the place.
+  being turned away. Nobody types an address: `Draft.address` is the street
+  looked up from the pin, and an empty one is fine.
 - `frontend/src/image.ts` — shrinking photos before upload. This is the main
   reason the client feels fast. Do not remove it. It also copies the
   original's metadata block onto the resized photo, unread: drawing to a

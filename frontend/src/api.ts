@@ -43,6 +43,7 @@ export async function submitReport(d: Draft, token: string, signal?: AbortSignal
   const body = new FormData()
   body.set('category', d.category)
   body.set('description', d.description.trim())
+  body.set('address', d.address.trim())
   if (d.lat !== null && d.lon !== null) {
     body.set('lat', String(d.lat))
     body.set('lon', String(d.lon))
@@ -126,4 +127,42 @@ export function currentPosition(): Promise<{ lat: number; lon: number }> {
  */
 export function roundCoord(n: number): number {
   return Math.round(n * 1e5) / 1e5
+}
+
+/** What the street under a pin turns out to be. */
+export interface Place {
+  address: string
+  in_davao: boolean
+}
+
+/**
+ * Answers already given, for as long as the page is open. OpenStreetMap asks
+ * that results be cached, and a reporter nudging the pin back to where it was
+ * would otherwise ask the same question twice.
+ */
+const named = new Map<string, Place>()
+
+/**
+ * Names the street under a pin, through this project's own backend rather
+ * than from the browser: OpenStreetMap wants a User-Agent saying who is
+ * calling, which a page cannot set, and this way a citizen's location is
+ * never sent to a third party from their own device.
+ *
+ * Returns null when there is no answer. That is not an error worth showing:
+ * the report goes to the city with its coordinates, which is what happened
+ * before any of this existed.
+ */
+export async function lookupPlace(lat: number, lon: number, signal?: AbortSignal): Promise<Place | null> {
+  const key = `${lat},${lon}`
+  const seen = named.get(key)
+  if (seen) return seen
+  try {
+    const res = await fetch(`${API_BASE}/api/place?lat=${lat}&lon=${lon}`, { signal })
+    if (!res.ok) return null
+    const found = (await res.json()) as Place
+    named.set(key, found)
+    return found
+  } catch {
+    return null
+  }
 }

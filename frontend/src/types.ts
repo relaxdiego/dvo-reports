@@ -23,6 +23,13 @@ export const CATEGORY_LABELS: Record<string, string> = {
 export interface Draft {
   category: string
   description: string
+  /**
+   * The street under the pin, looked up rather than typed. The city's own
+   * form fills its location box the same way, from its own geocoder.
+   * Empty when the lookup found nothing or could not be made; the report
+   * then travels with its coordinates alone.
+   */
+  address: string
   /** Where the problem is. Never null in a draft that passes validate(). */
   lat: number | null
   lon: number | null

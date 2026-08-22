@@ -445,6 +445,62 @@ describe('picking the place on a map', () => {
     expect(root.textContent).toContain('The place you set: 7.06423, 125.60778')
   })
 
+  // The city's form fills its location box from the pin. So does this one,
+  // and it shows the answer, because it is what a city worker will read.
+  it('names the street under the pin and sends that as the location', async () => {
+    vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () =>
+      new Response(
+        JSON.stringify({ address: 'Quimpo Boulevard, Talomo, Davao City', in_davao: true }),
+        { status: 200 },
+      ),
+    ))
+
+    await attachPhotos(jpegPhoto())
+    await settle()
+
+    expect(root.querySelector('.street')?.textContent).toContain('Quimpo Boulevard, Talomo, Davao City')
+    expect(root.textContent).not.toContain('outside Davao City')
+  })
+
+  // Their own site turns these away. Better to say so here than to have the
+  // report vanish after it is sent.
+  // Each of these pins somewhere of its own: answers are remembered for as
+  // long as the page is open, so two tests sharing a spot would share a
+  // street as well.
+  it('warns when the pin is outside the city', async () => {
+    vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () =>
+      new Response(JSON.stringify({ address: 'Session Road, Baguio', in_davao: false }), { status: 200 }),
+    ))
+    geolocation({ latitude: 16.4116, longitude: 120.5933 })
+
+    await attachPhotos(jpegPhoto({ gps: false }))
+    click('Set the location')
+    await opened()
+    click('Use this place')
+    await settle()
+
+    const warning = root.querySelector('[role="alert"]')
+    expect(warning?.textContent).toContain('outside Davao City')
+    // Said, not enforced: the reporter can still file it.
+    expect(root.querySelector('button.primary')?.hasAttribute('disabled')).toBe(false)
+  })
+
+  // A geocoder that is down must not stop anybody filing anything.
+  it('files with the coordinates alone when no street can be found', async () => {
+    vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => new Response('nope', { status: 503 })))
+    geolocation({ latitude: 7.11111, longitude: 125.61111 })
+
+    await attachPhotos(jpegPhoto({ gps: false }))
+    click('Set the location')
+    await opened()
+    click('Use this place')
+    await settle()
+
+    expect(root.querySelector('.street')).toBeNull()
+    expect(root.textContent).toContain('The place you set: 7.11111, 125.61111')
+    expect(root.textContent).not.toContain('Looking up the street')
+  })
+
   it('starts at the middle of the city when the browser refuses', async () => {
     geolocation(null)
     await attachPhotos(jpegPhoto({ gps: false }))
@@ -458,9 +514,16 @@ describe('picking the place on a map', () => {
   it('sends the place the reporter picked', async () => {
     localStorage.setItem('dvo-reports.session', JSON.stringify({ token: 'tk-1' }))
     geolocation({ latitude: 7.06423, longitude: 125.60778 })
-    const fetchMock = vi.fn<typeof fetch>(async () =>
-      new Response(JSON.stringify({ reference: 'DCR-9' }), { status: 201 }),
-    )
+    const fetchMock = vi.fn<typeof fetch>(async (input) => {
+      const url = String(input)
+      if (url.includes('/api/place')) {
+        return new Response(
+          JSON.stringify({ address: 'Quimpo Boulevard, Talomo, Davao City', in_davao: true }),
+          { status: 200 },
+        )
+      }
+      return new Response(JSON.stringify({ reference: 'DCR-9' }), { status: 201 })
+    })
     vi.stubGlobal('fetch', fetchMock)
 
     await attachPhotos(jpegPhoto({ gps: false }))
@@ -480,11 +543,13 @@ describe('picking the place on a map', () => {
     act(() => { root.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })) })
     await settle()
 
-    const body = fetchMock.mock.calls[0][1]?.body as FormData
+    const filed = fetchMock.mock.calls.find(([url]) => String(url).endsWith('/api/reports'))!
+    const body = filed[1]?.body as FormData
     expect(body.get('lat')).toBe('7.06423')
     expect(body.get('lon')).toBe('125.60778')
-    // There is no address field any more. The map is the location.
-    expect(body.get('address')).toBeNull()
+    // Nobody typed this. It is the street under the pin, looked up the way
+    // the city's own form looks its own up.
+    expect(body.get('address')).toBe('Quimpo Boulevard, Talomo, Davao City')
     expect(body.getAll('photos')).toHaveLength(1)
   })
 

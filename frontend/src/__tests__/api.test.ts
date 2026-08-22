@@ -10,6 +10,7 @@ function draft(over: Partial<Draft> = {}): Draft {
   return {
     category: 'pothole',
     description: 'Deep pothole in the outer lane near the corner.',
+    address: 'Quimpo Boulevard, Talomo, Davao City',
     lat: 7.0731,
     lon: 125.6128,
     photos: [],

@@ -162,6 +162,7 @@ repository.
 | `ALLOWED_ORIGINS` | `http://localhost:5173` | Comma-separated origins allowed to call the API. |
 | `UPSTREAM`        | `city`                  | `echo` swaps in the stand-in client.             |
 | `UPSTREAM_BASE_URL` | the city's API        | Override for testing against a fake.             |
+| `NOMINATIM_BASE_URL` | OpenStreetMap's     | Override for testing the street lookup.          |
 
 `ALLOWED_ORIGINS` is set in each `fly.*.toml`. It must name the frontend for
 that environment — the two are on different hosts, so a wrong value shows up

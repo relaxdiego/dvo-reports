@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/hooks'
-import { ApiError, myReports, reportHistory, sendCode, submitReport, verifyCode } from './api'
+import { ApiError, lookupPlace, myReports, reportHistory, sendCode, submitReport, verifyCode, type Place as Street } from './api'
 import { forget, liveSession, remember, rememberedEmail } from './session'
 import { validate, MAX_PHOTOS } from './validate'
 import { osmLink, placeOfPhotos, readSnapshot, type Place, type Snapshot } from './exif'
@@ -21,6 +21,7 @@ const CITY_SITE = 'https://reports.davaocity.gov.ph'
 const emptyDraft: Draft = {
   category: '',
   description: '',
+  address: '',
   lat: null,
   lon: null,
   photos: [],
@@ -660,6 +661,8 @@ function LocationField({
 }) {
   const [byReporter, setByReporter] = useState(false)
   const [picking, setPicking] = useState(false)
+  const [street, setStreet] = useState<Street | null>(null)
+  const [naming, setNaming] = useState(false)
   const map = useMapChunk()
   const MapPicker = map.module?.MapPicker
   const MapHere = map.module?.MapHere
@@ -685,6 +688,29 @@ function LocationField({
     if (!wanted || map.module || map.opening || map.failed) return
     void map.open()
   }, [wanted, map.module, map.opening, map.failed, map.open])
+
+  // The city's own form fills its location box from whatever the pin sits
+  // on, so this one does too. The answer is shown rather than hidden: it is
+  // what a city worker will read, and the reporter can see it is wrong
+  // before anybody is sent to the wrong street.
+  const lat = draft.lat
+  const lon = draft.lon
+  useEffect(() => {
+    if (lat === null || lon === null) {
+      setStreet(null)
+      set('address', '')
+      return
+    }
+    let dropped = false
+    setNaming(true)
+    void lookupPlace(lat, lon).then((found) => {
+      if (dropped) return
+      setNaming(false)
+      setStreet(found)
+      set('address', found?.address ?? '')
+    })
+    return () => { dropped = true }
+  }, [lat, lon, set])
 
   const pick = ({ lat, lon }: { lat: number; lon: number }) => {
     setByReporter(true)
@@ -720,6 +746,25 @@ function LocationField({
         <p class="hint waiting" role="status">
           <span class="spinner" aria-hidden="true" />
           Drawing the map…
+        </p>
+      )}
+      {at && naming && (
+        <p class="hint waiting" role="status">
+          <span class="spinner" aria-hidden="true" />
+          Looking up the street…
+        </p>
+      )}
+      {at && !naming && street?.address && (
+        <p class="street">
+          {street.address}
+          <span class="meta"> — named by OpenStreetMap, and sent to the city as the location.</span>
+        </p>
+      )}
+      {at && !naming && street && !street.in_davao && (
+        <p class="note" role="alert">
+          This looks like it is outside Davao City. The city's own site turns away a report from
+          outside the city, so this one may not be accepted. Move the pin if it is in the wrong
+          place.
         </p>
       )}
       {at && (

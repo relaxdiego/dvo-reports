@@ -519,3 +519,14 @@ h2 {
 .emergencyline a {
   color: var(--danger);
 }
+
+/* The street the report will be filed under. Said plainly, because it is
+   what a city worker reads and what a reporter has to be able to check. */
+.street {
+  margin: 0.5rem 0 0;
+  font-size: 0.9rem;
+}
+
+.street .meta {
+  color: var(--muted);
+}
