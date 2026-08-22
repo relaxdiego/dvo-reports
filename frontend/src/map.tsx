@@ -71,14 +71,7 @@ export function MapPicker({
     }
   }, [at])
 
-  // Escape closes it, the way the rest of the browser behaves.
-  useEffect(() => {
-    const key = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
-    }
-    document.addEventListener('keydown', key)
-    return () => document.removeEventListener('keydown', key)
-  }, [onClose])
+  useEscape(onClose)
 
   return (
     <div class="sheet" role="dialog" aria-modal="true" aria-label="Pick the place on a map">
@@ -123,10 +116,62 @@ export function MapPicker({
 }
 
 /**
+ * A place on the map, shown and not chosen. This is what a reporter gets when
+ * they tap the coordinates on one of their photos: the same map, opened over
+ * the form, so the report they are part-way through writing is still there
+ * when they close it.
+ */
+export function MapView({
+  at,
+  caption,
+  onClose,
+}: {
+  at: Spot
+  /** What this place is, in the reporter's terms. */
+  caption?: string
+  onClose: () => void
+}) {
+  useEscape(onClose)
+
+  return (
+    <div class="sheet" role="dialog" aria-modal="true" aria-label="Where this photo was taken">
+      <div class="sheetbody">
+        <h2>Where this photo was taken</h2>
+        <div class="mapwrap">
+          <Canvas start={at} mark />
+        </div>
+        {caption && <p class="hint">{caption}</p>}
+        <p class="hint">
+          {at.lat}, {at.lon} — as the camera recorded it. This is not the place your report is
+          filed under; that is the one on the form.
+        </p>
+        <button class="primary" type="button" onClick={onClose}>
+          Close
+        </button>
+      </div>
+    </div>
+  )
+}
+
+/** Escape closes a sheet, the way the rest of the browser behaves. */
+function useEscape(onClose: () => void) {
+  useEffect(() => {
+    const key = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    document.addEventListener('keydown', key)
+    return () => document.removeEventListener('keydown', key)
+  }, [onClose])
+}
+
+/**
  * The Leaflet map itself. It is set up once and then left alone: Leaflet owns
  * this element, and re-rendering must not reach inside it.
+ *
+ * With `mark` it draws a ring on the spot and reports nothing; otherwise the
+ * ring is the fixed one in the middle of the frame and the map moves under it.
  */
-function Canvas({ start, onMove }: { start: Spot; onMove: (spot: Spot) => void }) {
+function Canvas({ start, onMove, mark }: { start: Spot; onMove?: (spot: Spot) => void; mark?: boolean }) {
   const node = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -135,13 +180,25 @@ function Canvas({ start, onMove }: { start: Spot; onMove: (spot: Spot) => void }
     const map = L.map(el, { center: [start.lat, start.lon], zoom: START_ZOOM })
     L.tileLayer(TILES, { maxZoom: 19, attribution: CREDIT }).addTo(map)
 
+    if (mark) {
+      // A drawn circle rather than Leaflet's own pin, whose image files do
+      // not survive a bundler without being pointed at by hand.
+      L.circleMarker([start.lat, start.lon], {
+        radius: 9,
+        weight: 3,
+        color: '#0b5fff',
+        fillColor: '#ffffff',
+        fillOpacity: 0.6,
+      }).addTo(map)
+    }
+
     // The pin does not move; the map moves under it. On a small screen that
     // beats dragging a marker, which the finger covers up.
     const report = () => {
       const c = map.getCenter()
-      onMove({ lat: roundCoord(c.lat), lon: roundCoord(c.lng) })
+      onMove?.({ lat: roundCoord(c.lat), lon: roundCoord(c.lng) })
     }
-    map.on('move', report)
+    if (onMove) map.on('move', report)
 
     // The sheet animates open, so the element can still be growing when
     // Leaflet measures it. This makes it measure again once it has settled.
@@ -149,7 +206,7 @@ function Canvas({ start, onMove }: { start: Spot; onMove: (spot: Spot) => void }
 
     return () => {
       clearTimeout(settled)
-      map.off('move', report)
+      if (onMove) map.off('move', report)
       map.remove()
     }
     // Deliberately once: `start` is where the map opens, not somewhere it

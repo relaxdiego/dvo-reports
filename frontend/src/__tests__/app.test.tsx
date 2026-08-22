@@ -219,8 +219,11 @@ describe('the photo field', () => {
 
   /** Puts files on the picker the way a phone would. */
   async function attach(...files: File[]) {
-    // jsdom has no object URLs, and the thumbnails ask for one.
-    vi.stubGlobal('URL', { ...URL, createObjectURL: () => 'blob:x', revokeObjectURL: () => {} })
+    // jsdom has no object URLs, and the thumbnails ask for one. Only the two
+    // methods are added: replacing URL itself would swap the constructor for
+    // a plain object, and the dynamic import of the map needs it to work.
+    Object.defineProperty(URL, 'createObjectURL', { value: () => 'blob:x', configurable: true })
+    Object.defineProperty(URL, 'revokeObjectURL', { value: () => {}, configurable: true })
     act(() => render(<App />, root))
     const input = root.querySelector<HTMLInputElement>('#photos')!
     Object.defineProperty(input, 'files', { value: files, configurable: true })
@@ -250,6 +253,48 @@ describe('the photo field', () => {
     // A photo with no place says so rather than showing nothing.
     expect(rows[1].querySelector('a')).toBeNull()
     expect(rows[1].textContent).toContain('No place recorded')
+  })
+
+  // Opening a new tab loses a half-written report, so a plain tap shows the
+  // place over the form instead.
+  it('opens the place over the form when the coordinates are tapped', async () => {
+    await attach(jpegPhoto())
+
+    const deadline = Date.now() + 4000
+    const link = root.querySelector<HTMLAnchorElement>('.photorow a')!
+    act(() => { link.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, button: 0 })) })
+    for (let i = 0; i < 400; i++) {
+      await act(async () => { await new Promise((r) => setTimeout(r, 5)) })
+      if (root.querySelector('.leaflet-container')) break
+      if (Date.now() > deadline) throw new Error(`no map; the page says: ${root.textContent}`)
+    }
+
+    const sheet = root.querySelector('[role="dialog"]')
+    expect(sheet).not.toBeNull()
+    expect(sheet?.querySelector('.leaflet-container')).not.toBeNull()
+    expect(sheet?.textContent).toContain('7.09753, 125.62229')
+    // The form is still underneath, not replaced.
+    expect(root.querySelector('#description')).not.toBeNull()
+
+    click('Close')
+    await settle()
+    expect(root.querySelector('[role="dialog"]')).toBeNull()
+  })
+
+  // It is still a link. Someone who asks for a new tab gets one.
+  it('leaves a ctrl-click to the browser', async () => {
+    await attach(jpegPhoto())
+
+    const link = root.querySelector<HTMLAnchorElement>('.photorow a')!
+    expect(link.getAttribute('target')).toBe('_blank')
+    expect(link.getAttribute('href')).toContain('openstreetmap.org')
+
+    const e = new MouseEvent('click', { bubbles: true, cancelable: true, button: 0, ctrlKey: true })
+    act(() => { link.dispatchEvent(e) })
+    await settle()
+
+    expect(e.defaultPrevented).toBe(false)
+    expect(root.querySelector('[role="dialog"]')).toBeNull()
   })
 
   it('takes a photo out of the list when its row is removed', async () => {
@@ -291,7 +336,7 @@ describe('picking the place on a map', () => {
    * on a deadline rather than a tick count, which used to fail under load.
    */
   async function waitFor(what: string, selector: string) {
-    const until = Date.now() + 5000
+    const until = Date.now() + 4000
     while (Date.now() < until) {
       await act(async () => { await new Promise((r) => setTimeout(r, 5)) })
       if (root.querySelector(selector)) return

@@ -585,8 +585,31 @@ function Header() {
  * The map is a few tens of kilobytes of Leaflet, which most reports do not
  * need: an address and the phone's own location are often enough. So it is
  * fetched the moment a reporter asks for it, and never before.
+ *
+ * Both the picker and the view of a photo's place come from that one chunk,
+ * so whichever is opened first pays for it and the second is immediate.
  */
-type Picker = typeof import('./map').MapPicker
+type MapModule = typeof import('./map')
+
+function useMapChunk() {
+  const [module, setModule] = useState<MapModule | null>(null)
+  const [opening, setOpening] = useState(false)
+  const [failed, setFailed] = useState(false)
+
+  const open = useCallback(async () => {
+    setOpening(true)
+    try {
+      setModule(await import('./map'))
+    } catch {
+      setFailed(true)
+    } finally {
+      setOpening(false)
+    }
+  }, [])
+
+  const close = useCallback(() => setModule(null), [])
+  return { module, opening, failed, open, close }
+}
 
 function LocationField({
   draft,
@@ -597,8 +620,8 @@ function LocationField({
 }) {
   const [status, setStatus] = useState<string | null>(null)
   const [locating, setLocating] = useState(false)
-  const [opening, setOpening] = useState(false)
-  const [MapPicker, setMapPicker] = useState<Picker | null>(null)
+  const map = useMapChunk()
+  const MapPicker = map.module?.MapPicker
 
   const locate = async () => {
     setLocating(true)
@@ -616,16 +639,8 @@ function LocationField({
   }
 
   const openMap = async () => {
-    setOpening(true)
     setStatus(null)
-    try {
-      const { MapPicker: loaded } = await import('./map')
-      setMapPicker(() => loaded)
-    } catch {
-      setStatus('The map could not be loaded. Type the address instead, or use your location.')
-    } finally {
-      setOpening(false)
-    }
+    await map.open()
   }
 
   const placed = draft.lat !== null && draft.lon !== null
@@ -644,10 +659,13 @@ function LocationField({
       <button type="button" class="secondary" onClick={locate} disabled={locating}>
         {locating ? 'Locating…' : 'Use my location'}
       </button>
-      <button type="button" class="secondary" onClick={openMap} disabled={opening}>
-        {opening ? 'Opening the map…' : placed ? 'Move the pin on a map' : 'Pick it on a map'}
+      <button type="button" class="secondary" onClick={openMap} disabled={map.opening}>
+        {map.opening ? 'Opening the map…' : placed ? 'Move the pin on a map' : 'Pick it on a map'}
       </button>
       {status && <p class="hint">{status}</p>}
+      {map.failed && (
+        <p class="hint">The map could not be loaded. Type the address instead, or use your location.</p>
+      )}
       {MapPicker && (
         <MapPicker
           at={placed ? { lat: draft.lat as number, lon: draft.lon as number } : null}
@@ -655,9 +673,9 @@ function LocationField({
             set('lat', lat)
             set('lon', lon)
             setStatus(`Using the place you picked on the map (${lat}, ${lon}).`)
-            setMapPicker(null)
+            map.close()
           }}
-          onClose={() => setMapPicker(null)}
+          onClose={map.close}
         />
       )}
     </>
@@ -738,7 +756,23 @@ function PhotoRow({ file, onRemove }: { file: File; onRemove: () => void }) {
     return () => { dropped = true }
   }, [file])
 
-  const placed = snap && snap.lat !== null && snap.lon !== null
+  const map = useMapChunk()
+  const MapView = map.module?.MapView
+  const at = snap && snap.lat !== null && snap.lon !== null
+    ? { lat: snap.lat, lon: snap.lon }
+    : null
+
+  /*
+    Still a real link. A plain tap opens the map over the form, so a
+    half-written report is not left behind in another tab — but a middle
+    click, a long press, or ctrl-click does what the reporter expected of a
+    link, and it still works if the map chunk will not load.
+  */
+  const onCoordinates = (e: MouseEvent) => {
+    if (map.failed || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return
+    e.preventDefault()
+    void map.open()
+  }
 
   return (
     <li class="photorow">
@@ -746,12 +780,12 @@ function PhotoRow({ file, onRemove }: { file: File; onRemove: () => void }) {
       <div class="photofacts">
         <span class="photoname">{file.name}</span>
         {!read && <span class="meta">Reading the photo…</span>}
-        {read && placed && (
-          <a href={osmLink(snap.lat as number, snap.lon as number)} target="_blank" rel="noreferrer">
-            {snap.lat}, {snap.lon}
+        {read && at && (
+          <a href={osmLink(at.lat, at.lon)} target="_blank" rel="noreferrer" onClick={onCoordinates}>
+            {map.opening ? 'Opening the map…' : `${at.lat}, ${at.lon}`}
           </a>
         )}
-        {read && !placed && <span class="meta">No place recorded.</span>}
+        {read && !at && <span class="meta">No place recorded.</span>}
         {read && (
           <span class="meta">{snap?.taken ? takenText(snap.taken) : 'No date recorded.'}</span>
         )}
@@ -759,6 +793,13 @@ function PhotoRow({ file, onRemove }: { file: File; onRemove: () => void }) {
       <button type="button" class="remove" aria-label={`Remove ${file.name}`} onClick={onRemove}>
         ×
       </button>
+      {MapView && at && (
+        <MapView
+          at={at}
+          caption={snap?.taken ? `Taken ${takenText(snap.taken)}.` : undefined}
+          onClose={map.close}
+        />
+      )}
     </li>
   )
 }
