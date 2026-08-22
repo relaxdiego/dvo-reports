@@ -1,10 +1,11 @@
 /** The issue types the backend accepts. Fetched at load; this is the fallback. */
 export const CATEGORIES = [
-  'pothole',
-  'streetlight',
   'garbage',
   'drainage',
-  'traffic-signal',
+  'pothole',
+  'streetlight',
+  'obstruction',
+  'stray-animal',
   'other',
 ] as const
 
@@ -12,11 +13,12 @@ export type Category = (typeof CATEGORIES)[number]
 
 /** Labels shown to the reporter. Keys must match CATEGORIES. */
 export const CATEGORY_LABELS: Record<string, string> = {
-  pothole: 'Pothole',
-  streetlight: 'Street light',
   garbage: 'Garbage',
   drainage: 'Drainage / flooding',
-  'traffic-signal': 'Traffic signal',
+  pothole: 'Pothole',
+  streetlight: 'Street light',
+  obstruction: 'Blocked road',
+  'stray-animal': 'Stray animal',
   other: 'Something else',
 }
 

@@ -25,8 +25,8 @@ type Photo struct {
 
 // Report is one issue a citizen wants to raise with the city.
 type Report struct {
-	// Category is the kind of issue, e.g. "pothole". The set of valid values
-	// comes from the upstream site; see Categories.
+	// Category is the kind of issue, e.g. "pothole". The valid values are
+	// this project's own; see Categories.
 	Category string
 	// Description is the free-text account of the issue.
 	Description string
@@ -42,14 +42,26 @@ type Report struct {
 	Photos []Photo
 }
 
-// Categories are the issue types this client offers. They are a placeholder
-// until the real list is read from reports.davaocity.gov.ph.
+// Categories are the issue types this client offers. The city's form has no
+// category field, so this list answers to nobody upstream: it exists to save
+// the reporter typing and to put a word the clerk knows at the front of the
+// title. See upstream.titleFor.
+//
+// The six are the issues Davao residents raise most that also suit this form,
+// which wants a photograph and a pin. That rules out complaints with nothing
+// to photograph (noise) and ones the city does not own (water and power cuts,
+// which are DCWD's and Davao Light's). They are ordered by how often the
+// thing is reported, so the common ones sit in the first row of chips.
+//
+// A wrong pick costs little, because the description is what carries the
+// report. Prefer "other" over a seventh chip.
 var Categories = []string{
-	"pothole",
-	"streetlight",
 	"garbage",
 	"drainage",
-	"traffic-signal",
+	"pothole",
+	"streetlight",
+	"obstruction",
+	"stray-animal",
 	"other",
 }
 
