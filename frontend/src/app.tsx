@@ -729,24 +729,17 @@ function LocationField({
 
   return (
     <>
-      <label>Where is it?</label>
-
-      {draft.photos.length === 0 && (
-        <p class="hint">
-          Add a photo first. If it recorded where it was taken, the map starts on that spot.
-        </p>
-      )}
+      {/*
+        Nothing here until there is a photo. The pin comes off the photograph,
+        so before one is attached this section has no map to draw and nothing
+        to say that the photo field has not already said.
+      */}
+      {(draft.photos.length > 0 || placed) && <label>Location</label>}
 
       {draft.photos.length > 0 && !placed && (
         <p class="hint">
           None of your photos recorded where it was taken, so the place has to be set by hand.
         </p>
-      )}
-
-      {(draft.photos.length > 0 || placed) && (
-        <button type="button" class="secondary" onClick={() => setPicking(true)} disabled={map.failed}>
-          {placed ? 'Adjust location' : 'Set the location'}
-        </button>
       )}
 
       {at && MapHere && <MapHere key={`${at.lat},${at.lon}`} at={at} />}
@@ -783,6 +776,12 @@ function LocationField({
               ? photoPlaceText(fromPhotos)
               : `${at.lat}, ${at.lon}.`}
         </p>
+      )}
+
+      {(draft.photos.length > 0 || placed) && (
+        <button type="button" class="secondary" onClick={() => setPicking(true)} disabled={map.failed}>
+          {placed ? 'Adjust location' : 'Set the location'}
+        </button>
       )}
 
       {map.failed && (
@@ -865,19 +864,6 @@ function PhotoField({
         own, so the button below needs no script, and a keyboard still lands
         on the input itself rather than on something pretending to be it.
       */}
-      <input
-        ref={input}
-        id="photos"
-        class="filepicker"
-        type="file"
-        accept="image/*"
-        multiple
-        onChange={add}
-      />
-      <label class="filebutton" for="photos">
-        {photos.length === 0 ? 'Add photos' : 'Add more photos'}
-      </label>
-      <p class="hint">Take a new photo, or pick ones already on your phone.</p>
       {photos.length > 0 && (
         <>
           <ul class="photolist">
@@ -903,6 +889,18 @@ function PhotoField({
           </p>
         </>
       )}
+      <input
+        ref={input}
+        id="photos"
+        class="filepicker"
+        type="file"
+        accept="image/*"
+        multiple
+        onChange={add}
+      />
+      <label class="filebutton" for="photos">
+        {photos.length === 0 ? 'Add photos' : 'Add more photos'}
+      </label>
     </>
   )
 }

@@ -370,6 +370,16 @@ describe('the photo field', () => {
     expect(root.querySelector('.filebutton')?.textContent).toBe('Add more photos')
   })
 
+  // The way to add another sits under what is already attached, so a reporter
+  // adding a third photo does not have to look back past the first two.
+  it('keeps the button under the photos it adds to', async () => {
+    await attach(jpegPhoto())
+
+    const list = root.querySelector('.photolist')!
+    const button = root.querySelector('.filebutton')!
+    expect(list.compareDocumentPosition(button) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
   // The photo already knows where the problem is. Asking the reporter for the
   // same thing again is work they do not need to do.
   it('starts the place from the photos, and lets it go with them', async () => {
@@ -379,7 +389,7 @@ describe('the photo field', () => {
     // The form is ordered so the photos come first and put the pin down.
     const form = root.querySelector('form')!.textContent!
     expect(form).toContain('Using the place your photo was taken (7.09753, 125.62229)')
-    expect(form.indexOf('Photos')).toBeLessThan(form.indexOf('Where is it?'))
+    expect(form.indexOf('Photos')).toBeLessThan(form.indexOf('Location'))
 
     // The pin is really down, not only described: the button offers to move
     // it rather than to place one.
@@ -389,10 +399,12 @@ describe('the photo field', () => {
     act(() => remove.click())
     await settle()
 
-    // With the photo gone there is nothing to file and nowhere to file it.
+    // With the photo gone there is nothing to file and nowhere to file it,
+    // so the whole location section goes with it.
     const after = root.querySelector('form')!.textContent!
     expect(after).not.toContain('Using the place')
-    expect(after).toContain('Add a photo first')
+    expect(after).not.toContain('Adjust location')
+    expect(after).not.toContain('Set the location')
   })
 })
 
@@ -439,7 +451,7 @@ describe('picking the place on a map', () => {
     act(() => render(<App />, root))
 
     expect(root.querySelector('.leaflet-container')).toBeNull()
-    expect(root.textContent).toContain('Add a photo first')
+    expect(root.textContent).not.toContain('Location')
     expect(root.textContent).not.toContain('Adjust location')
   })
 
@@ -453,6 +465,11 @@ describe('picking the place on a map', () => {
     expect(root.querySelector('[role="dialog"]')).toBeNull()
     expect(root.querySelector('.mapwrap.inline .leaflet-container')).not.toBeNull()
     expect(root.textContent).toContain('Adjust location')
+
+    // The way to move the pin sits under the map showing where it is.
+    const drawn = root.querySelector('.mapwrap.inline')!
+    const adjust = [...root.querySelectorAll('button')].find((b) => b.textContent?.trim() === 'Adjust location')!
+    expect(drawn.compareDocumentPosition(adjust) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 
   it('opens the picker on the pin the photo already put down', async () => {
