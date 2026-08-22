@@ -126,7 +126,6 @@ export function App() {
           }}
         />
       )}
-      <Footer />
     </main>
   )
 }
@@ -1006,14 +1005,6 @@ function Sent({ receipt, onAgain }: { receipt: Receipt; onAgain: () => void }) {
         Report something else
       </button>
     </>
-  )
-}
-
-function Footer() {
-  return (
-    <footer>
-      <a href="https://github.com/relaxdiego/dvo-reports">Source code</a>
-    </footer>
   )
 }
 

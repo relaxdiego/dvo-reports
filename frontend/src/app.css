@@ -277,12 +277,6 @@ button[disabled] {
   font-size: 1.2rem;
 }
 
-footer {
-  margin-top: 2.5rem;
-  font-size: 0.85rem;
-  color: var(--muted);
-}
-
 h2 {
   font-size: 1.15rem;
   margin: 1.25rem 0 0.5rem;
