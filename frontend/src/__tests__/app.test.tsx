@@ -174,3 +174,17 @@ describe('reloading the list', () => {
     expect(status?.textContent).toContain('Asking the city')
   })
 })
+
+describe('the photo field', () => {
+  // `capture` would send a phone straight to the camera and hide the photos
+  // the reporter already has.
+  it('lets the reporter pick photos already on the phone', () => {
+    act(() => render(<App />, root))
+
+    const input = root.querySelector<HTMLInputElement>('#photos')
+    expect(input).not.toBeNull()
+    expect(input?.hasAttribute('capture')).toBe(false)
+    expect(input?.multiple).toBe(true)
+    expect(input?.accept).toBe('image/*')
+  })
+})

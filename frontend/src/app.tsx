@@ -660,15 +660,21 @@ function PhotoField({ photos, onChange }: { photos: File[]; onChange: (p: File[]
   return (
     <>
       <label for="photos">Photos (up to {MAX_PHOTOS})</label>
+      {/*
+        No `capture` attribute on purpose. With it, a phone opens the camera
+        straight away and the reporter cannot reach the photos already on the
+        phone. Without it, the phone offers both, and iOS also honours
+        `multiple`.
+      */}
       <input
         ref={input}
         id="photos"
         type="file"
         accept="image/*"
         multiple
-        capture="environment"
         onChange={add}
       />
+      <p class="hint">Take a new photo, or pick ones already on your phone.</p>
       {photos.length > 0 && (
         <ul class="thumbs">
           {photos.map((f, i) => (
