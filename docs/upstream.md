@@ -17,6 +17,13 @@ A report needs a signed-in reporter. There is no anonymous path.
    code. The account must already exist and have a verified e-mail address.
    Registering is done on the city's own site; this project does not offer
    it.
+
+   **The code arrives by SMS, not by e-mail.** The request is keyed on the
+   e-mail address, but the city texts the code to the phone number registered
+   against that address, and the two are tied together during registration.
+   This was confirmed against the live site; it cannot be read from their
+   front end, which is why the sign-in used to word it vaguely. A reporter
+   needs that phone with them, so the app says so before asking.
 2. `GET verify?email=<email>&otp=<six digits>&trans=verifyotp` — returns a
    session token and when it expires.
 3. `POST complainController` — `multipart/form-data`, carrying `trans`,
@@ -55,6 +62,9 @@ The city's tracking page reads two more calls with the same token
    unknown control number comes back with an empty `data`, and so does one
    belonging to another reporter — the token decides whose reports can be
    read.
+
+The `attachments` on a listed report are confirmed against the live site: a
+report filed with photos comes back with a usable `link` for each one.
 
 A dead session is `isValid: false` on both, the same as on a submission. When
 the session is good the key is absent, so its absence is not a refusal.

@@ -438,6 +438,12 @@ function SignIn({ why, onDone }: { why: string; onDone: (token: string | null) =
             disabled={stage === 'code'}
             onInput={(e) => setEmail((e.target as HTMLInputElement).value)}
           />
+          {stage === 'email' && (
+            <p class="hint">
+              The city sends the code by text message, to the phone number registered with this
+              address. Have that phone with you.
+            </p>
+          )}
           {stage === 'code' && (
             <>
               <label for="code">The six-digit code</label>
@@ -451,8 +457,8 @@ function SignIn({ why, onDone }: { why: string; onDone: (token: string | null) =
                 onInput={(e) => setCode((e.target as HTMLInputElement).value)}
               />
               <p class="hint">
-                The city sent a code to the account registered under that address. It runs out after
-                a few minutes.
+                The city has sent a text message to the phone number registered with that address.
+                The code runs out after a few minutes.
               </p>
             </>
           )}

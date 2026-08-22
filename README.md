@@ -31,10 +31,11 @@ listing what you have already reported. None of it has yet been used against
 the city's live site, so every field name is still a guess read off their
 front end — see [docs/upstream.md](docs/upstream.md).
 
-**You need an account on the city's own site first.** The city will not accept
-a report from an anonymous citizen: it sends a one-time code to a registered
-e-mail address, and this app relays the code and nothing else. Registering
-happens on <https://reports.davaocity.gov.ph>, not here.
+**You need an account on the city's own site first**, and the phone that goes
+with it. The city will not accept a report from an anonymous citizen: you give
+your e-mail address, it texts a one-time code to the phone number registered
+against that address, and this app relays the code and nothing else.
+Registering happens on <https://reports.davaocity.gov.ph>, not here.
 
 ## Running it
 
