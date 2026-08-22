@@ -24,6 +24,12 @@ type fakeUpstream struct {
 	err      error
 	authErr  error
 	receipt  upstream.Receipt
+
+	filed        []upstream.Filed
+	history      upstream.History
+	listErr      error
+	historyErr   error
+	gotReference string
 }
 
 func (f *fakeUpstream) SendOTP(_ context.Context, email string) error {
@@ -49,6 +55,17 @@ func (f *fakeUpstream) Submit(_ context.Context, r report.Report, token string) 
 		return upstream.Receipt{}, f.err
 	}
 	return upstream.Receipt{Reference: "REF-1"}, nil
+}
+
+func (f *fakeUpstream) MyReports(_ context.Context, token string) ([]upstream.Filed, error) {
+	f.gotToken = token
+	return f.filed, f.listErr
+}
+
+func (f *fakeUpstream) History(_ context.Context, reference, token string) (upstream.History, error) {
+	f.gotToken = token
+	f.gotReference = reference
+	return f.history, f.historyErr
 }
 
 func newTestHandler(up upstream.Client) http.Handler {
@@ -374,5 +391,113 @@ func TestPreflightAllowsTheSessionHeader(t *testing.T) {
 
 	if got := rec.Header().Get("Access-Control-Allow-Headers"); !strings.Contains(got, sessionHeader) {
 		t.Errorf("allow-headers %q, want it to include %s", got, sessionHeader)
+	}
+}
+
+func TestMyReportsNeedsASession(t *testing.T) {
+	req := httptest.NewRequest("GET", "/api/reports", nil)
+	rec := httptest.NewRecorder()
+	newTestHandler(&fakeUpstream{}).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("status %d, want 401", rec.Code)
+	}
+}
+
+func TestMyReportsRelaysTheList(t *testing.T) {
+	up := &fakeUpstream{filed: []upstream.Filed{{
+		Reference: "2024-0001",
+		Title:     "Pothole: outer lane",
+		Status:    "ONGOING",
+		Filed:     "2024-05-01T08:00:00Z",
+	}}}
+
+	req := httptest.NewRequest("GET", "/api/reports", nil)
+	req.Header.Set(sessionHeader, "tk-1")
+	rec := httptest.NewRecorder()
+	newTestHandler(up).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status %d, body %s", rec.Code, rec.Body)
+	}
+	if up.gotToken != "tk-1" {
+		t.Errorf("token %q, want tk-1", up.gotToken)
+	}
+	var out struct {
+		Reports []upstream.Filed `json:"reports"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &out); err != nil {
+		t.Fatal(err)
+	}
+	if len(out.Reports) != 1 || out.Reports[0].Reference != "2024-0001" {
+		t.Fatalf("reports %+v", out.Reports)
+	}
+}
+
+func TestMyReportsAnswers401WhenTheSessionDied(t *testing.T) {
+	up := &fakeUpstream{listErr: upstream.ErrSessionExpired}
+
+	req := httptest.NewRequest("GET", "/api/reports", nil)
+	req.Header.Set(sessionHeader, "tk-1")
+	rec := httptest.NewRecorder()
+	newTestHandler(up).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("status %d, want 401", rec.Code)
+	}
+}
+
+func TestHistoryRelaysTheSteps(t *testing.T) {
+	up := &fakeUpstream{history: upstream.History{
+		Reference: "2024-0001",
+		Steps:     []upstream.Step{{Status: "RECEIVED", Office: "City Engineer", At: "2024-05-02T08:00:00Z"}},
+	}}
+
+	req := httptest.NewRequest("GET", "/api/reports/2024-0001", nil)
+	req.Header.Set(sessionHeader, "tk-1")
+	rec := httptest.NewRecorder()
+	newTestHandler(up).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status %d, body %s", rec.Code, rec.Body)
+	}
+	if up.gotReference != "2024-0001" {
+		t.Errorf("reference %q, want 2024-0001", up.gotReference)
+	}
+	var got upstream.History
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatal(err)
+	}
+	if len(got.Steps) != 1 || got.Steps[0].Status != "RECEIVED" {
+		t.Fatalf("steps %+v", got.Steps)
+	}
+}
+
+func TestHistoryAnswers404ForAnUnknownReference(t *testing.T) {
+	up := &fakeUpstream{historyErr: upstream.ErrNoSuchReport}
+
+	req := httptest.NewRequest("GET", "/api/reports/nope", nil)
+	req.Header.Set(sessionHeader, "tk-1")
+	rec := httptest.NewRecorder()
+	newTestHandler(up).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("status %d, want 404", rec.Code)
+	}
+}
+
+func TestHistoryHidesTheUpstreamErrorFromTheReporter(t *testing.T) {
+	up := &fakeUpstream{historyErr: errors.New("<html>database error at line 42</html>")}
+
+	req := httptest.NewRequest("GET", "/api/reports/2024-0001", nil)
+	req.Header.Set(sessionHeader, "tk-1")
+	rec := httptest.NewRecorder()
+	newTestHandler(up).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadGateway {
+		t.Fatalf("status %d, want 502", rec.Code)
+	}
+	if strings.Contains(rec.Body.String(), "database error") {
+		t.Errorf("the city's error reached the reporter: %s", rec.Body)
 	}
 }

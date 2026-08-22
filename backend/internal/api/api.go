@@ -53,8 +53,18 @@ func New(cfg Config) http.Handler {
 	mux.HandleFunc("POST /api/reports", func(w http.ResponseWriter, r *http.Request) {
 		submit(w, r, cfg)
 	})
+	mux.HandleFunc("GET /api/reports", func(w http.ResponseWriter, r *http.Request) {
+		myReports(w, r, cfg)
+	})
+	mux.HandleFunc("GET /api/reports/{reference}", func(w http.ResponseWriter, r *http.Request) {
+		history(w, r, cfg)
+	})
 	return cors(cfg.AllowedOrigins, mux)
 }
+
+// sessionExpiredMessage is what a reporter sees when the city stops accepting
+// their token. The frontend asks for a new code and tries again.
+const sessionExpiredMessage = "your session with the city's site has expired; ask for a new code and try again"
 
 // sessionHeader carries the city's session token. It is not a bearer token:
 // the city wants it as a form field, and this backend puts it there.
@@ -100,6 +110,59 @@ func verifyOTP(w http.ResponseWriter, r *http.Request, cfg Config) {
 	writeJSON(w, http.StatusOK, session)
 }
 
+// myReports lists what this reporter has already filed. The list holds their
+// own report bodies and locations, so it is relayed to their browser and
+// nothing about it is kept or logged beyond how many there were.
+func myReports(w http.ResponseWriter, r *http.Request, cfg Config) {
+	token := strings.TrimSpace(r.Header.Get(sessionHeader))
+	if token == "" {
+		writeError(w, http.StatusUnauthorized, "sign in with a code from the city's site to see your reports")
+		return
+	}
+	filed, err := cfg.Upstream.MyReports(r.Context(), token)
+	switch {
+	case errors.Is(err, upstream.ErrSessionExpired):
+		writeError(w, http.StatusUnauthorized, sessionExpiredMessage)
+		return
+	case err != nil:
+		cfg.Log.Error("upstream list failed", "err", err)
+		writeError(w, http.StatusBadGateway, "the city's site could not list your reports; please try again later")
+		return
+	}
+	cfg.Log.Info("reports listed", "count", len(filed))
+	writeJSON(w, http.StatusOK, map[string]any{"reports": filed})
+}
+
+// history says what became of one report. The city decides whose reports a
+// token may read, so this passes the reference straight through.
+func history(w http.ResponseWriter, r *http.Request, cfg Config) {
+	token := strings.TrimSpace(r.Header.Get(sessionHeader))
+	if token == "" {
+		writeError(w, http.StatusUnauthorized, "sign in with a code from the city's site to see your reports")
+		return
+	}
+	reference := strings.TrimSpace(r.PathValue("reference"))
+	if reference == "" {
+		writeError(w, http.StatusBadRequest, "a reference is required")
+		return
+	}
+	h, err := cfg.Upstream.History(r.Context(), reference, token)
+	switch {
+	case errors.Is(err, upstream.ErrSessionExpired):
+		writeError(w, http.StatusUnauthorized, sessionExpiredMessage)
+		return
+	case errors.Is(err, upstream.ErrNoSuchReport):
+		writeError(w, http.StatusNotFound, "the city has no report under that reference")
+		return
+	case err != nil:
+		cfg.Log.Error("upstream history failed", "err", err)
+		writeError(w, http.StatusBadGateway, "the city's site could not tell what happened to that report; please try again later")
+		return
+	}
+	cfg.Log.Info("report history read", "steps", len(h.Steps))
+	writeJSON(w, http.StatusOK, h)
+}
+
 func submit(w http.ResponseWriter, r *http.Request, cfg Config) {
 	token := strings.TrimSpace(r.Header.Get(sessionHeader))
 	if token == "" {
@@ -132,7 +195,7 @@ func submit(w http.ResponseWriter, r *http.Request, cfg Config) {
 	switch {
 	case errors.Is(err, upstream.ErrSessionExpired):
 		cfg.Log.Info("upstream session expired", "category", rep.Category)
-		writeError(w, http.StatusUnauthorized, "your session with the city's site has expired; ask for a new code and send the report again")
+		writeError(w, http.StatusUnauthorized, sessionExpiredMessage)
 		return
 	case errors.Is(err, upstream.ErrPhotosNotAttached):
 		// The report is filed and has a real reference. Saying it failed
@@ -157,7 +220,6 @@ func parseReport(r *http.Request) (report.Report, error) {
 		Category:    strings.TrimSpace(r.FormValue("category")),
 		Description: strings.TrimSpace(r.FormValue("description")),
 		Address:     strings.TrimSpace(r.FormValue("address")),
-		Contact:     strings.TrimSpace(r.FormValue("contact")),
 	}
 	var err error
 	if rep.Lat, err = parseCoord(r.FormValue("lat")); err != nil {

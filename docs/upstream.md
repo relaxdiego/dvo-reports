@@ -38,6 +38,35 @@ reference. `Submit` returns that reference with an error wrapping
 `ErrPhotosNotAttached`, and the API answers `201` with a warning. Reporting a
 plain failure would tell the citizen their report was not filed when it was.
 
+## Reading a reporter's own reports
+
+The city's tracking page reads two more calls with the same token
+(`js/trackingView.js`). Both are GETs, so `xtk` travels as a query parameter.
+
+1. `GET reportController?trans=getuserdetails&xtk=<token>` — every report the
+   account has filed. Each item carries `controlno`, `title`, `complain`,
+   `location`, `attachments` (each with a `link` and a `label`),
+   `date_reported`, and `current_status`. The order is not promised, so the
+   browser sorts it.
+2. `GET complainController?trans=getdetails&controlno=<no>&xtk=<token>` — what
+   became of one report: `data[]` of status steps, each with `status`,
+   `officename`, and `startdate`; `result[]` for what an office answered; and
+   `invalid.reason` or `resubmit.reason` for a status that needs one. An
+   unknown control number comes back with an empty `data`, and so does one
+   belonging to another reporter — the token decides whose reports can be
+   read.
+
+A dead session is `isValid: false` on both, the same as on a submission.
+
+The status words the city uses are `REPORTED`, `ENCODED`, `FORVERIFICATION`,
+`FORREMARKS`, `RECEIVED`, `PENDING`, `ONGOING`, `RESOLVED`, `COMPLETED`, plus
+`INVALID` and `FORRESUBMISSION`.
+
+**Timestamps are passed through unparsed.** `date_reported` and `startdate`
+have no documented layout, and the city's own page hands them to the
+browser's `Date`. This project does the same rather than guess a layout and
+lose the value.
+
 ## Fields the city does not have
 
 - **No category.** The city's form has no category, office, or department
@@ -45,10 +74,14 @@ plain failure would tell the citizen their report was not filed when it was.
   a prefix on the `title` built from the description — except `other`, which
   has no useful label and gets no prefix.
 - **No contact field.** The city takes the reporter's contact details from
-  their account, so `Report.Contact` has nowhere to go and is not sent.
+  their account. The form used to ask for one and had nowhere to send it, so
+  the field is gone: asking a citizen for a contact detail that is thrown away
+  is misleading, and it kept one more personal detail moving through this
+  backend for no benefit.
 - **No tracking URL.** Following a report is another authenticated call, and
   the city renders it in a modal. There is no page to link to, so
-  `Receipt.TrackURL` stays empty.
+  `Receipt.TrackURL` stays empty. The past reports tab makes that call itself
+  instead; see above.
 - **Location is required.** The city's form refuses an empty `location`, so a
   report carrying only coordinates sends those as the location text.
 

@@ -35,9 +35,7 @@ type Report struct {
 	// Lat and Lon come from the browser's geolocation. Both zero means the
 	// reporter did not share a location.
 	Lat, Lon float64
-	// Contact is an optional email or phone number for follow-up.
-	Contact string
-	Photos  []Photo
+	Photos   []Photo
 }
 
 // Categories are the issue types this client offers. They are a placeholder

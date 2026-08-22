@@ -30,6 +30,10 @@ const maxTitleRunes = 100
 // ask for a new OTP.
 var ErrSessionExpired = errors.New("the city session has expired")
 
+// ErrNoSuchReport means the city has no report under that control number for
+// this reporter. A control number belonging to somebody else looks the same.
+var ErrNoSuchReport = errors.New("no report with that reference")
+
 // ErrPhotosNotAttached means the report reached the city and has a reference,
 // but the photos did not. The report exists; do not tell the reporter it
 // failed.
@@ -128,6 +132,122 @@ func (c *City) Submit(ctx context.Context, r report.Report, token string) (Recei
 	// call that needs the reporter's own session. Receipt.TrackURL stays
 	// empty on purpose.
 	return Receipt{Reference: ref}, nil
+}
+
+// MyReports lists the reports filed by the session's owner.
+//
+// The city's own tracking page reads the same call (js/trackingView.js:380).
+// It returns every report the account has filed, in no particular order.
+func (c *City) MyReports(ctx context.Context, token string) ([]Filed, error) {
+	var out struct {
+		IsValid *bool `json:"isValid"`
+		Data    []struct {
+			ControlNo    flexString `json:"controlno"`
+			Title        string     `json:"title"`
+			Complain     string     `json:"complain"`
+			Location     string     `json:"location"`
+			Status       string     `json:"current_status"`
+			DateReported string     `json:"date_reported"`
+			Attachments  []struct {
+				Link string `json:"link"`
+			} `json:"attachments"`
+		} `json:"data"`
+	}
+	q := url.Values{"trans": {"getuserdetails"}, "xtk": {token}}
+	if err := c.get(ctx, "reportController", q, &out); err != nil {
+		return nil, err
+	}
+	if out.IsValid != nil && !*out.IsValid {
+		return nil, ErrSessionExpired
+	}
+	filed := make([]Filed, 0, len(out.Data))
+	for _, d := range out.Data {
+		f := Filed{
+			Reference:   string(d.ControlNo),
+			Title:       d.Title,
+			Description: d.Complain,
+			Location:    d.Location,
+			Status:      strings.ToUpper(strings.TrimSpace(d.Status)),
+			Filed:       d.DateReported,
+		}
+		for _, a := range d.Attachments {
+			if a.Link != "" {
+				f.Photos = append(f.Photos, a.Link)
+			}
+		}
+		filed = append(filed, f)
+	}
+	return filed, nil
+}
+
+// History tells what became of one filed report.
+//
+// The city answers with the report's status changes, the offices that were
+// sent it, and the reason behind a status that needs one. A reporter can only
+// read their own reports: the token decides whose they are, and a control
+// number belonging to somebody else comes back empty.
+func (c *City) History(ctx context.Context, reference, token string) (History, error) {
+	var out struct {
+		IsValid *bool `json:"isValid"`
+		Data    []struct {
+			Status    string `json:"status"`
+			Office    string `json:"officename"`
+			StartDate string `json:"startdate"`
+		} `json:"data"`
+		Result []struct {
+			Office      string `json:"office"`
+			Attachments []struct {
+				URL string `json:"url"`
+			} `json:"attachments"`
+		} `json:"result"`
+		Invalid struct {
+			Reason string `json:"reason"`
+		} `json:"invalid"`
+		Resubmit struct {
+			Reason string `json:"reason"`
+		} `json:"resubmit"`
+	}
+	q := url.Values{"trans": {"getdetails"}, "controlno": {reference}, "xtk": {token}}
+	if err := c.get(ctx, "complainController", q, &out); err != nil {
+		return History{}, err
+	}
+	if out.IsValid != nil && !*out.IsValid {
+		return History{}, ErrSessionExpired
+	}
+	if len(out.Data) == 0 {
+		return History{}, ErrNoSuchReport
+	}
+	h := History{Reference: reference}
+	for _, d := range out.Data {
+		h.Steps = append(h.Steps, Step{
+			Status: strings.ToUpper(strings.TrimSpace(d.Status)),
+			Office: d.Office,
+			At:     d.StartDate,
+		})
+	}
+	// The city sends the reason for a rejected report and for one it wants
+	// filed again in two separate places, and only one of them can apply.
+	for _, step := range h.Steps {
+		switch step.Status {
+		case "INVALID":
+			h.Note = out.Invalid.Reason
+		case "FORRESUBMISSION":
+			h.Note = out.Resubmit.Reason
+		}
+	}
+	for _, r := range out.Result {
+		if r.Office == "" {
+			continue
+		}
+		res := Resolution{Office: r.Office}
+		for _, a := range r.Attachments {
+			if a.URL != "" {
+				res.Files = append(res.Files, a.URL)
+			}
+		}
+		h.Resolutions = append(h.Resolutions, res)
+	}
+	return h, nil
 }
 
 // post sends one complainController request and returns the control number.

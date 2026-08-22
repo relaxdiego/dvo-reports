@@ -324,3 +324,87 @@ func TestSubmitFallsBackToCoordinatesForTheLocation(t *testing.T) {
 		t.Errorf("location %q", got)
 	}
 }
+
+// The list carries a reporter's own reports, in the city's own field names.
+func TestMyReportsReadsTheCitysList(t *testing.T) {
+	city := newFakeCity(t, `{"isValid":true,"data":[
+		{"controlno":"DCR-2026-0001","title":"Pothole: outer lane","complain":"Deep pothole.",
+		 "location":"Quimpo Blvd","current_status":"ongoing","date_reported":"2026-05-01T08:00:00Z",
+		 "attachments":[{"link":"https://city.example/a.jpg","label":"a.jpg"},{"link":""}]}]}`)
+
+	got, err := city.client().MyReports(context.Background(), "tk-1")
+	if err != nil {
+		t.Fatalf("want nil, got %v", err)
+	}
+	if len(got) != 1 {
+		t.Fatalf("want 1 report, got %d", len(got))
+	}
+	c := city.calls[0]
+	if c.Path != "reportController" || c.Query["trans"] != "getuserdetails" || c.Query["xtk"] != "tk-1" {
+		t.Errorf("request %+v", c)
+	}
+	want := Filed{
+		Reference:   "DCR-2026-0001",
+		Title:       "Pothole: outer lane",
+		Description: "Deep pothole.",
+		Location:    "Quimpo Blvd",
+		// The city writes the status in either case; the reporter sees one.
+		Status: "ONGOING",
+		Filed:  "2026-05-01T08:00:00Z",
+		Photos: []string{"https://city.example/a.jpg"},
+	}
+	if got[0].Reference != want.Reference || got[0].Status != want.Status || got[0].Filed != want.Filed {
+		t.Errorf("got %+v, want %+v", got[0], want)
+	}
+	if len(got[0].Photos) != 1 || got[0].Photos[0] != want.Photos[0] {
+		t.Errorf("photos %+v", got[0].Photos)
+	}
+}
+
+// A dead session looks the same on the list as it does on a submission.
+func TestMyReportsReportsAnExpiredSession(t *testing.T) {
+	city := newFakeCity(t, `{"isValid":false}`)
+
+	if _, err := city.client().MyReports(context.Background(), "tk-old"); !errors.Is(err, ErrSessionExpired) {
+		t.Fatalf("want ErrSessionExpired, got %v", err)
+	}
+}
+
+// The history carries the status steps, and the reason behind a status that
+// needs one.
+func TestHistoryReadsTheStepsAndTheReason(t *testing.T) {
+	city := newFakeCity(t, `{"isValid":true,
+		"data":[{"status":"FORRESUBMISSION","officename":"","startdate":"2026-05-03T08:00:00Z"},
+		        {"status":"REPORTED","officename":"City Engineer","startdate":"2026-05-01T08:00:00Z"}],
+		"result":[{"office":"City Engineer","attachments":[{"url":"https://city.example/f.pdf"}]}],
+		"invalid":{"reason":"not used here"},
+		"resubmit":{"reason":"the photo does not show the place"}}`)
+
+	got, err := city.client().History(context.Background(), "DCR-2026-0001", "tk-1")
+	if err != nil {
+		t.Fatalf("want nil, got %v", err)
+	}
+	c := city.calls[0]
+	if c.Path != "complainController" || c.Query["trans"] != "getdetails" || c.Query["controlno"] != "DCR-2026-0001" {
+		t.Errorf("request %+v", c)
+	}
+	if len(got.Steps) != 2 || got.Steps[1].Office != "City Engineer" {
+		t.Fatalf("steps %+v", got.Steps)
+	}
+	if got.Note != "the photo does not show the place" {
+		t.Errorf("note %q", got.Note)
+	}
+	if len(got.Resolutions) != 1 || len(got.Resolutions[0].Files) != 1 {
+		t.Errorf("resolutions %+v", got.Resolutions)
+	}
+}
+
+// The city answers an unknown control number with an empty list, and so does
+// one that belongs to somebody else.
+func TestHistoryReportsAnUnknownReference(t *testing.T) {
+	city := newFakeCity(t, `{"isValid":true,"data":[]}`)
+
+	if _, err := city.client().History(context.Background(), "nope", "tk-1"); !errors.Is(err, ErrNoSuchReport) {
+		t.Fatalf("want ErrNoSuchReport, got %v", err)
+	}
+}
