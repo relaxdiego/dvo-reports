@@ -1,9 +1,29 @@
+import { execFileSync } from 'node:child_process'
 import { defineConfig } from 'vitest/config'
 import preact from '@preact/preset-vite'
+
+// Stamped onto the page so a bug report can say which build it came from.
+// There is no other way to tell: the site stores nothing and the bundle's
+// content hash is not visible to whoever is looking at the page.
+const buildTime = new Date().toISOString().slice(0, 19) + 'Z'
+
+// Short, because it is read off a phone screen and still names one commit.
+// A build from a tarball or a shallow archive has no git to ask, and a
+// missing stamp must not fail the build — the site is the point, not this.
+let buildSha = 'unknown'
+try {
+  buildSha = execFileSync('git', ['rev-parse', '--short', 'HEAD']).toString().trim()
+} catch {
+  // Left as 'unknown'.
+}
 
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [preact()],
+  define: {
+    __BUILD_TIME__: JSON.stringify(buildTime),
+    __BUILD_SHA__: JSON.stringify(buildSha),
+  },
   server: {
     // In development the Go backend runs on 8080, so /api is same-origin
     // here and CORS never enters the picture.

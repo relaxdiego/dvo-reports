@@ -607,3 +607,15 @@ h2 {
   font-size: 0.9rem;
 }
 
+
+/* Which build this is, so a bug report can name one. It is for whoever is
+   debugging, not for the reporter, so it is dimmer than .hint and everything
+   else here: present when looked for, and not competing with the form. */
+.build {
+  margin: 2.5rem 0 0;
+  text-align: center;
+  font-family: ui-monospace, monospace;
+  font-size: 0.7rem;
+  color: var(--muted);
+  opacity: 0.55;
+}

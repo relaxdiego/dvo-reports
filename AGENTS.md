@@ -83,6 +83,21 @@ ask. Do not retry it in a loop, and **never make an empty or throwaway commit
 just to trigger a workflow** — the history is public and permanent, and
 `workflow_dispatch` exists for exactly this.
 
+**Report the build stamp every time you deploy.** When a deploy finishes,
+say which build went out, in the form the page shows it:
+
+```
+YYYY-MM-DDTHH:MM:SSZ <git-sha>
+```
+
+The bottom of the page carries that same line, so the maintainer can open
+the site and check that what is live is what you just sent. Without it there
+is nothing to compare: the site stores nothing, Cloudflare Pages serves each
+target from one project, and a deploy that quietly did not replace the old
+bundle looks exactly like one that did. The values come from
+`__BUILD_TIME__` and `__BUILD_SHA__`, worked out in `frontend/vite.config.ts`
+at build time; name the environment you deployed to alongside them.
+
 ## Structure
 
 - `backend/internal/report` — the report type and its validation. No HTTP, no

@@ -133,6 +133,7 @@ export function App() {
         />
       )}
       {showDisclaimer && <Disclaimer onClose={() => setShowDisclaimer(false)} />}
+      <footer class="build">{__BUILD_TIME__} {__BUILD_SHA__}</footer>
     </main>
   )
 }
