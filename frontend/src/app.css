@@ -434,6 +434,48 @@ h2 {
   margin-top: 0;
 }
 
+/* The disclaimer, which covers the page rather than rising from the bottom
+   of it. There is no backdrop to tap past and nothing scrolls on its own
+   inside: the way out is the Close button at the end, so reaching it means
+   scrolling past the terms. */
+.sheet.full {
+  display: block;
+  background: var(--bg);
+  overflow-y: auto;
+  /* Reaching the end of the terms should not start scrolling the form
+     underneath them. */
+  overscroll-behavior: contain;
+}
+
+/* The title of the page, not of the first section under it. Without the
+   space below, "Disclaimer" and "What this site is" read as one heading
+   said twice. */
+.sheet.full h2 {
+  font-size: 1.4rem;
+  margin-bottom: 2rem;
+}
+
+.sheet.full .sheetbody {
+  margin: 0 auto;
+  max-height: none;
+  overflow-y: visible;
+  border-radius: 0;
+  padding-bottom: 3rem;
+}
+
+/* Each half of it keeps its heading, so the reader can see where this
+   site's promises end and the city's terms begin. */
+.sheet.full section + section {
+  margin-top: 2.5rem;
+}
+
+.sheet.full h3 {
+  font-size: 1.05rem;
+  margin: 0 0 0.75rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid var(--line);
+}
+
 /* The search box and a refresh button, side by side. */
 .listtop {
   display: flex;
@@ -541,10 +583,10 @@ h2 {
   cursor: pointer;
 }
 
-/* The city's own words, set apart from this project's. */
+/* A block of terms, set apart from the page around it. It does not scroll
+   on its own — see .sheet.full above — so the whole of it is read on the way
+   down to the Close button. */
 .notice {
-  max-height: 45vh;
-  overflow-y: auto;
   padding: 0.75rem 0.9rem;
   border: 1px solid var(--line);
   border-radius: var(--radius);

@@ -542,47 +542,130 @@ describe('the map on the form', () => {
   })
 })
 
-// The city has no page for its terms, so a reporter who never visits the
-// city's own site would otherwise never see what they are agreeing to.
-describe("the city's terms", () => {
-  function open(phrase: string) {
+// One page, opened from one link. The city has no page for its terms, so a
+// reporter who never visits the city's own site would otherwise never see
+// what they are agreeing to.
+describe('the disclaimer', () => {
+  function open() {
     act(() => render(<App />, root))
     const link = [...root.querySelectorAll<HTMLButtonElement>('header .linky')].find(
-      (b) => b.textContent?.trim() === phrase,
+      (b) => b.textContent?.trim() === 'disclaimer',
     )
-    if (!link) throw new Error(`no preamble link reading "${phrase}"`)
+    if (!link) throw new Error('no preamble link reading "disclaimer"')
     act(() => link.click())
   }
 
-  const openCity = () => open("the city's disclaimer and privacy terms")
+  // The line on the form says the one thing a reporter has to know before
+  // they start. Everything else waits behind the link.
+  it('is one link, under a line short enough to read', () => {
+    act(() => render(<App />, root))
 
-  it("opens the city's words over the page", () => {
-    openCity()
+    const line = root.querySelector('header .unofficial')!
+    expect(line.textContent).toContain('Unofficial site, not run by the city government')
+    expect(line.textContent).toContain('Use at your own risk')
+    // The one thing that binds the reporter, on the form and not only
+    // behind the link: on the city's own site it is a button they press.
+    expect(line.textContent).toContain("Sending a report means agreeing to the city's terms")
+    expect(root.querySelectorAll('header .linky')).toHaveLength(1)
+  })
 
-    const sheet = root.querySelector('[role="dialog"]')
-    expect(sheet).not.toBeNull()
+  it('covers the page, this site first and the city after', () => {
+    open()
+
+    const sheet = root.querySelector<HTMLElement>('[role="dialog"]')!
+    expect(sheet.classList.contains('full')).toBe(true)
+    expect(root.querySelectorAll('[role="dialog"]')).toHaveLength(1)
+
+    const headings = [...sheet.querySelectorAll('h2, h3')].map((h) => h.textContent?.trim())
+    expect(headings).toEqual(['Disclaimer', 'What this site is', "The city's disclaimer"])
+  })
+
+  // Nobody else's page is embedded here: the city's words are a copy this
+  // repository holds, and a frame would leak every reader to their server.
+  it('carries the terms itself rather than framing them', () => {
+    open()
+
+    expect(root.querySelector('[role="dialog"] iframe')).toBeNull()
+  })
+
+  // A pothole form is the wrong place to report a fire. Whoever tries it
+  // anyway should be sent somewhere useful in the first few words.
+  it('sends an emergency to 911, before anything else', () => {
+    open()
+
+    const sheet = root.querySelector('[role="dialog"]')!
+    const warning = sheet.querySelector('.emergency')!
+    expect(warning.textContent).toContain('call 911 from any phone')
+    expect(warning.textContent).toContain('can take days to be seen')
+
+    // Above the terms themselves, not buried inside them.
+    const notice = sheet.querySelector('.notice')!
+    expect(warning.compareDocumentPosition(notice) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('says the plain things: nothing kept, nothing promised', () => {
+    open()
+
+    const sheet = root.querySelector('[role="dialog"]')!
+    expect(sheet.textContent).toContain('What this site is')
+    expect(sheet.textContent).toContain('There is no database')
+    expect(sheet.textContent).toContain('you use it at your own risk')
+    expect(sheet.textContent).toContain('not run by the city government')
+  })
+
+  // The notice and backend/internal/photo have to say the same thing. If
+  // the filter starts keeping something again, this is the sentence that
+  // becomes a lie.
+  it('says a photo carries on only its place and time', () => {
+    open()
+
+    const sheet = root.querySelector('[role="dialog"]')!
+    expect(sheet.textContent).toContain('Only those two things go on to the city')
+    expect(sheet.textContent).toContain('the identifiers it puts on each photograph — is removed')
+  })
+
+  it("keeps the city's words the city's", () => {
+    open()
+
+    const sheet = root.querySelector('[role="dialog"]')!
     // "the site's", where the city writes "our": on this page "our" would
     // read as this project, which wrote none of it.
-    expect(sheet?.textContent).toContain(
+    expect(sheet.textContent).toContain(
       "By using Davao City Reports App, you hereby consent to the site's Privacy Policy",
     )
-    expect(sheet?.textContent).not.toContain('consent to our Privacy Policy')
-    expect(sheet?.textContent).toContain('Disclaimer Acceptance:')
+    expect(sheet.textContent).not.toContain('consent to our Privacy Policy')
+    expect(sheet.textContent).toContain('Disclaimer Acceptance:')
   })
 
   // A copy is only as good as the day it was taken, and the city can change
   // its terms without telling anyone.
   it('says when the copy was taken, and whose words they are', () => {
-    openCity()
+    open()
 
     const sheet = root.querySelector('[role="dialog"]')!
     expect(sheet.textContent).toContain('as of 22 August 2026')
     expect(sheet.textContent).toContain("The following are the city's words")
-    expect(sheet.querySelector('a')?.getAttribute('href')).toBe('https://reports.davaocity.gov.ph')
+    // The one edited word is named where a reader sees it, not only in a
+    // code comment: text called somebody's exact words has to be.
+    expect(sheet.textContent).toContain('One word is changed')
+  })
+
+  // The way out is at the end of the reading, not beside the start of it,
+  // and nothing inside scrolls on its own to hide the rest.
+  it('puts the only way out after the last of the terms', () => {
+    open()
+
+    const body = root.querySelector('[role="dialog"] .sheetbody')!
+    const buttons = [...body.querySelectorAll('button')]
+    expect(buttons.map((b) => b.textContent?.trim())).toEqual(['Close'])
+    expect(buttons[0]).toBe(body.lastElementChild)
+
+    const city = [...body.querySelectorAll('section')].at(-1)!
+    expect(city.compareDocumentPosition(buttons[0]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 
   it('closes again and leaves the form behind it', () => {
-    openCity()
+    open()
     click('Close')
 
     expect(root.querySelector('[role="dialog"]')).toBeNull()
@@ -590,9 +673,7 @@ describe("the city's terms", () => {
   })
 })
 
-// This site's own terms. Separate from the city's on purpose: a reporter
-// should be able to tell whose promise is whose.
-// The line on the page and the one in the notice have to agree, and the
+// The line on the page and the one in the disclaimer have to agree, and the
 // one on the page has to be there without anybody asking for it.
 describe('the emergency line on the page', () => {
   it('is on the form itself, before any pop-up is opened', () => {
@@ -611,63 +692,5 @@ describe('the emergency line on the page', () => {
 
     const call = root.querySelector('header .emergencyline a')!
     expect(call.getAttribute('href')).toBe('tel:911')
-  })
-})
-
-describe("this site's own notice", () => {
-  function openSite() {
-    act(() => render(<App />, root))
-    const link = [...root.querySelectorAll<HTMLButtonElement>('header .linky')].find(
-      (b) => b.textContent?.trim() === 'how this site handles your report',
-    )!
-    act(() => link.click())
-  }
-
-  // A pothole form is the wrong place to report a fire. Whoever tries it
-  // anyway should be sent somewhere useful in the first few words.
-  it('sends an emergency to 911, before anything else', () => {
-    openSite()
-
-    const sheet = root.querySelector('[role="dialog"]')!
-    const warning = sheet.querySelector('.emergency')!
-    expect(warning.textContent).toContain('call 911 from any phone')
-    expect(warning.textContent).toContain('take days to reach the city')
-
-    // Above the notice itself, not buried inside it.
-    const notice = sheet.querySelector('.notice')!
-    expect(warning.compareDocumentPosition(notice) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-  })
-
-  it('says the plain things: nothing kept, nothing promised', () => {
-    openSite()
-
-    const sheet = root.querySelector('[role="dialog"]')!
-    expect(sheet.textContent).toContain('What this site is')
-    expect(sheet.textContent).toContain('There is no database')
-    expect(sheet.textContent).toContain('you use it at your own risk')
-    expect(sheet.textContent).toContain('not run by the city government')
-  })
-
-  // The notice and backend/internal/photo have to say the same thing. If
-  // the filter starts keeping something again, this is the sentence that
-  // becomes a lie.
-  it('says a photo carries on only its place and time', () => {
-    openSite()
-
-    const sheet = root.querySelector('[role="dialog"]')!
-    expect(sheet.textContent).toContain('Only the place and the time a photo carries go on')
-    expect(sheet.textContent).toContain('the identifiers it puts on each photograph — is removed')
-  })
-
-  // Two notices, never both at once, and each closes on its own.
-  it("stands apart from the city's notice", () => {
-    openSite()
-    expect(root.querySelectorAll('[role="dialog"]')).toHaveLength(1)
-    expect(root.querySelector('[role="dialog"]')?.textContent).not.toContain(
-      'Disclaimer Acceptance:',
-    )
-
-    click('Close')
-    expect(root.querySelector('[role="dialog"]')).toBeNull()
   })
 })

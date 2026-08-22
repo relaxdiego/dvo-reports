@@ -9,6 +9,12 @@
  * here. They are the city's words, not this project's, and apart from the
  * one word at OPENING they are not edited, summarised, or shortened.
  *
+ * Copied, and not shown in a frame. An iframe of the city's front page would
+ * be their live text rather than a copy of it, but it would also hand the
+ * city's site a view of every reporter who opens this page, and it would go
+ * blank the day they set a header against being framed. This is the second
+ * half of the disclaimer page; the first is sitenotice.tsx.
+ *
  * The city can change them whenever it likes, and nothing here would notice.
  * That is why COPIED_ON is shown next to them: a reader can tell how old
  * this copy is, and go and read the city's own if it matters. When you
@@ -28,6 +34,10 @@ const TITLE = 'Disclaimer'
  * point at this project, which is not who wrote the policy and not who holds
  * the data — so it says "the site's" instead. It is the only word changed,
  * and the sentence is otherwise the city's.
+ *
+ * The change is named in the note above the terms, not only here. A page
+ * that calls text somebody's exact words while quietly editing one of them
+ * is the one thing a disclaimer cannot afford to be.
  */
 const OPENING =
   "By using Davao City Reports App, you hereby consent to the site's Privacy Policy and agree to its terms:"
@@ -60,31 +70,29 @@ const TERMS: { lead: string; text: string }[] = [
   },
 ]
 
-export function CityNotice({ onClose }: { onClose: () => void }) {
+export function CityNotice() {
   return (
-    <div class="sheet" role="dialog" aria-modal="true" aria-label={`The city's ${TITLE.toLowerCase()}`}>
-      <div class="sheetbody">
-        <h2>The city's {TITLE.toLowerCase()}</h2>
-        <p class="hint">
-          The following are the city's words, copied from{' '}
-          <a href={CITY_SITE}>{CITY_SITE.replace('https://', '')}</a> as of {COPIED_ON}. The city may have
-          changed them since.
-        </p>
+    <section aria-label={`The city's ${TITLE.toLowerCase()}`}>
+      <h3>The city's {TITLE.toLowerCase()}</h3>
+      <p class="hint">
+        The following are the city's words, copied from{' '}
+        <a href={CITY_SITE}>{CITY_SITE.replace('https://', '')}</a> as of {COPIED_ON}. One word is
+        changed: where the city writes "our Privacy Policy", this copy says "the site's", meaning
+        the city's own site. The city may have changed the text since.
+      </p>
 
-        <div class="notice">
-          <p><strong>{OPENING}</strong></p>
-          {TERMS.map((t) => (
-            <p key={t.lead}>
-              <strong>{t.lead}</strong> {t.text}
-            </p>
-          ))}
-        </div>
-
-        <p class="hint">
-          Filing a report through this front end sends it to the city's site, so these terms cover it.
-        </p>
-        <button class="primary" type="button" onClick={onClose}>Close</button>
+      <div class="notice">
+        <p><strong>{OPENING}</strong></p>
+        {TERMS.map((t) => (
+          <p key={t.lead}>
+            <strong>{t.lead}</strong> {t.text}
+          </p>
+        ))}
       </div>
-    </div>
+
+      <p class="hint">
+        Filing a report through this front end sends it to the city's site, so these terms cover it.
+      </p>
+    </section>
   )
 }

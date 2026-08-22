@@ -120,16 +120,32 @@ just to trigger a workflow** — the history is public and permanent, and
   canvas would otherwise throw the date and the place away before the backend
   could judge them. The tags describing the old pixels travel with it and are
   wrong; `backend/internal/photo` drops them.
+- `frontend/src/disclaimer.tsx` — the disclaimer page, opened from the one
+  link on the form. It covers the whole page, holds no frame of anyone
+  else's site, and has no scroll box inside it: the way out is the `Close`
+  button after the last of the terms, so reaching it means scrolling past
+  them. It only puts the two halves below in order — this project's first,
+  the city's second.
+
+  The line on the form stays short enough to be read rather than skipped.
+  Two facts have to survive that: that nobody official is behind this, and
+  that sending a report means agreeing to the city's terms. On the city's
+  own site the second is a button the reporter presses, so it cannot live
+  only behind a link.
 - `frontend/src/citynotice.tsx` — the city's disclaimer and privacy terms,
   copied word for word, bar one substitution the file explains. The city has
-  no page to link to, so they are carried here. If you refresh the text,
-  change `COPIED_ON` in the same commit: the date is what tells a reader how
-  stale the copy is.
+  no page to link to, so they are carried here, and copied rather than framed
+  — an iframe would show the city every reader of this page, and would go
+  blank the day they refuse to be framed. The one changed word is named in
+  the note above the terms, where a reader sees it: text called somebody's
+  exact words has to be. If you refresh the text, change `COPIED_ON` in the
+  same commit: the date is what tells a reader how stale the copy is.
 - `frontend/src/sitenotice.tsx` — this project's own notice: what it keeps,
   what it promises, and what it does not. Its sibling above carries the
-  city's. Keep the two apart, so a reporter can tell whose promise is whose,
-  and keep this one true rather than short — if it stops matching what the
-  code does, the code is not the thing that is wrong.
+  city's. Keep the two apart — two files, two headings — so a reporter can
+  tell whose promise is whose, and keep this one true rather than short: if
+  it stops matching what the code does, the code is not the thing that is
+  wrong.
 
   The emergency line is written twice on purpose: once on the page, in the
   header, where nobody has to go looking for it, and once at the top of this

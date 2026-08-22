@@ -3,8 +3,7 @@ import { ApiError, lookupPlace, myReports, reportHistory, sendCode, submitReport
 import { forget, liveSession, remember, rememberedEmail } from './session'
 import { validate, MAX_PHOTOS } from './validate'
 import { osmLink, placeOfPhotos, readSnapshot, type Place, type Snapshot } from './exif'
-import { CityNotice } from './citynotice'
-import { SiteNotice } from './sitenotice'
+import { Disclaimer } from './disclaimer'
 import {
   CATEGORIES,
   CATEGORY_LABELS,
@@ -586,14 +585,11 @@ function SignIn({ why, onDone }: { why: string; onDone: (token: string | null) =
   )
 }
 
-/** Which of the two notices is open over the page, if either. */
-type Notice = 'city' | 'site' | null
-
 function Header() {
-  // Neither notice is a page anyone can link to: the city's terms are a box
-  // on its front page, and this site's are its own. Both are carried here
-  // and opened over the form. See citynotice.tsx and sitenotice.tsx.
-  const [notice, setNotice] = useState<Notice>(null)
+  // The disclaimer is not a page anyone can link to: the city's terms are a
+  // box on its front page, and this site's are its own. Both are carried
+  // here and opened over the form. See disclaimer.tsx.
+  const [showDisclaimer, setShowDisclaimer] = useState(false)
 
   return (
     <header>
@@ -607,22 +603,23 @@ function Header() {
       <p class="emergencyline">
         For emergencies, <strong><a href="tel:911">call 911</a></strong> instead.
       </p>
+      {/*
+        Short enough to be read rather than skipped past. Two things have to
+        survive being skimmed: that nobody official is behind this, and that
+        sending binds the reporter to the city's terms — on the city's own
+        site that is a button they press, so it cannot live only behind a
+        link nobody opens. The rest is the disclaimer page.
+      */}
       <p class="unofficial">
-        Unofficial. This is a community-run front end for{' '}
-        <a href={CITY_SITE}>reports.davaocity.gov.ph</a>. It is not run
-        by the city government. Your report is passed on to that site and is not stored here.
-        Sending one means agreeing to{' '}
-        <button type="button" class="linky" onClick={() => setNotice('city')}>
-          the city's disclaimer and privacy terms
-        </button>
-        . Here is{' '}
-        <button type="button" class="linky" onClick={() => setNotice('site')}>
-          how this site handles your report
+        Unofficial site, not run by the city government. This is a community-run front end for{' '}
+        <a href={CITY_SITE}>reports.davaocity.gov.ph</a>. Use at your own risk. Sending a report
+        means agreeing to the city's terms — see the{' '}
+        <button type="button" class="linky" onClick={() => setShowDisclaimer(true)}>
+          disclaimer
         </button>
         .
       </p>
-      {notice === 'city' && <CityNotice onClose={() => setNotice(null)} />}
-      {notice === 'site' && <SiteNotice onClose={() => setNotice(null)} />}
+      {showDisclaimer && <Disclaimer onClose={() => setShowDisclaimer(false)} />}
     </header>
   )
 }
