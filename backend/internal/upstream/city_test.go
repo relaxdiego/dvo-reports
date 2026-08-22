@@ -29,6 +29,9 @@ type fakeCity struct {
 	replies []string
 	calls   []call
 	srv     *httptest.Server
+	// status is the HTTP status every reply carries. Zero means 200. The
+	// city refuses some things with a 4xx and a body that says why.
+	status int
 }
 
 func newFakeCity(t *testing.T, replies ...string) *fakeCity {
@@ -73,6 +76,9 @@ func (f *fakeCity) serve(w http.ResponseWriter, r *http.Request) {
 		reply = f.replies[len(f.calls)-1]
 	}
 	w.Header().Set("Content-Type", "application/json")
+	if f.status != 0 {
+		w.WriteHeader(f.status)
+	}
 	io.WriteString(w, reply)
 }
 
@@ -239,6 +245,37 @@ func TestSendOTPFailsForAnUnverifiedEmail(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "not yet validated") {
 		t.Errorf("error lost the reason: %v", err)
+	}
+}
+
+// The city answers an address it does not know with a 400 and a body naming
+// the reason. That has to survive the status check, or the caller cannot tell
+// it from the site being down.
+func TestSendOTPTellsAnUnregisteredAddressApart(t *testing.T) {
+	city := newFakeCity(t, `{"request":"error","message":"Failed to verify email","details":"Email not registered!"}`)
+	city.status = http.StatusBadRequest
+
+	err := city.client().SendOTP(context.Background(), "someone@example.org")
+	if !errors.Is(err, ErrEmailNotRegistered) {
+		t.Fatalf("want ErrEmailNotRegistered, got %v", err)
+	}
+}
+
+// Anything else with a bad status is the city being unwell, and the log gets
+// the whole reply.
+func TestSendOTPKeepsTheCitysReplyForOtherFailures(t *testing.T) {
+	city := newFakeCity(t, `<html><body>Server Error</body></html>`)
+	city.status = http.StatusInternalServerError
+
+	err := city.client().SendOTP(context.Background(), "someone@example.org")
+	if err == nil {
+		t.Fatal("want an error, got nil")
+	}
+	if errors.Is(err, ErrEmailNotRegistered) {
+		t.Fatalf("a server error read as an unknown address: %v", err)
+	}
+	if !strings.Contains(err.Error(), "Server Error") {
+		t.Errorf("error lost the city's reply: %v", err)
 	}
 }
 

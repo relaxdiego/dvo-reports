@@ -433,6 +433,26 @@ func TestSendOTPRejectsAnEmptyEmail(t *testing.T) {
 	}
 }
 
+// An address with no city account is the reporter's to fix, not a bad
+// gateway, and "try again later" would send them round a loop that cannot
+// end.
+func TestSendOTPTellsAnUnregisteredAddressWhatToDo(t *testing.T) {
+	up := &fakeUpstream{authErr: upstream.ErrEmailNotRegistered}
+	req := httptest.NewRequest("POST", "/api/auth/otp", strings.NewReader(`{"email":"someone@example.org"}`))
+	rec := httptest.NewRecorder()
+	newTestHandler(up).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("status %d, want 404; body %s", rec.Code, rec.Body)
+	}
+	if !strings.Contains(rec.Body.String(), "register at reports.davaocity.gov.ph") {
+		t.Errorf("the reporter is not told how to fix it: %s", rec.Body)
+	}
+	if strings.Contains(rec.Body.String(), "try again later") {
+		t.Errorf("still telling them to retry: %s", rec.Body)
+	}
+}
+
 func TestVerifyOTPReturnsTheSession(t *testing.T) {
 	req := httptest.NewRequest("POST", "/api/auth/session", strings.NewReader(`{"email":"someone@example.org","otp":"123456"}`))
 	rec := httptest.NewRecorder()

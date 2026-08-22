@@ -87,6 +87,13 @@ const sessionExpiredMessage = "your session with the city's site has expired; as
 // the city wants it as a form field, and this backend puts it there.
 const sessionHeader = "X-City-Session"
 
+// emailNotRegisteredMessage is what a reporter sees when the city has no
+// account under the address they typed. Trying again can never work, so the
+// sentence says the one thing that does. It does not say to check their
+// e-mail: the account is found by address, but the code arrives by text
+// message to the phone registered against it.
+const emailNotRegisteredMessage = "no city account is registered under that e-mail address; register at reports.davaocity.gov.ph first, then come back"
+
 // sendOTP asks the city to send a one-time code. The e-mail address is
 // relayed and not kept, and never reaches the log.
 func sendOTP(w http.ResponseWriter, r *http.Request, cfg Config) {
@@ -97,7 +104,14 @@ func sendOTP(w http.ResponseWriter, r *http.Request, cfg Config) {
 		writeError(w, http.StatusBadRequest, "an email address is required")
 		return
 	}
-	if err := cfg.Upstream.SendOTP(r.Context(), strings.TrimSpace(in.Email)); err != nil {
+	switch err := cfg.Upstream.SendOTP(r.Context(), strings.TrimSpace(in.Email)); {
+	case errors.Is(err, upstream.ErrEmailNotRegistered):
+		// Nothing is broken: the address has no account. Not an Error, and
+		// the address itself stays out of the line as everywhere else.
+		cfg.Log.Info("otp refused: no city account")
+		writeError(w, http.StatusNotFound, emailNotRegisteredMessage)
+		return
+	case err != nil:
 		cfg.Log.Error("upstream sendOTP failed", "err", err)
 		writeError(w, http.StatusBadGateway, "the city's site could not send a code; please try again later")
 		return

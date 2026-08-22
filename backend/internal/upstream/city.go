@@ -31,6 +31,11 @@ const maxTitleRunes = 100
 // ask for a new OTP.
 var ErrSessionExpired = errors.New("the city session has expired")
 
+// ErrEmailNotRegistered means the city has no account under that address.
+// Trying again cannot help: the reporter has to register on the city's own
+// site first.
+var ErrEmailNotRegistered = errors.New("the city has no account under that e-mail address")
+
 // ErrNoSuchReport means the city has no report under that control number for
 // this reporter. A control number belonging to somebody else looks the same.
 var ErrNoSuchReport = errors.New("no report with that reference")
@@ -65,19 +70,33 @@ type City struct {
 // SendOTP asks the city to send a one-time code to the account registered
 // under email. The account must exist and have a verified e-mail address;
 // registering is done on the city's own site.
+//
+// An address the city does not know is refused with a 400 whose body names
+// the reason, so the body is read before the status is given up on. That one
+// comes back as ErrEmailNotRegistered, because it is the reporter's to fix
+// and every other failure here is not.
 func (c *City) SendOTP(ctx context.Context, email string) error {
 	var out struct {
 		Request string `json:"request"`
 		Details string `json:"details"`
 	}
 	q := url.Values{"email": {email}, "trans": {"sendOTP"}}
-	if err := c.get(ctx, "verify/", q, &out); err != nil {
+	switch err := c.get(ctx, "verify/", q, &out); {
+	case err == nil:
+		if out.Request == "success" {
+			return nil
+		}
+	case !refusedInJSON(err):
+		// The city is down, or answered with something this code cannot
+		// read. The reason is in the error, not in out.
 		return err
 	}
-	if out.Request != "success" {
-		return fmt.Errorf("city refused to send an OTP: %s", fallback(out.Details, "no reason given"))
+	// The wording is the city's own — "Email not registered!" — and is
+	// matched loosely because it is one string in an undocumented service.
+	if strings.Contains(strings.ToLower(out.Details), "not registered") {
+		return fmt.Errorf("%w: %s", ErrEmailNotRegistered, out.Details)
 	}
-	return nil
+	return fmt.Errorf("city refused to send an OTP: %s", fallback(out.Details, "no reason given"))
 }
 
 // VerifyOTP exchanges the code for a session. Nothing about the session is
@@ -313,6 +332,29 @@ func (c *City) get(ctx context.Context, path string, q url.Values, out any) erro
 	return c.do(req, out)
 }
 
+// cityError is a reply with a status outside 2xx. Decoded says whether the
+// body parsed into the caller's own struct as well: the city refuses some
+// things with a 4xx and a JSON body naming the reason, and a caller that can
+// act on that reason reads it from out rather than treating the status as
+// the site being down. See refusedInJSON.
+type cityError struct {
+	Status  string
+	Path    string
+	Body    string
+	Decoded bool
+}
+
+func (e *cityError) Error() string {
+	return fmt.Sprintf("city returned %s from %s: %s", e.Status, e.Path, e.Body)
+}
+
+// refusedInJSON reports whether err is a non-2xx reply whose body the caller
+// could read. When it is, the caller's out holds the city's own reason.
+func refusedInJSON(err error) bool {
+	var refused *cityError
+	return errors.As(err, &refused) && refused.Decoded
+}
+
 // do sends the request and decodes the JSON body. The city answers with HTML
 // when it is unhappy, so the body is quoted in the error for the log.
 func (c *City) do(req *http.Request, out any) error {
@@ -334,7 +376,14 @@ func (c *City) do(req *http.Request, out any) error {
 		return fmt.Errorf("reading the city's reply: %w", err)
 	}
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
-		return fmt.Errorf("city returned %s from %s: %s", resp.Status, req.URL.Path, strings.TrimSpace(string(body)))
+		// Path only, again: the query carries the reporter's address on the
+		// verify calls.
+		return &cityError{
+			Status:  resp.Status,
+			Path:    req.URL.Path,
+			Body:    strings.TrimSpace(string(body)),
+			Decoded: json.Unmarshal(body, out) == nil,
+		}
 	}
 	if err := json.Unmarshal(body, out); err != nil {
 		return fmt.Errorf("city returned %q, which is not the JSON expected: %w", strings.TrimSpace(string(body)), err)
