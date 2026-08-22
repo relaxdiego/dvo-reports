@@ -3,6 +3,7 @@ import { ApiError, currentPosition, myReports, reportHistory, sendCode, submitRe
 import { forget, liveSession, remember, rememberedEmail } from './session'
 import { validate, MAX_PHOTOS } from './validate'
 import { osmLink, placeOfPhotos, readSnapshot, type Place, type Snapshot } from './exif'
+import { CityNotice } from './citynotice'
 import {
   CATEGORIES,
   CATEGORY_LABELS,
@@ -577,6 +578,10 @@ function SignIn({ why, onDone }: { why: string; onDone: (token: string | null) =
 }
 
 function Header() {
+  // The city's terms are not a page anyone can link to, so they are carried
+  // here instead and opened over the form. See citynotice.tsx.
+  const [notice, setNotice] = useState(false)
+
   return (
     <header>
       <h1>Davao City issue report</h1>
@@ -584,7 +589,12 @@ function Header() {
         Unofficial. This is a community-run front end for{' '}
         <a href={CITY_SITE}>reports.davaocity.gov.ph</a>. It is not run
         by the city government. Your report is passed on to that site and is not stored here.
+        Sending one means agreeing to{' '}
+        <button type="button" class="linky" onClick={() => setNotice(true)}>
+          the city's disclaimer and privacy terms
+        </button>.
       </p>
+      {notice && <CityNotice onClose={() => setNotice(false)} />}
     </header>
   )
 }
@@ -763,14 +773,23 @@ function PhotoField({
         phone. Without it, the phone offers both, and iOS also honours
         `multiple`.
       */}
+      {/*
+        Out of sight but still the control: a label opens the picker on its
+        own, so the button below needs no script, and a keyboard still lands
+        on the input itself rather than on something pretending to be it.
+      */}
       <input
         ref={input}
         id="photos"
+        class="filepicker"
         type="file"
         accept="image/*"
         multiple
         onChange={add}
       />
+      <label class="filebutton" for="photos">
+        {photos.length === 0 ? 'Add photos' : 'Add more photos'}
+      </label>
       <p class="hint">Take a new photo, or pick ones already on your phone.</p>
       {photos.length > 0 && (
         <>

@@ -217,6 +217,18 @@ describe('the photo field', () => {
     expect(input?.accept).toBe('image/*')
   })
 
+  // The picker is opened by a label, so it needs no script and keeps working
+  // with the input itself out of sight.
+  it("opens the picker from a label, not the browser's own control", () => {
+    act(() => render(<App />, root))
+
+    const button = root.querySelector<HTMLLabelElement>('.filebutton')!
+    expect(button.htmlFor).toBe('photos')
+    expect(button.textContent).toBe('Add photos')
+    // Hidden, not removed: a keyboard still reaches the control.
+    expect(root.querySelector('#photos')?.className).toBe('filepicker')
+  })
+
   /** Puts files on the picker the way a phone would. */
   async function attach(...files: File[]) {
     // jsdom has no object URLs, and the thumbnails ask for one. Only the two
@@ -306,6 +318,11 @@ describe('the photo field', () => {
     await settle()
 
     expect(root.querySelectorAll('.photorow')).toHaveLength(1)
+  })
+
+  it('offers more photos once there are some', async () => {
+    await attach(jpegPhoto())
+    expect(root.querySelector('.filebutton')?.textContent).toBe('Add more photos')
   })
 
   // The photo already knows where the problem is. Asking the reporter for the
@@ -464,5 +481,45 @@ describe('picking the place on a map', () => {
 
     expect(root.querySelector('.leaflet-container')).toBeNull()
     expect(root.textContent).not.toContain('the place you picked on the map')
+  })
+})
+
+// The city has no page for its terms, so a reporter who never visits the
+// city's own site would otherwise never see what they are agreeing to.
+describe("the city's terms", () => {
+  function open() {
+    act(() => render(<App />, root))
+    const link = root.querySelector<HTMLButtonElement>('header .linky')!
+    act(() => link.click())
+  }
+
+  it("opens the city's words over the page", () => {
+    open()
+
+    const sheet = root.querySelector('[role="dialog"]')
+    expect(sheet).not.toBeNull()
+    expect(sheet?.textContent).toContain(
+      'By using Davao City Reports App, you hereby consent to our Privacy Policy',
+    )
+    expect(sheet?.textContent).toContain('Disclaimer Acceptance:')
+  })
+
+  // A copy is only as good as the day it was taken, and the city can change
+  // its terms without telling anyone.
+  it('says when the copy was taken, and whose words they are', () => {
+    open()
+
+    const sheet = root.querySelector('[role="dialog"]')!
+    expect(sheet.textContent).toContain('as of 22 August 2026')
+    expect(sheet.textContent).toContain("These are the city's words")
+    expect(sheet.querySelector('a')?.getAttribute('href')).toBe('https://reports.davaocity.gov.ph')
+  })
+
+  it('closes again and leaves the form behind it', () => {
+    open()
+    click('Close')
+
+    expect(root.querySelector('[role="dialog"]')).toBeNull()
+    expect(root.querySelector('#description')).not.toBeNull()
   })
 })
