@@ -160,7 +160,7 @@ repository.
 | ----------------- | ----------------------- | ------------------------------------------------ |
 | `PORT`            | `8080`                  | Listen port. Fly sets this.                      |
 | `ALLOWED_ORIGINS` | `http://localhost:5173` | Comma-separated origins allowed to call the API. |
-| `UPSTREAM`        | `city`                  | `echo` swaps in the stand-in client.             |
+| `UPSTREAM`        | `city`                  | `nosubmit` reads the city but files nothing; `echo` answers everything without the city. |
 | `UPSTREAM_BASE_URL` | the city's API        | Override for testing against a fake.             |
 | `AZURE_MAPS_KEY`  | unset                   | Names the street under a pin. Unset falls back to OpenStreetMap. |
 | `AZURE_MAPS_BASE_URL` | Azure Maps          | Override for testing the street lookup.          |
@@ -197,10 +197,62 @@ exact matches only. A frontend run locally is served from
 `http://localhost:5173`, which is the default and is not in either deployed
 list.
 
-**`UPSTREAM` must never be `echo` in a deployed environment.** Echo invents
-reference numbers, so a citizen would be told their report was filed when it
-was not. The default is the real client precisely so that reaching for Echo
-has to be deliberate.
+### What staging sends the city
+
+**`UPSTREAM` must be `city` in production, and must never be `echo` in either
+deployed environment.** Echo answers every call itself, so a citizen would be
+told their report was filed when it was not, and `internal/upstream` — the
+package most likely to break, because it imitates a form nobody documents —
+would never run at all.
+
+**Staging sets `UPSTREAM=nosubmit`.** That is the real city client with
+filing turned off. Signing in, listing your own past reports and reading what
+became of one all reach the city and are parsed by the same code production
+runs, so a change on their side shows up in staging. `Submit` is the only
+call that writes to their database, and it is the one that is stubbed: the
+city's queue is worked by people, and a practice report is work for them. A
+submission on staging comes back as `NOT-FILED-0001`, which is what the
+reporter is shown, because a number that could pass for the city's would be a
+lie.
+
+**So the filing path is exercised in production, by real reports, and
+nowhere else.** That is a deliberate trade: no test submissions, and the
+first sign of a broken `Submit` is a citizen's report failing. What makes it
+affordable is the log — `upstream submit failed` carries the city's own
+reply, which of the two calls failed, the photo count and total bytes, and
+how long it took. Nothing is stored, so that line is the only record the
+failure leaves. See "Watching for a broken submit" below.
+
+### Watching for a broken submit
+
+The city's API is not documented and can change without warning. When it
+does, `Submit` starts failing in production and nothing else notices, so the
+log line is worth watching:
+
+```sh
+fly logs -a dvo-reports-api | grep 'upstream submit failed'
+```
+
+**Fly does not alert on what a log line says.** Their own docs are explicit:
+"Fly.io doesn't include built-in alerting on metrics, so you'll need to set up
+alerting yourself." The only mail Fly sends by itself is for a failed deploy
+and for a machine running out of memory. Getting an email when a submission
+fails needs one of:
+
+- **Ship the logs out.** Fly's log search in Grafana keeps 7 days and cannot
+  alert. A log shipper, or the Logs API, sends them to a service that can —
+  Sentry, Better Stack, Axiom. Least code, one more account.
+- **Count the failures and alert on the number.** The backend would expose a
+  counter, Fly's Prometheus would scrape it, and a Grafana alert rule would
+  mail on `increase(...) > 0`. Fly's own managed Grafana at fly-metrics.net
+  cannot hold alert rules, so the rule lives in a Grafana Cloud account or a
+  self-hosted one.
+- **Mail from the backend.** `net/smtp` is in the standard library, so this
+  adds no dependency, but it adds a secret, and a bad afternoon on the city's
+  side becomes a mailbox full of identical messages unless it is rate
+  limited.
+
+None of these is built yet.
 
 ### Moving off Fly
 

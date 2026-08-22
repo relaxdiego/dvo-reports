@@ -291,7 +291,10 @@ func (c *City) post(ctx context.Context, r report.Report, token, trans, contno s
 		IsValid   *bool      `json:"isValid"`
 	}
 	if err := c.do(req, &out); err != nil {
-		return "", err
+		// Which of the two calls failed is not in the URL — both are
+		// complainController, and the step is a field in the body. Say it,
+		// or the log cannot tell filing the report from attaching a photo.
+		return "", fmt.Errorf("%s: %w", trans, err)
 	}
 	if out.IsValid != nil && !*out.IsValid {
 		return "", ErrSessionExpired
@@ -319,7 +322,8 @@ func (c *City) do(req *http.Request, out any) error {
 	}
 	resp, err := client.Do(req)
 	if err != nil {
-		return fmt.Errorf("calling the city site: %w", err)
+		// Path only. The query carries the session token on every read.
+		return fmt.Errorf("calling the city site at %s: %w", req.URL.Path, err)
 	}
 	defer resp.Body.Close()
 
@@ -330,7 +334,7 @@ func (c *City) do(req *http.Request, out any) error {
 		return fmt.Errorf("reading the city's reply: %w", err)
 	}
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
-		return fmt.Errorf("city returned %s: %s", resp.Status, strings.TrimSpace(string(body)))
+		return fmt.Errorf("city returned %s from %s: %s", resp.Status, req.URL.Path, strings.TrimSpace(string(body)))
 	}
 	if err := json.Unmarshal(body, out); err != nil {
 		return fmt.Errorf("city returned %q, which is not the JSON expected: %w", strings.TrimSpace(string(body)), err)

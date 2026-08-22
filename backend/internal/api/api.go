@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/relaxdiego/dvo-reports/backend/internal/photo"
 	"github.com/relaxdiego/dvo-reports/backend/internal/place"
@@ -203,7 +204,19 @@ func submit(w http.ResponseWriter, r *http.Request, cfg Config) {
 		return
 	}
 
+	// A submission that fails is debugged from this log line and nothing
+	// else, because nothing is stored: the report is gone the moment this
+	// handler returns. So the line carries everything about the attempt that
+	// is not the citizen's own — never the description, the address, the
+	// coordinates, or the photographs.
+	started := time.Now()
 	receipt, err := cfg.Upstream.Submit(r.Context(), rep, token)
+	attempt := []any{
+		"category", rep.Category,
+		"photos", len(rep.Photos),
+		"photo_bytes", photoBytes(rep.Photos),
+		"took_ms", time.Since(started).Milliseconds(),
+	}
 	switch {
 	case errors.Is(err, upstream.ErrSessionExpired):
 		cfg.Log.Info("upstream session expired", "category", rep.Category)
@@ -212,18 +225,29 @@ func submit(w http.ResponseWriter, r *http.Request, cfg Config) {
 	case errors.Is(err, upstream.ErrPhotosNotAttached):
 		// The report is filed and has a real reference. Saying it failed
 		// would be worse than saying the photos did not make it.
-		cfg.Log.Error("upstream photos not attached", "category", rep.Category, "photos", len(rep.Photos), "reference", receipt.Reference, "err", err)
+		cfg.Log.Error("upstream photos not attached", append(attempt, "reference", receipt.Reference, "err", err)...)
 		writeJSON(w, http.StatusCreated, photosMissing{Receipt: receipt, Warning: "the report was filed, but the photos did not upload; you can add them on the city's own site using the reference"})
 		return
 	case err != nil:
 		// The upstream error may quote the city site's own HTML. Log it,
 		// but tell the citizen something they can act on.
-		cfg.Log.Error("upstream submit failed", "category", rep.Category, "photos", len(rep.Photos), "err", err)
+		cfg.Log.Error("upstream submit failed", append(attempt, "err", err)...)
 		writeError(w, http.StatusBadGateway, "the city's reporting site did not accept the report; please try again later")
 		return
 	}
-	cfg.Log.Info("report submitted", "category", rep.Category, "photos", len(rep.Photos), "reference", receipt.Reference)
+	cfg.Log.Info("report submitted", append(attempt, "reference", receipt.Reference)...)
 	writeJSON(w, http.StatusCreated, receipt)
+}
+
+// photoBytes totals the photo sizes for the log. The count alone hides a
+// failure that depends on size, and the city has a limit this project does
+// not know.
+func photoBytes(photos []report.Photo) int {
+	n := 0
+	for _, p := range photos {
+		n += len(p.Data)
+	}
+	return n
 }
 
 // parseReport reads the form fields. It does not judge them; Validate does.
