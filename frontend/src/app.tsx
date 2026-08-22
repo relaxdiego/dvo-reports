@@ -605,7 +605,7 @@ function Header() {
         Android still make the caller press to connect.
       */}
       <p class="emergencyline">
-        In an emergency, <strong><a href="tel:911">call 911</a></strong>.
+        For emergencies, <strong><a href="tel:911">call 911</a></strong> instead.
       </p>
       <p class="unofficial">
         Unofficial. This is a community-run front end for{' '}

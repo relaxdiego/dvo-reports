@@ -742,7 +742,7 @@ describe('the emergency line on the page', () => {
 
     expect(root.querySelector('[role="dialog"]')).toBeNull()
     const line = root.querySelector('header .emergencyline')!
-    expect(line.textContent).toContain('In an emergency')
+    expect(line.textContent).toContain('For emergencies')
     expect(line.textContent).toContain('call 911')
   })
 
