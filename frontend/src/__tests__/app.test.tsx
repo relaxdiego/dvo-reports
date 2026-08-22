@@ -64,6 +64,29 @@ function click(text: string) {
   act(() => button.click())
 }
 
+/**
+ * Files the draft and hands back the form data the browser would have posted.
+ * The picker no longer prints the coordinates it is sitting on, so sending
+ * the report is how a test sees where the pin actually was.
+ */
+async function fileAndRead(): Promise<FormData> {
+  localStorage.setItem('dvo-reports.session', JSON.stringify({ token: 'tk-1' }))
+  const sent = vi.fn<typeof fetch>(async (input) =>
+    String(input).includes('/api/place')
+      ? new Response(JSON.stringify({ address: '', in_davao: true }), { status: 200 })
+      : new Response(JSON.stringify({ reference: 'DCR-1' }), { status: 201 }),
+  )
+  vi.stubGlobal('fetch', sent)
+  click('Garbage')
+  const description = root.querySelector<HTMLTextAreaElement>('#description')!
+  description.value = 'Something worth describing.'
+  act(() => { description.dispatchEvent(new Event('input', { bubbles: true })) })
+  act(() => { root.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })) })
+  await settle()
+  const filed = sent.mock.calls.find(([url]) => String(url).endsWith('/api/reports'))!
+  return filed[1]?.body as FormData
+}
+
 describe('the two tabs', () => {
   it('opens on the form', () => {
     act(() => render(<App />, root))
@@ -478,8 +501,14 @@ describe('picking the place on a map', () => {
     click('Adjust location')
     await waitFor('the picker', '[role="dialog"]')
 
-    // The photo's own place, not the browser's idea of where the phone is.
-    expect(root.textContent).toContain('The pin is at 7.09753, 125.62229')
+    // Taking the place without moving the map takes whatever the picker
+    // opened on. That is the photo's own place, not the browser's idea of
+    // where the phone is.
+    click('Use this location')
+    await settle()
+    const body = await fileAndRead()
+    expect(body.get('lat')).toBe('7.09753')
+    expect(body.get('lon')).toBe('125.62229')
   })
 
   // A camera with its location switched off is common, and that reporter is
@@ -494,13 +523,15 @@ describe('picking the place on a map', () => {
 
     click('Set the location')
     await opened()
-    click('Use this place')
+    click('Use this location')
     await waitFor('the map on the form', '.mapwrap.inline .leaflet-container')
 
     expect(root.textContent).toContain('Adjust location')
-    click('Adjust location')
-    await waitFor('the picker', '[role="dialog"]')
-    expect(root.textContent).toContain('The pin is at 7.06423, 125.60778')
+
+    // The place they set is the one the report carries.
+    const body = await fileAndRead()
+    expect(body.get('lat')).toBe('7.06423')
+    expect(body.get('lon')).toBe('125.60778')
   })
 
   // The city's form fills its location box from the pin. So does this one,
@@ -534,7 +565,7 @@ describe('picking the place on a map', () => {
     await attachPhotos(jpegPhoto({ gps: false }))
     click('Set the location')
     await opened()
-    click('Use this place')
+    click('Use this location')
     await settle()
 
     const warning = root.querySelector('[role="alert"]')
@@ -551,7 +582,7 @@ describe('picking the place on a map', () => {
     await attachPhotos(jpegPhoto({ gps: false }))
     click('Set the location')
     await opened()
-    click('Use this place')
+    click('Use this location')
     await settle()
 
     expect(root.querySelector('.street')).toBeNull()
@@ -566,7 +597,13 @@ describe('picking the place on a map', () => {
     await opened()
 
     expect(root.textContent).toContain('the map starts at the middle of the city')
-    expect(root.textContent).toContain('The pin is at 7.0731, 125.6128')
+
+    // Accepting that start files the middle of the city, not nothing.
+    click('Use this location')
+    await settle()
+    const body = await fileAndRead()
+    expect(body.get('lat')).toBe('7.0731')
+    expect(body.get('lon')).toBe('125.6128')
   })
 
   it('sends the place the reporter picked', async () => {
@@ -587,7 +624,7 @@ describe('picking the place on a map', () => {
     await attachPhotos(jpegPhoto({ gps: false }))
     click('Set the location')
     await opened()
-    click('Use this place')
+    click('Use this location')
     await settle()
 
     // The picker closes, and the form draws where the report will go.
@@ -627,7 +664,7 @@ describe('picking the place on a map', () => {
     expect(waiting?.textContent).toContain('Finding where you are')
     expect(waiting?.querySelector('.spinner')).not.toBeNull()
     // Nothing to confirm yet, so the button that would file a place is off.
-    const use = [...root.querySelectorAll('button')].find((b) => b.textContent?.trim() === 'Use this place')
+    const use = [...root.querySelectorAll('button')].find((b) => b.textContent?.trim() === 'Use this location')
     expect(use?.disabled).toBe(true)
   })
 

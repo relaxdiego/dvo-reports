@@ -76,7 +76,7 @@ export function MapPicker({
   return (
     <div class="sheet" role="dialog" aria-modal="true" aria-label="Pick the place on a map">
       <div class="sheetbody">
-        <h2>Point at the place</h2>
+        <h2>Adjust location</h2>
         {!start && (
           <p class="hint waiting" role="status">
             <span class="spinner" aria-hidden="true" />
@@ -89,20 +89,14 @@ export function MapPicker({
               <Canvas start={start} onMove={setCentre} />
               <span class="mappin" aria-hidden="true" dangerouslySetInnerHTML={{ __html: PIN }} />
             </div>
-            <p class="hint">Move the map until the pin sits on the problem. Pinch, or use + and −, to zoom in.</p>
             {note && <p class="hint">{note}</p>}
           </>
         )}
-        {centre && (
-          <p class="hint" role="status">
-            The pin is at {centre.lat}, {centre.lon}.
-          </p>
-        )}
 
         <button class="primary" type="button" disabled={!centre} onClick={() => centre && onPick(centre)}>
-          Use this place
+          Use this location
         </button>
-        <button class="secondary" type="button" onClick={onClose}>
+        <button class="secondary wide" type="button" onClick={onClose}>
           Cancel
         </button>
         <p class="hint">

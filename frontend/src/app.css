@@ -142,6 +142,13 @@ button.secondary,
   border: 1px solid var(--line);
 }
 
+/* A secondary that is the equal of the primary above it, rather than a small
+   thing beside it. The picker's two answers are a pair — take this place, or
+   take none — and a pair should be the same size. */
+button.secondary.wide {
+  width: 100%;
+}
+
 /* The file input is hidden, not removed: it is still the control the label
    opens, the keyboard focuses, and the browser reports files on. Clipping it
    keeps it in the page; display:none would take it out of the tab order. */
