@@ -721,7 +721,63 @@ function NotTheRealSite() {
   )
 }
 
+/*
+  Whether the reporter has shortened the unofficial notice below.
+
+  Kept in this browser, next to the city session in `session.ts`, because a
+  notice that has been read stops being a notice and starts being something
+  to scroll past. It is a single flag: nothing about the reporter, and
+  nothing about any report. Storage is switched off in some private windows,
+  and there the notice simply opens again — which is the safe way for this
+  to fail.
+*/
+const UNOFFICIAL_KEY = 'dvo-reports.unofficial-minimized'
+
+function unofficialMinimized(): boolean {
+  try {
+    return localStorage.getItem(UNOFFICIAL_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
+function rememberUnofficialMinimized(minimized: boolean): void {
+  try {
+    if (minimized) localStorage.setItem(UNOFFICIAL_KEY, '1')
+    else localStorage.removeItem(UNOFFICIAL_KEY)
+  } catch {
+    // Nothing to do: the choice lasts as long as this visit does.
+  }
+}
+
 function Header({ onDisclaimer }: { onDisclaimer: () => void }) {
+  const [minimized, setMinimized] = useState(unofficialMinimized)
+
+  /*
+    Not a cross. A cross clears something, and nothing here is being
+    cleared — the notice is only being made small, and it comes back from
+    the same corner it went into. So the glyph says which way it goes: a
+    minus while the whole notice is open, a plus while only the short line
+    is. It sits in the top corner of the notice in both states, where a
+    reporter looks for it, rather than after the text where it would move
+    every time the wording wrapped differently.
+  */
+  const toggle = (
+    <button
+      type="button"
+      class="minmax"
+      aria-expanded={!minimized}
+      aria-label={minimized ? 'Show the whole notice' : 'Shorten this notice'}
+      onClick={() => {
+        setMinimized(!minimized)
+        rememberUnofficialMinimized(!minimized)
+      }}
+    >
+      {/* Decoration; the button's own label is what is read out. */}
+      <span aria-hidden="true">{minimized ? '+' : '−'}</span>
+    </button>
+  )
+
   return (
     <header>
       <h1>Davao Citizen Reporter</h1>
@@ -746,15 +802,34 @@ function Header({ onDisclaimer }: { onDisclaimer: () => void }) {
         the screen by the time anyone presses it. Change one and change the
         other.
       */}
-      <p class="unofficial">
-        Unofficial site, not run by or connected to the city government. Volunteers built it to
-        send your report to <a href={CITY_SITE}>reports.davaocity.gov.ph</a>. Use at your own
-        risk. Sending a report means you agree to the city's terms — see the{' '}
-        <button type="button" class="linky" onClick={onDisclaimer}>
-          disclaimer
-        </button>
-        .
-      </p>
+      {/*
+        Read once, the paragraph is only in the way of the form under it, so
+        it can be made small. What is put away is the wording, not the fact:
+        the short line still says nobody official is behind this, and still
+        opens the terms. Neither of the two things that have to survive
+        skimming ever leaves the page.
+      */}
+      {minimized ? (
+        <p class="unofficial brief">
+          Unofficial site — see the{' '}
+          <button type="button" class="linky" onClick={onDisclaimer}>
+            disclaimer
+          </button>
+          .
+          {toggle}
+        </p>
+      ) : (
+        <p class="unofficial">
+          Unofficial site, not run by or connected to the city government. Volunteers built it to
+          send your report to <a href={CITY_SITE}>reports.davaocity.gov.ph</a>. Use at your own
+          risk. Sending a report means you agree to the city's terms — see the{' '}
+          <button type="button" class="linky" onClick={onDisclaimer}>
+            disclaimer
+          </button>
+          .
+          {toggle}
+        </p>
+      )}
     </header>
   )
 }

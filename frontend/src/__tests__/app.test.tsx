@@ -575,7 +575,9 @@ describe('the photo field', () => {
     const crosses = [...root.querySelectorAll('*')].filter(
       (el) => el.children.length === 0 && el.textContent?.trim() === '×',
     )
-    // One per row, one on the chip, one on the "not added" error.
+    // One per row, one on the chip, one on the "not added" error. The
+    // notice in the header is not one of them: it is minimized, not
+    // cleared, so it carries a minus and not a cross.
     expect(crosses).toHaveLength(MAX_PHOTOS + 2)
     for (const cross of crosses) {
       // On the glyph itself, or on the button holding it.
@@ -727,6 +729,85 @@ describe('the disclaimer', () => {
     // behind the link: on the city's own site it is a button they press.
     expect(line.textContent).toContain("Sending a report means you agree to the city's terms")
     expect(root.querySelectorAll('header .linky')).toHaveLength(1)
+  })
+
+  function minmax() {
+    const button = root.querySelector<HTMLButtonElement>('header .unofficial .minmax')
+    if (!button) throw new Error('no minimize button on the unofficial notice')
+    return button
+  }
+
+  // Read once, the paragraph is only in the way of the form under it. The
+  // minus shortens it, and this browser remembers that, so a returning
+  // reporter is not asked to read the whole of it again.
+  it('shortens when minimized, and stays short on the next visit', () => {
+    act(() => render(<App />, root))
+    act(() => minmax().click())
+
+    const brief = root.querySelector('header .unofficial.brief')!
+    expect(brief.textContent).toContain('Unofficial site')
+    expect(brief.textContent).not.toContain('Volunteers built it')
+
+    render(null, root)
+    act(() => render(<App />, root))
+    expect(root.querySelector('header .unofficial.brief')).not.toBeNull()
+  })
+
+  // It goes both ways. Nothing is cleared, so the whole notice comes back
+  // from the same corner it went into, and that is remembered too.
+  it('opens again from the same button, and stays open', () => {
+    act(() => render(<App />, root))
+    act(() => minmax().click())
+    act(() => minmax().click())
+
+    expect(root.querySelector('header .unofficial')!.textContent).toContain('Volunteers built it')
+    expect(root.querySelector('header .unofficial.brief')).toBeNull()
+
+    render(null, root)
+    act(() => render(<App />, root))
+    expect(root.querySelector('header .unofficial')!.textContent).toContain('Volunteers built it')
+  })
+
+  // The glyph has to say which way the button goes, and the label has to say
+  // it to a reader who cannot see the glyph.
+  it('says which way it goes, in the glyph and in the label', () => {
+    act(() => render(<App />, root))
+
+    expect(minmax().textContent?.trim()).toBe('−')
+    expect(minmax().getAttribute('aria-label')).toBe('Shorten this notice')
+    expect(minmax().getAttribute('aria-expanded')).toBe('true')
+
+    act(() => minmax().click())
+    expect(minmax().textContent?.trim()).toBe('+')
+    expect(minmax().getAttribute('aria-label')).toBe('Show the whole notice')
+    expect(minmax().getAttribute('aria-expanded')).toBe('false')
+  })
+
+  // The fact that nobody official is behind this never leaves the page, and
+  // the terms are still one tap away from the header after it is shortened.
+  it('still says it is unofficial, and still opens the terms, once short', () => {
+    act(() => render(<App />, root))
+    act(() => minmax().click())
+
+    const link = root.querySelector<HTMLButtonElement>('header .unofficial.brief .linky')!
+    expect(link.textContent?.trim()).toBe('disclaimer')
+    act(() => link.click())
+    expect(root.textContent).toContain("The city's disclaimer")
+  })
+
+  // Shortening the notice does not touch what sending binds the reporter to:
+  // that is written again beside the button, where it is read at the moment
+  // of agreeing.
+  it('leaves the terms beside the send button when it is short', () => {
+    act(() => render(<App />, root))
+    act(() => minmax().click())
+
+    const send = [...root.querySelectorAll('button[type="submit"]')].find(
+      (b) => b.textContent?.trim() === 'Send report',
+    )!
+    const terms = send.previousElementSibling!
+    expect(terms.textContent).toContain("Sending a report means you agree to the city's terms")
+    expect(terms.querySelector('.linky')).not.toBeNull()
   })
 
   // And again just above the send button, because the header is scrolled off

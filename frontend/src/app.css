@@ -10,11 +10,23 @@ h1 {
 }
 
 .unofficial {
+  /* Anchors the button in its top corner, the same as .error below. */
+  position: relative;
   font-size: 0.85rem;
   color: var(--muted);
   border-left: 3px solid var(--line);
   padding-left: 0.75rem;
+  /* Room for the button, so the text does not run underneath it. */
+  padding-inline-end: 2.6rem;
   margin: 0 0 1.5rem;
+}
+
+/* What is left once the notice has been made small. One line of text is
+   shorter than the button beside it, so the line is given the button's
+   height — otherwise the corner it sits in is taller than the notice and it
+   hangs out of the bottom. */
+.unofficial.brief {
+  min-height: 2.3rem;
 }
 
 fieldset {
@@ -117,7 +129,8 @@ button:focus-visible {
    it sits in — the accent of a chosen chip, the red of an error, the plain
    text of a photo row — so it stays readable in both themes without naming
    a colour of its own. */
-.x {
+.x,
+.minmax > span {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -127,10 +140,15 @@ button:focus-visible {
   opacity: 0.7;
 }
 
-/* When the cross is the whole button, it also needs something to hit. The
+/* When the glyph is the whole button, it also needs something to hit. The
    chip's cross is not one of these: it is decoration inside a bigger button,
-   and a button cannot hold another button. */
-button.x {
+   and a button cannot hold another button.
+
+   `.minmax` is here rather than carrying `.x` because it is not a cross —
+   it is the same quiet button in the same kind of corner, holding a
+   different glyph. */
+button.x,
+.minmax {
   flex: none;
   width: 2rem;
   height: 2rem;
@@ -145,7 +163,9 @@ button.x {
 /* Pointed at, or tabbed to, it comes forward. The tint is drawn from the
    cross's own colour, so it works wherever the cross sits. */
 button.x:hover,
-button.x:focus-visible {
+button.x:focus-visible,
+.minmax:hover,
+.minmax:focus-visible {
   opacity: 1;
   background: color-mix(in srgb, currentColor 12%, transparent);
 }
@@ -353,6 +373,17 @@ button[disabled] {
    in the corner of the box rather than at the end of the text, which can be
    three lines long on a phone. Its look is the shared one above. */
 .dismiss {
+  position: absolute;
+  top: 0.3rem;
+  inset-inline-end: 0.3rem;
+}
+
+/* Shortens the unofficial notice, and puts it back. The same corner as the
+   error's cross above, and the same corner in both states: the reporter
+   presses it in one place and finds it again in that place. Pinned to the
+   top rather than centred, so it does not walk down the notice as the text
+   wraps to more or fewer lines. */
+.minmax {
   position: absolute;
   top: 0.3rem;
   inset-inline-end: 0.3rem;
