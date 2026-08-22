@@ -5,12 +5,39 @@ package report
 import (
 	"fmt"
 	"strings"
+	"unicode/utf16"
 
 	"github.com/relaxdiego/dvo-reports/backend/internal/photo"
 )
 
 // MaxPhotos is the number of images one report may carry.
 const MaxPhotos = 5
+
+// MinDescription and MaxDescription bound the free-text account of the
+// issue, counted as DescriptionLength counts.
+//
+// The maximum is the city's own. Their form declares maxlength="1000" on the
+// description box and counts up to the same number beneath it. What the API
+// behind that form does with a longer one is untested, and a real citizen's
+// report is not the way to find out: it may be cut, or refused. So a report
+// this client accepts is one the city's form would have accepted.
+const (
+	MinDescription = 10
+	MaxDescription = 1000
+)
+
+// DescriptionLength counts a description the way the city's form counts one:
+// in UTF-16 code units, which is what JavaScript's String.length gives their
+// counter. It is not the count a person would make. An emoji, and anything
+// else outside the Basic Multilingual Plane, counts as two.
+//
+// Go's own len() would count bytes, which is a stricter limit than the city
+// applies — an accented character is two bytes and one unit — and would turn
+// away reports their form would have taken. The browser copy of this rule
+// counts with String.length, so the two agree.
+func DescriptionLength(s string) int {
+	return len(utf16.Encode([]rune(s)))
+}
 
 // MaxPhotoBytes is the size limit for a single image, after the browser has
 // already downscaled it. Anything larger is a sign the client skipped that
@@ -76,10 +103,10 @@ func (r Report) Validate() error {
 	if !validCategory(r.Category) {
 		return fmt.Errorf("category %q is not one of %s", r.Category, strings.Join(Categories, ", "))
 	}
-	if n := len(strings.TrimSpace(r.Description)); n < 10 {
-		return fmt.Errorf("description is %d characters, need at least 10", n)
-	} else if n > 2000 {
-		return fmt.Errorf("description is %d characters, limit is 2000", n)
+	if n := DescriptionLength(strings.TrimSpace(r.Description)); n < MinDescription {
+		return fmt.Errorf("description is %d characters, need at least %d", n, MinDescription)
+	} else if n > MaxDescription {
+		return fmt.Errorf("description is %d characters, limit is %d", n, MaxDescription)
 	}
 	if len(r.Photos) == 0 {
 		return fmt.Errorf("a report needs at least one photo")

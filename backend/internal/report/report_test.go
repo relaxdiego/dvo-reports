@@ -76,7 +76,7 @@ func TestValidateRejects(t *testing.T) {
 	cases := map[string]func(*Report){
 		"unknown category":   func(r *Report) { r.Category = "aliens" },
 		"short description":  func(r *Report) { r.Description = "hole" },
-		"long description":   func(r *Report) { r.Description = strings.Repeat("x", 2001) },
+		"long description":   func(r *Report) { r.Description = strings.Repeat("x", MaxDescription+1) },
 		"no coordinates":     func(r *Report) { r.Lat, r.Lon = 0, 0 },
 		"latitude off earth": func(r *Report) { r.Lat, r.Lon = 91, 125 },
 		"no photos at all":   func(r *Report) { r.Photos = nil },
@@ -113,5 +113,41 @@ func TestValidateAcceptsCoordinatesWithoutAddress(t *testing.T) {
 	r.Address = ""
 	if err := r.Validate(); err != nil {
 		t.Fatalf("want nil, got %v", err)
+	}
+}
+
+// The city's form counts UTF-16 code units, so this one does too. Counting
+// bytes instead would turn away a description their form would have taken:
+// Filipino and Cebuano carry accented characters, and an emoji is four bytes
+// and two units.
+func TestDescriptionIsCountedAsTheCityCountsIt(t *testing.T) {
+	cases := map[string]struct {
+		text string
+		want int
+	}{
+		"plain ascii":     {"pothole", 7},
+		"accented letter": {"ná", 2},
+		"emoji":           {"🕳", 2},
+	}
+	for name, c := range cases {
+		t.Run(name, func(t *testing.T) {
+			if got := DescriptionLength(c.text); got != c.want {
+				t.Fatalf("DescriptionLength(%q) = %d, want %d", c.text, got, c.want)
+			}
+		})
+	}
+}
+
+// A description at the limit in the city's count goes through, even though
+// its bytes run well past it.
+func TestValidateAcceptsAccentedTextUpToTheLimit(t *testing.T) {
+	r := valid()
+	r.Description = strings.Repeat("á", MaxDescription)
+	if err := r.Validate(); err != nil {
+		t.Fatalf("want nil, got %v", err)
+	}
+	r.Description = strings.Repeat("á", MaxDescription+1)
+	if err := r.Validate(); err == nil {
+		t.Fatal("want an error one character over the limit, got nil")
 	}
 }

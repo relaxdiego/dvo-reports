@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { validate, MAX_PHOTOS } from '../validate'
+import { validate, MAX_DESCRIPTION, MAX_PHOTOS } from '../validate'
 import type { Draft } from '../types'
 
 const photo = (name = 'a.jpg') => new File(['x'], name, { type: 'image/jpeg' })
@@ -30,7 +30,15 @@ describe('validate', () => {
   })
 
   it('rejects an over-long description', () => {
-    expect(validate(draft({ description: 'x'.repeat(2001) }))).toMatch(/too long/)
+    expect(validate(draft({ description: 'x'.repeat(MAX_DESCRIPTION + 1) }))).toMatch(/too long/)
+  })
+
+  // The limit is the city's, and so is the way it is counted: UTF-16 code
+  // units, as their own counter reads. An accented character is one unit,
+  // and text full of them fits even though its bytes do not.
+  it('takes a description that is at the limit, and refuses one past it', () => {
+    expect(validate(draft({ description: 'á'.repeat(MAX_DESCRIPTION) }))).toBeNull()
+    expect(validate(draft({ description: 'á'.repeat(MAX_DESCRIPTION + 1) }))).toMatch(/too long/)
   })
 
   // A report the city can act on shows the problem.

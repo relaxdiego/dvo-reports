@@ -3,7 +3,7 @@ import { render } from 'preact'
 import { act } from 'preact/test-utils'
 import { App } from '../app'
 import { welcomed } from '../session'
-import { MAX_PHOTOS } from '../validate'
+import { MAX_DESCRIPTION, MAX_PHOTOS } from '../validate'
 import { jpegPhoto } from './fixtures'
 
 /** Lets the fetch, the state updates it causes, and the re-render settle. */
@@ -350,6 +350,42 @@ describe('choosing what the problem is', () => {
     expect(root.querySelector('.chips')!.className).toBe('chips')
     expect(root.querySelectorAll('[aria-pressed="true"]')).toHaveLength(0)
     expect(chips()).toContain('Pothole (Lubak)')
+  })
+})
+
+describe('the description count', () => {
+  function type(text: string) {
+    const box = root.querySelector<HTMLTextAreaElement>('#description')!
+    box.value = text
+    act(() => { box.dispatchEvent(new Event('input', { bubbles: true })) })
+    return root.querySelector('.count')!
+  }
+
+  it('counts up as the reporter types, and says which limit it is counting to', () => {
+    act(() => render(<App />, root))
+
+    expect(root.querySelector('.count')!.textContent).toBe(`0/${MAX_DESCRIPTION}`)
+    expect(type('Deep pothole.').textContent).toBe(`13/${MAX_DESCRIPTION}`)
+  })
+
+  // Nothing stops the typing or the paste. The reporter is told the text is
+  // over and chooses what to cut.
+  it('says when the text is too long to send, and keeps it', () => {
+    act(() => render(<App />, root))
+
+    const over = type('x'.repeat(MAX_DESCRIPTION + 1))
+    expect(over.className).toContain('over')
+    expect(over.textContent).toContain('too long')
+    expect(root.querySelector<HTMLTextAreaElement>('#description')!.value).toHaveLength(
+      MAX_DESCRIPTION + 1,
+    )
+  })
+
+  // The city counts UTF-16 code units, so an emoji is two of them.
+  it('counts the way the city counts', () => {
+    act(() => render(<App />, root))
+
+    expect(type('🕳').textContent).toBe(`2/${MAX_DESCRIPTION}`)
   })
 })
 

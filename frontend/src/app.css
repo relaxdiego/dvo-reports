@@ -318,6 +318,19 @@ button[disabled] {
   margin: 0.4rem 0 0;
 }
 
+/* The description's character count. It sits at the end of the box it
+   belongs to, quiet until the text is over the limit. */
+.count {
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin: 0.3rem 0 0;
+  text-align: end;
+}
+
+.count.over {
+  color: var(--danger);
+}
+
 .error {
   position: relative;
   margin: 1rem 0 0;

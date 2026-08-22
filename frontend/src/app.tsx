@@ -2,7 +2,7 @@ import type { ComponentChildren } from 'preact'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/hooks'
 import { ApiError, lookupPlace, myReports, reportHistory, sendCode, submitReport, verifyCode, type Place as Street } from './api'
 import { forget, liveSession, needsWelcome, remember, rememberedEmail, welcomed } from './session'
-import { validate, MAX_PHOTOS } from './validate'
+import { validate, descriptionLength, MAX_DESCRIPTION, MAX_PHOTOS } from './validate'
 import { osmLink, placeOfPhotos, readSnapshot, type Place, type Snapshot } from './exif'
 import { Disclaimer } from './disclaimer'
 import { Welcome } from './welcome'
@@ -221,6 +221,29 @@ function Tabs({ tab, onChange }: { tab: Tab; onChange: (t: Tab) => void }) {
   )
 }
 
+/**
+ * The running character count under the description box, the way the city's
+ * own form shows it. A reporter who learns about the limit only when the
+ * form refuses their finished text has already wasted the writing.
+ *
+ * The box has no `maxlength`. Stopping the keystroke is what the city does,
+ * but it also truncates a pasted description without saying so, and this
+ * form is often filled from notes written elsewhere. Better to let the text
+ * arrive whole, say it is over, and let the reporter choose what to cut.
+ *
+ * It counts the trimmed text, because that is what the limit is applied to.
+ */
+function DescriptionCount({ text }: { text: string }) {
+  const n = descriptionLength(text.trim())
+  const over = n > MAX_DESCRIPTION
+  return (
+    <p id="description-count" class={over ? 'count over' : 'count'}>
+      {n}/{MAX_DESCRIPTION}
+      {over && ' — too long to send'}
+    </p>
+  )
+}
+
 function ReportTab({
   withSession,
   onDisclaimer,
@@ -304,8 +327,10 @@ function ReportTab({
           rows={4}
           placeholder="Tap to add a description."
           value={draft.description}
+          aria-describedby="description-count"
           onInput={(e) => set('description', (e.target as HTMLTextAreaElement).value)}
         />
+        <DescriptionCount text={draft.description} />
 
         <PhotoField photos={draft.photos} facts={facts} onChange={(p) => set('photos', p)} />
         <LocationField draft={draft} set={set} fromPhotos={fromPhotos} />
