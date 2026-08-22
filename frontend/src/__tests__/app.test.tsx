@@ -543,6 +543,21 @@ describe("this site's own notice", () => {
     act(() => link.click())
   }
 
+  // A pothole form is the wrong place to report a fire. Whoever tries it
+  // anyway should be sent somewhere useful in the first few words.
+  it('sends an emergency to 911, before anything else', () => {
+    openSite()
+
+    const sheet = root.querySelector('[role="dialog"]')!
+    const warning = sheet.querySelector('.emergency')!
+    expect(warning.textContent).toContain('call 911 from any phone')
+    expect(warning.textContent).toContain('take days to reach the city')
+
+    // Above the notice itself, not buried inside it.
+    const notice = sheet.querySelector('.notice')!
+    expect(warning.compareDocumentPosition(notice) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
   it('says the plain things: nothing kept, nothing promised', () => {
     openSite()
 

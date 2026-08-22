@@ -9,6 +9,9 @@
  * photograph of a real place and their contact details, and the parts that
  * sound least flattering — that the report passes through a server here,
  * that nothing is promised — are the parts worth being plain about.
+ *
+ * The emergency line stays at the top and stays short. It is the only text
+ * here that has to work on somebody who is not really reading.
  */
 
 const CITY_SITE = 'https://reports.davaocity.gov.ph'
@@ -19,6 +22,17 @@ export function SiteNotice({ onClose }: { onClose: () => void }) {
     <div class="sheet" role="dialog" aria-modal="true" aria-label="What this site is">
       <div class="sheetbody">
         <h2>What this site is</h2>
+
+        {/*
+          First, and before the heading is even finished being read. The
+          person this is for is frightened or in a hurry, so the instruction
+          comes before the examples: they may stop reading at any word.
+          911 is Davao's own Central 911, free and answered on any network.
+        */}
+        <p class="emergency">
+          In an emergency, <strong>call 911 from any phone</strong>. Do not use this site for a
+          fire, a crash, a crime, or someone hurt — reports sent here take days to reach the city.
+        </p>
 
         <div class="notice">
           <p>

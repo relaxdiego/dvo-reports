@@ -490,3 +490,19 @@ h2 {
 .notice p:last-child {
   margin-bottom: 0;
 }
+
+/* The first thing in this site's notice, and the one part of it that has to
+   be read by someone who is not in the mood to read. Outlined in the danger
+   colour rather than filled with it: a solid red block reads as an error the
+   reader has just caused, which is the wrong thought to have here. */
+.emergency {
+  margin: 0 0 1rem;
+  padding: 0.8rem 0.9rem;
+  border: 2px solid var(--danger);
+  border-radius: var(--radius);
+  font-weight: 600;
+}
+
+.emergency strong {
+  color: var(--danger);
+}
