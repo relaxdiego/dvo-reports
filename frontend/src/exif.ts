@@ -154,3 +154,58 @@ function parseStamp(stamp: string, offset: string | null): Date | null {
 export function osmLink(lat: number, lon: number): string {
   return `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lon}#map=18/${lat}/${lon}`
 }
+
+/** One place on the earth, the way the rest of the app writes one. */
+interface Spot {
+  lat: number
+  lon: number
+}
+
+/** Where the attached photos say the problem is, and how that was decided. */
+export interface Place extends Spot {
+  /** How many of the photos carried a place. */
+  of: number
+  /**
+   * True when those places were too far apart to be one problem, so the
+   * first photo's place was used instead of the middle of them.
+   */
+  spread: boolean
+}
+
+/**
+ * Near enough that two photos are of the same problem. Past this, the middle
+ * of them is somewhere nobody stood: a reporter who attaches photos from two
+ * different days would get a pin on a street between them.
+ */
+const SAME_PLACE_METRES = 100
+
+/**
+ * Where to start the pin, read from the photos. Null when none of them
+ * carries a place. This is a starting point, not an answer — the reporter
+ * can move it, and once they do, the photos stop deciding.
+ */
+export function placeOfPhotos(snaps: readonly (Snapshot | null)[]): Place | null {
+  const spots = snaps.flatMap((s) =>
+    s && s.lat !== null && s.lon !== null ? [{ lat: s.lat, lon: s.lon }] : [],
+  )
+  if (spots.length === 0) return null
+
+  const middle = {
+    lat: spots.reduce((t, s) => t + s.lat, 0) / spots.length,
+    lon: spots.reduce((t, s) => t + s.lon, 0) / spots.length,
+  }
+  const spread = spots.some((s) => metresApart(s, middle) > SAME_PLACE_METRES)
+  const at = spread ? spots[0] : middle
+  return { lat: roundCoord(at.lat), lon: roundCoord(at.lon), of: spots.length, spread }
+}
+
+/**
+ * How far apart two places are, in metres, treating the earth as flat. Over
+ * the few hundred metres this is ever asked about, that is exact enough.
+ */
+function metresApart(a: Spot, b: Spot): number {
+  const rad = Math.PI / 180
+  const y = (b.lat - a.lat) * rad
+  const x = (b.lon - a.lon) * rad * Math.cos(((a.lat + b.lat) / 2) * rad)
+  return Math.hypot(x, y) * 6_371_000
+}

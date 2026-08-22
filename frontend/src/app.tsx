@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/hooks'
 import { ApiError, currentPosition, myReports, reportHistory, sendCode, submitReport, verifyCode } from './api'
 import { forget, liveSession, remember, rememberedEmail } from './session'
 import { validate, MAX_PHOTOS } from './validate'
-import { osmLink, readSnapshot, type Snapshot } from './exif'
+import { osmLink, placeOfPhotos, readSnapshot, type Place, type Snapshot } from './exif'
 import {
   CATEGORIES,
   CATEGORY_LABELS,
@@ -166,6 +166,14 @@ function ReportTab({ withSession }: { withSession: WithSession }) {
     [],
   )
 
+  // Read up here, not in the row that shows it: the location field below
+  // starts its pin from these places.
+  const facts = usePhotoFacts(draft.photos)
+  const fromPhotos = useMemo(
+    () => placeOfPhotos(draft.photos.map((f) => facts.get(f) ?? null)),
+    [draft.photos, facts],
+  )
+
   if (receipt) {
     return <Sent receipt={receipt} onAgain={() => { setReceipt(null); setDraft(emptyDraft) }} />
   }
@@ -219,8 +227,8 @@ function ReportTab({ withSession }: { withSession: WithSession }) {
           onInput={(e) => set('description', (e.target as HTMLTextAreaElement).value)}
         />
 
-        <LocationField draft={draft} set={set} />
-        <PhotoField photos={draft.photos} onChange={(p) => set('photos', p)} />
+        <PhotoField photos={draft.photos} facts={facts} onChange={(p) => set('photos', p)} />
+        <LocationField draft={draft} set={set} fromPhotos={fromPhotos} />
       </fieldset>
 
       {error && <p class="error" role="alert">{error}</p>}
@@ -614,20 +622,34 @@ function useMapChunk() {
 function LocationField({
   draft,
   set,
+  fromPhotos,
 }: {
   draft: Draft
   set: <K extends keyof Draft>(key: K, value: Draft[K]) => void
+  /** Where the attached photos say the problem is, if they say anything. */
+  fromPhotos: Place | null
 }) {
   const [status, setStatus] = useState<string | null>(null)
   const [locating, setLocating] = useState(false)
+  const [byReporter, setByReporter] = useState(false)
   const map = useMapChunk()
   const MapPicker = map.module?.MapPicker
+
+  // The photos usually already know where the problem is, so the pin follows
+  // them — until the reporter sets a place themselves. After that it is
+  // theirs, and adding or removing a photo does not move it.
+  useEffect(() => {
+    if (byReporter) return
+    set('lat', fromPhotos?.lat ?? null)
+    set('lon', fromPhotos?.lon ?? null)
+  }, [fromPhotos, byReporter, set])
 
   const locate = async () => {
     setLocating(true)
     setStatus(null)
     try {
       const { lat, lon } = await currentPosition()
+      setByReporter(true)
       set('lat', lat)
       set('lon', lon)
       setStatus(`Using your location (${lat}, ${lon}).`)
@@ -662,6 +684,7 @@ function LocationField({
       <button type="button" class="secondary" onClick={openMap} disabled={map.opening}>
         {map.opening ? 'Opening the map…' : placed ? 'Move the pin on a map' : 'Pick it on a map'}
       </button>
+      {!byReporter && fromPhotos && <p class="hint">{photoPlaceText(fromPhotos)}</p>}
       {status && <p class="hint">{status}</p>}
       {map.failed && (
         <p class="hint">The map could not be loaded. Type the address instead, or use your location.</p>
@@ -670,6 +693,7 @@ function LocationField({
         <MapPicker
           at={placed ? { lat: draft.lat as number, lon: draft.lon as number } : null}
           onPick={({ lat, lon }) => {
+            setByReporter(true)
             set('lat', lat)
             set('lon', lon)
             setStatus(`Using the place you picked on the map (${lat}, ${lon}).`)
@@ -682,7 +706,45 @@ function LocationField({
   )
 }
 
-function PhotoField({ photos, onChange }: { photos: File[]; onChange: (p: File[]) => void }) {
+/** What each attached photo says about itself. Missing until it is read. */
+type Facts = Map<File, Snapshot | null>
+
+/**
+ * Reads the date and place out of each attached photo, once per file. A
+ * photo already read is not read again when another is added or removed, and
+ * a photo taken out is forgotten.
+ */
+function usePhotoFacts(photos: File[]): Facts {
+  const read = useRef<Facts>(new Map())
+  const [facts, setFacts] = useState<Facts>(read.current)
+
+  useEffect(() => {
+    let dropped = false
+    void Promise.all(
+      photos.map(async (f) => {
+        if (!read.current.has(f)) read.current.set(f, await readSnapshot(f))
+        return [f, read.current.get(f) ?? null] as const
+      }),
+    ).then((pairs) => {
+      if (dropped) return
+      read.current = new Map(pairs)
+      setFacts(read.current)
+    })
+    return () => { dropped = true }
+  }, [photos])
+
+  return facts
+}
+
+function PhotoField({
+  photos,
+  facts,
+  onChange,
+}: {
+  photos: File[]
+  facts: Facts
+  onChange: (p: File[]) => void
+}) {
   const input = useRef<HTMLInputElement>(null)
 
   const add = (e: Event) => {
@@ -717,6 +779,8 @@ function PhotoField({ photos, onChange }: { photos: File[]; onChange: (p: File[]
               <PhotoRow
                 key={`${f.name}-${i}`}
                 file={f}
+                snap={facts.get(f) ?? null}
+                read={facts.has(f)}
                 onRemove={() => onChange(photos.filter((_, j) => j !== i))}
               />
             ))}
@@ -742,20 +806,18 @@ function PhotoField({ photos, onChange }: { photos: File[]; onChange: (p: File[]
  * photograph of a real place to a government site, so they get to see the
  * place and the time it carries before they send it, rather than after.
  */
-function PhotoRow({ file, onRemove }: { file: File; onRemove: () => void }) {
-  const [snap, setSnap] = useState<Snapshot | null>(null)
-  const [read, setRead] = useState(false)
-
-  useEffect(() => {
-    let dropped = false
-    void readSnapshot(file).then((s) => {
-      if (dropped) return
-      setSnap(s)
-      setRead(true)
-    })
-    return () => { dropped = true }
-  }, [file])
-
+function PhotoRow({
+  file,
+  snap,
+  read,
+  onRemove,
+}: {
+  file: File
+  snap: Snapshot | null
+  /** False while the photo is still being read. */
+  read: boolean
+  onRemove: () => void
+}) {
   const map = useMapChunk()
   const MapView = map.module?.MapView
   const at = snap && snap.lat !== null && snap.lon !== null
@@ -802,6 +864,17 @@ function PhotoRow({ file, onRemove }: { file: File; onRemove: () => void }) {
       )}
     </li>
   )
+}
+
+/** Why the pin is where it is, when the photos are what put it there. */
+function photoPlaceText(p: Place): string {
+  const where = `(${p.lat}, ${p.lon})`
+  const change = 'Move the pin if it is wrong.'
+  if (p.of === 1) return `Using the place your photo was taken ${where}. ${change}`
+  if (p.spread) {
+    return `Your photos were taken in different places, so this is the place of the first one ${where}. ${change}`
+  }
+  return `Using the middle of the ${p.of} photos that carry a place ${where}. ${change}`
 }
 
 /** The camera's own clock, written the way the reporter's phone writes dates. */

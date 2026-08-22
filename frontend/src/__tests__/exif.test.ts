@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { osmLink, readSnapshot } from '../exif'
+import { osmLink, placeOfPhotos, readSnapshot, type Snapshot } from '../exif'
 import { jpegPhoto as photo } from './fixtures'
 
 describe('reading a photo', () => {
@@ -48,5 +48,39 @@ describe('the map link', () => {
     expect(url).toContain('openstreetmap.org')
     expect(url).toContain('mlat=7.09753')
     expect(url).toContain('mlon=125.62229')
+  })
+})
+
+describe('where the photos put the pin', () => {
+  /** A photo that carries a place, and nothing else worth reading. */
+  function at(lat: number, lon: number): Snapshot {
+    return { lat, lon, taken: null }
+  }
+
+  it('has nowhere to start when no photo carries a place', () => {
+    expect(placeOfPhotos([])).toBeNull()
+    expect(placeOfPhotos([{ lat: null, lon: null, taken: null }, null])).toBeNull()
+  })
+
+  it('uses the one place a single photo carries', () => {
+    expect(placeOfPhotos([at(7.09753, 125.62229)])).toEqual({
+      lat: 7.09753,
+      lon: 125.62229,
+      of: 1,
+      spread: false,
+    })
+  })
+
+  // Photos of one pothole are metres apart. Their middle is still the pothole.
+  it('takes the middle of photos of the same place', () => {
+    const place = placeOfPhotos([at(7.1, 125.6), at(7.1002, 125.6), null])
+    expect(place).toEqual({ lat: 7.1001, lon: 125.6, of: 2, spread: false })
+  })
+
+  // Photos picked from a gallery can be from anywhere. The middle of two
+  // distant places is a street nobody photographed.
+  it('falls back to the first photo when the places are far apart', () => {
+    const place = placeOfPhotos([at(7.1, 125.6), at(7.2, 125.7)])
+    expect(place).toEqual({ lat: 7.1, lon: 125.6, of: 2, spread: true })
   })
 })

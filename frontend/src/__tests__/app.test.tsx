@@ -307,6 +307,30 @@ describe('the photo field', () => {
 
     expect(root.querySelectorAll('.photorow')).toHaveLength(1)
   })
+
+  // The photo already knows where the problem is. Asking the reporter for the
+  // same thing again is work they do not need to do.
+  it('starts the place from the photos, and lets it go with them', async () => {
+    await attach(jpegPhoto())
+    await settle()
+
+    // The form is ordered so the photos come first and put the pin down.
+    const form = root.querySelector('form')!.textContent!
+    expect(form).toContain('Using the place your photo was taken (7.09753, 125.62229)')
+    expect(form.indexOf('Photos')).toBeLessThan(form.indexOf('Where is it?'))
+
+    // The pin is really down, not only described: the map button offers to
+    // move it rather than to place one.
+    expect(form).toContain('Move the pin on a map')
+
+    const remove = root.querySelector<HTMLButtonElement>('.photorow .remove')!
+    act(() => remove.click())
+    await settle()
+
+    const after = root.querySelector('form')!.textContent!
+    expect(after).not.toContain('Using the place')
+    expect(after).toContain('Pick it on a map')
+  })
 })
 
 describe('picking the place on a map', () => {
