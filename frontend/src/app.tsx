@@ -686,7 +686,7 @@ function NotTheRealSite() {
 function Header({ onDisclaimer }: { onDisclaimer: () => void }) {
   return (
     <header>
-      <h1>Davao City issue report</h1>
+      <h1>Davao Citizen Reporter</h1>
       {/*
         On the page itself, not only inside the notice below. Whoever needs
         this is the last person who would open an optional pop-up to find
