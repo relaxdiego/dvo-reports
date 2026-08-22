@@ -479,7 +479,7 @@ describe('picking the place on a map', () => {
     await waitFor('the picker', '[role="dialog"]')
 
     // The photo's own place, not the browser's idea of where the phone is.
-    expect(root.textContent).toContain('The ring is at 7.09753, 125.62229')
+    expect(root.textContent).toContain('The pin is at 7.09753, 125.62229')
   })
 
   // A camera with its location switched off is common, and that reporter is
@@ -500,7 +500,7 @@ describe('picking the place on a map', () => {
     expect(root.textContent).toContain('Adjust location')
     click('Adjust location')
     await waitFor('the picker', '[role="dialog"]')
-    expect(root.textContent).toContain('The ring is at 7.06423, 125.60778')
+    expect(root.textContent).toContain('The pin is at 7.06423, 125.60778')
   })
 
   // The city's form fills its location box from the pin. So does this one,
@@ -566,7 +566,7 @@ describe('picking the place on a map', () => {
     await opened()
 
     expect(root.textContent).toContain('the map starts at the middle of the city')
-    expect(root.textContent).toContain('The ring is at 7.0731, 125.6128')
+    expect(root.textContent).toContain('The pin is at 7.0731, 125.6128')
   })
 
   it('sends the place the reporter picked', async () => {

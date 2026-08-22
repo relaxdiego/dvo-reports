@@ -87,15 +87,15 @@ export function MapPicker({
           <>
             <div class="mapwrap">
               <Canvas start={start} onMove={setCentre} />
-              <span class="mappin" aria-hidden="true" />
+              <span class="mappin" aria-hidden="true" dangerouslySetInnerHTML={{ __html: PIN }} />
             </div>
-            <p class="hint">Move the map until the ring sits on the problem. Pinch, or use + and −, to zoom in.</p>
+            <p class="hint">Move the map until the pin sits on the problem. Pinch, or use + and −, to zoom in.</p>
             {note && <p class="hint">{note}</p>}
           </>
         )}
         {centre && (
           <p class="hint" role="status">
-            The ring is at {centre.lat}, {centre.lon}.
+            The pin is at {centre.lat}, {centre.lon}.
           </p>
         )}
 
