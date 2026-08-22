@@ -25,6 +25,17 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
+function listOf(n: number) {
+  return Array.from({ length: n }, (_, i) => ({
+    reference: `DCR-${i + 1}`,
+    title: `Report number ${i + 1}`,
+    description: 'x',
+    location: 'y',
+    status: 'ONGOING',
+    filed: `2026-05-01 08:00:0${i % 10}`,
+  }))
+}
+
 function click(text: string) {
   const button = [...root.querySelectorAll('button')].find((b) => b.textContent?.trim() === text)
   if (!button) throw new Error(`no button reading "${text}"`)
@@ -94,5 +105,72 @@ describe('the two tabs', () => {
 
     expect(root.querySelector('[role="dialog"]')).not.toBeNull()
     expect(localStorage.getItem('dvo-reports.session')).toBeNull()
+  })
+})
+
+describe('reloading the list', () => {
+  beforeEach(() => localStorage.setItem('dvo-reports.session', JSON.stringify({ token: 'tk-1' })))
+
+  function stubList(n: number) {
+    const fetchMock = vi.fn<typeof fetch>(async () =>
+      new Response(JSON.stringify({ reports: listOf(n) }), { status: 200 }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+    return fetchMock
+  }
+
+  // Leaving the tab and coming back is not a request to ask the city again.
+  it('does not ask the city again when the tabs are switched', async () => {
+    const fetchMock = stubList(1)
+
+    act(() => render(<App />, root))
+    click('My reports')
+    await settle()
+    click('Report a problem')
+    click('My reports')
+    await settle()
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(root.textContent).toContain('Report number 1')
+  })
+
+  it('asks again when the refresh button is used', async () => {
+    const fetchMock = stubList(1)
+
+    act(() => render(<App />, root))
+    click('My reports')
+    await settle()
+    const refresh = root.querySelectorAll('button[aria-label="Refresh"]')
+    // One above the list and one below it.
+    expect(refresh).toHaveLength(2)
+    act(() => (refresh[0] as HTMLButtonElement).click())
+    await settle()
+
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  // The city sends every report in one reply, so this only bounds how many
+  // rows are drawn at once.
+  it('draws the first page of a long list', async () => {
+    stubList(25)
+
+    act(() => render(<App />, root))
+    click('My reports')
+    await settle()
+
+    expect(root.querySelectorAll('li.report')).toHaveLength(20)
+    expect(root.textContent).toContain('25 reports')
+  })
+
+  it('says what it is waiting for while it waits', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => new Promise<Response>(() => {})))
+
+    act(() => render(<App />, root))
+    click('My reports')
+    await settle()
+
+    const status = root.querySelector('[role="status"]')
+    expect(status?.textContent).toContain('Loading past reports')
+    expect(status?.textContent).toContain('Asking the city')
   })
 })

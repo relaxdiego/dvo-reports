@@ -32,6 +32,20 @@ type Tab = 'report' | 'past'
  */
 type WithSession = <T>(why: string, fn: (token: string) => Promise<T>) => Promise<T | null>
 
+/**
+ * What the past reports tab is holding. It lives up here so that moving
+ * between the tabs does not throw the list away and ask the city for it
+ * again: the reports are only fetched when the reporter asks for them, or
+ * when the page itself is loaded afresh.
+ */
+type Past =
+  | { at: 'unopened' }
+  | { at: 'loading'; step: string }
+  | { at: 'ready'; reports: Filed[] }
+  /** The reporter closed the sign-in. Do not keep asking. */
+  | { at: 'declined' }
+  | { at: 'error'; error: string }
+
 /** A pending request for a session. resolve carries the token, or null. */
 interface Ask {
   why: string
@@ -69,6 +83,29 @@ export function App() {
     [requestSession],
   )
 
+  const [past, setPast] = useState<Past>({ at: 'unopened' })
+
+  const loadPast = useCallback(async () => {
+    setPast({ at: 'loading', step: 'Asking the city’s site for your reports.' })
+    // The city's site can take its time. Saying so beats a spinner that
+    // looks the same at one second and at twenty.
+    const slow = setTimeout(
+      () => setPast((p) => (p.at === 'loading' ? { at: 'loading', step: 'The city’s site is slow to answer. Still waiting.' } : p)),
+      5000,
+    )
+    try {
+      const list = await withSession(
+        'Your reports are held by the city, so seeing them needs a code first.',
+        (token) => myReports(token),
+      )
+      setPast(list === null ? { at: 'declined' } : { at: 'ready', reports: newestFirst(list) })
+    } catch (err) {
+      setPast({ at: 'error', error: messageOf(err) })
+    } finally {
+      clearTimeout(slow)
+    }
+  }, [withSession])
+
   const swipe = useSwipe((dir) => setTab(dir > 0 ? 'past' : 'report'))
 
   return (
@@ -76,7 +113,11 @@ export function App() {
       <Header />
       <Tabs tab={tab} onChange={setTab} />
       <div class="tabbody" {...swipe}>
-        {tab === 'report' ? <ReportTab withSession={withSession} /> : <PastTab withSession={withSession} />}
+        {tab === 'report' ? (
+          <ReportTab withSession={withSession} />
+        ) : (
+          <PastTab past={past} onLoad={loadPast} withSession={withSession} />
+        )}
       </div>
       {ask && (
         <SignIn
@@ -218,33 +259,35 @@ function ReportTab({ withSession }: { withSession: WithSession }) {
   )
 }
 
-function PastTab({ withSession }: { withSession: WithSession }) {
-  const [reports, setReports] = useState<Filed[] | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
+/**
+ * How many reports are put on the page at once. The city sends every report
+ * an account has in one reply — there is no page or limit to ask it for — so
+ * this only bounds how many rows the browser builds, not what is fetched.
+ */
+const PAGE = 20
+
+function PastTab({
+  past,
+  onLoad,
+  withSession,
+}: {
+  past: Past
+  onLoad: () => Promise<void>
+  withSession: WithSession
+}) {
   const [query, setQuery] = useState('')
+  const [showing, setShowing] = useState(PAGE)
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const list = await withSession(
-        'Your reports are held by the city, so seeing them needs a code first.',
-        (token) => myReports(token),
-      )
-      if (list) setReports(newestFirst(list))
-    } catch (err) {
-      setError(messageOf(err))
-    } finally {
-      setLoading(false)
-    }
-  }, [withSession])
+  // Only the first time the tab is opened. After that the list is reloaded
+  // when the reporter asks for it, or when the page is loaded again.
+  useEffect(() => {
+    if (past.at === 'unopened') void onLoad()
+  }, [past.at, onLoad])
 
-  useEffect(() => { void load() }, [load])
-
-  const shown = useMemo(() => {
+  const reports = past.at === 'ready' ? past.reports : []
+  const matching = useMemo(() => {
     const q = query.trim().toLowerCase()
-    if (!q || !reports) return reports ?? []
+    if (!q) return reports
     return reports.filter(
       (r) =>
         r.reference.toLowerCase().includes(q) ||
@@ -253,45 +296,108 @@ function PastTab({ withSession }: { withSession: WithSession }) {
     )
   }, [reports, query])
 
-  if (loading) return <p class="hint">Asking the city…</p>
-  if (error) {
+  // A new search starts at the top of its own results.
+  useEffect(() => setShowing(PAGE), [query])
+
+  const more = useCallback(() => setShowing((n) => n + PAGE), [])
+  const sentinel = useEndOfList(more, showing < matching.length)
+
+  if (past.at === 'loading') return <Loading step={past.step} />
+  if (past.at === 'error') {
     return (
       <>
-        <p class="error" role="alert">{error}</p>
-        <button class="secondary" type="button" onClick={() => void load()}>Try again</button>
+        <p class="error" role="alert">{past.error}</p>
+        <button class="secondary" type="button" onClick={() => void onLoad()}>Try again</button>
       </>
     )
   }
-  if (!reports) {
+  if (past.at === 'declined') {
     return (
       <>
         <p class="hint">These come from the city's own records, so this needs a code from them.</p>
-        <button class="primary" type="button" onClick={() => void load()}>Show my reports</button>
+        <button class="primary" type="button" onClick={() => void onLoad()}>Show my reports</button>
       </>
     )
   }
+  if (past.at === 'unopened') return <Loading step="Starting." />
   if (reports.length === 0) {
-    return <p class="hint">The city has no reports under this account yet.</p>
+    return (
+      <>
+        <p class="hint">The city has no reports under this account yet.</p>
+        <Refresh onClick={() => void onLoad()} />
+      </>
+    )
   }
 
   return (
     <>
-      <label for="search">Search your reports</label>
-      <input
-        id="search"
-        type="search"
-        placeholder="Number, subject, or status"
-        value={query}
-        onInput={(e) => setQuery((e.target as HTMLInputElement).value)}
-      />
+      <div class="listtop">
+        <input
+          id="search"
+          type="search"
+          aria-label="Search your reports"
+          placeholder="Number, subject, or status"
+          value={query}
+          onInput={(e) => setQuery((e.target as HTMLInputElement).value)}
+        />
+        <Refresh onClick={() => void onLoad()} />
+      </div>
       <ul class="reports">
-        {shown.map((r) => (
+        {matching.slice(0, showing).map((r) => (
           <FiledReport key={r.reference} report={r} withSession={withSession} />
         ))}
+        {showing < matching.length && <li class="sentinel" ref={sentinel} aria-hidden="true" />}
       </ul>
-      {shown.length === 0 && <p class="hint">Nothing matches “{query}”.</p>}
-      <button class="secondary" type="button" onClick={() => void load()}>Refresh</button>
+      {matching.length === 0 && <p class="hint">Nothing matches “{query}”.</p>}
+      <p class="meta">
+        {matching.length === reports.length
+          ? `${reports.length} ${reports.length === 1 ? 'report' : 'reports'}`
+          : `${matching.length} of ${reports.length} reports`}
+      </p>
+      <Refresh onClick={() => void onLoad()} />
     </>
+  )
+}
+
+/**
+ * Puts the next page on screen when the end of the list comes into view. The
+ * reports are already here; this only decides how many are drawn.
+ */
+function useEndOfList(onReach: () => void, armed: boolean) {
+  const node = useRef<HTMLLIElement>(null)
+  useEffect(() => {
+    const el = node.current
+    // A browser without IntersectionObserver still gets every report: the
+    // pages just grow when the reporter searches, not when they scroll.
+    if (!armed || !el || typeof IntersectionObserver === 'undefined') return
+    const watcher = new IntersectionObserver((entries) => {
+      if (entries.some((e) => e.isIntersecting)) onReach()
+    })
+    watcher.observe(el)
+    return () => watcher.disconnect()
+  }, [armed, onReach])
+  return node
+}
+
+function Refresh({ onClick }: { onClick: () => void }) {
+  return (
+    <button class="iconbutton" type="button" onClick={onClick} aria-label="Refresh" title="Refresh">
+      <span aria-hidden="true">⟳</span>
+    </button>
+  )
+}
+
+/**
+ * Something moving, so that a slow reply does not read as a page that has
+ * stopped working, and a line saying what is being waited for.
+ */
+function Loading({ step }: { step: string }) {
+  return (
+    <p class="loading" role="status">
+      <span class="spinner" aria-hidden="true" />
+      Loading past reports…
+      <span class="step">{step}</span>
+    </p>
   )
 }
 

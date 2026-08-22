@@ -55,6 +55,11 @@ The city's tracking page reads two more calls with the same token
    `location`, `attachments` (each with a `link` and a `label`),
    `date_reported`, and `current_status`. The order is not promised, so the
    browser sorts it.
+
+   **There is no paging.** The request carries only `trans` and `xtk`: no
+   page, limit, offset, or cursor, and the city's own page slices the whole
+   array in the browser, three at a time. Every report an account has arrives
+   in one reply, so nothing this client does can make that reply smaller.
 2. `GET complainController?trans=getdetails&controlno=<no>&xtk=<token>` — what
    became of one report: `data[]` of status steps, each with `status`,
    `officename`, and `startdate`; `result[]` for what an office answered; and
