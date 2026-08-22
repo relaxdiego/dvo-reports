@@ -36,7 +36,7 @@ const davaoReply = `{
 func TestReverseNamesTheStreet(t *testing.T) {
 	srv, _ := fakeNominatim(t, davaoReply, 200)
 
-	got, err := New(srv.URL).Reverse(context.Background(), 7.0731, 125.6128)
+	got, err := NewNominatim(srv.URL).Reverse(context.Background(), 7.0731, 125.6128)
 	if err != nil {
 		t.Fatalf("want nil, got %v", err)
 	}
@@ -55,7 +55,7 @@ func TestReverseNamesTheStreet(t *testing.T) {
 func TestReverseSaysWhoIsCalling(t *testing.T) {
 	srv, got := fakeNominatim(t, davaoReply, 200)
 
-	if _, err := New(srv.URL).Reverse(context.Background(), 7.0731, 125.6128); err != nil {
+	if _, err := NewNominatim(srv.URL).Reverse(context.Background(), 7.0731, 125.6128); err != nil {
 		t.Fatal(err)
 	}
 	ua := (*got)[0].Header.Get("User-Agent")
@@ -67,7 +67,7 @@ func TestReverseSaysWhoIsCalling(t *testing.T) {
 // One request a second is the policy's absolute maximum.
 func TestReverseWaitsBetweenRequests(t *testing.T) {
 	srv, _ := fakeNominatim(t, davaoReply, 200)
-	c := New(srv.URL)
+	c := NewNominatim(srv.URL)
 
 	start := time.Now()
 	for i := 0; i < 2; i++ {
@@ -88,7 +88,7 @@ func TestReverseSpotsSomewhereElse(t *testing.T) {
 	  "address": {"road": "Session Road", "city": "Baguio", "postcode": "2600"}
 	}`, 200)
 
-	got, err := New(srv.URL).Reverse(context.Background(), 16.4116, 120.5933)
+	got, err := NewNominatim(srv.URL).Reverse(context.Background(), 16.4116, 120.5933)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -104,7 +104,7 @@ func TestReverseSpotsSomewhereElse(t *testing.T) {
 func TestReverseAcceptsThePostcodeAlone(t *testing.T) {
 	srv, _ := fakeNominatim(t, `{"address": {"road": "Somewhere", "postcode": "8000"}}`, 200)
 
-	got, err := New(srv.URL).Reverse(context.Background(), 7.07, 125.61)
+	got, err := NewNominatim(srv.URL).Reverse(context.Background(), 7.07, 125.61)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -117,7 +117,7 @@ func TestReverseAcceptsThePostcodeAlone(t *testing.T) {
 func TestReverseFallsBackToTheLongName(t *testing.T) {
 	srv, _ := fakeNominatim(t, `{"display_name": "Davao Gulf, Philippines", "address": {}}`, 200)
 
-	got, err := New(srv.URL).Reverse(context.Background(), 7.0, 125.7)
+	got, err := NewNominatim(srv.URL).Reverse(context.Background(), 7.0, 125.7)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -129,7 +129,7 @@ func TestReverseFallsBackToTheLongName(t *testing.T) {
 func TestReverseReportsAServerThatRefuses(t *testing.T) {
 	srv, _ := fakeNominatim(t, "slow down", http.StatusTooManyRequests)
 
-	if _, err := New(srv.URL).Reverse(context.Background(), 7.07, 125.61); err == nil {
+	if _, err := NewNominatim(srv.URL).Reverse(context.Background(), 7.07, 125.61); err == nil {
 		t.Fatal("want an error, got nil")
 	}
 }

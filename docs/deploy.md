@@ -162,7 +162,33 @@ repository.
 | `ALLOWED_ORIGINS` | `http://localhost:5173` | Comma-separated origins allowed to call the API. |
 | `UPSTREAM`        | `city`                  | `echo` swaps in the stand-in client.             |
 | `UPSTREAM_BASE_URL` | the city's API        | Override for testing against a fake.             |
-| `NOMINATIM_BASE_URL` | OpenStreetMap's     | Override for testing the street lookup.          |
+| `AZURE_MAPS_KEY`  | unset                   | Names the street under a pin. Unset falls back to OpenStreetMap. |
+| `AZURE_MAPS_BASE_URL` | Azure Maps          | Override for testing the street lookup.          |
+| `NOMINATIM_BASE_URL` | OpenStreetMap's      | Override for the fallback, for testing.          |
+
+### The street under a pin
+
+The city's own form fills its location box by reverse geocoding the pin with
+Azure Maps, and files that text. This backend does the same so a report reads
+the same, using **this project's own Azure Maps key** — never the city's,
+which is readable in their public JavaScript and bills their account.
+
+`AZURE_MAPS_KEY` is a **Fly secret**, not a value in `fly.*.toml` and not a
+GitHub Actions secret: the backend reads it at runtime, and CI only deploys.
+
+```sh
+fly secrets set AZURE_MAPS_KEY=... -a dvo-reports-api-staging
+fly secrets set AZURE_MAPS_KEY=... -a dvo-reports-api
+```
+
+Setting a secret restarts the app. Leave it unset and the backend uses
+OpenStreetMap's Nominatim instead, which needs no account and is what a
+developer gets locally; it is rate limited to one request a second, which is
+that service's own published limit.
+
+Without either, nothing breaks. A report then travels with its coordinates in
+the location field, which is what the city's form received before any of this
+existed.
 
 `ALLOWED_ORIGINS` is set in each `fly.*.toml`. It must name the frontend for
 that environment — the two are on different hosts, so a wrong value shows up

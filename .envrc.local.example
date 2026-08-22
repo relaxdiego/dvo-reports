@@ -1,6 +1,5 @@
-# Copy this file to .envrc.local. It is gitignored. Nothing here is secret
-# today, but that is where a secret would go if the real upstream client ever
-# needs one.
+# Copy this file to .envrc.local. It is gitignored, and it is where a secret
+# goes. Never put one in this file: it is committed.
 
 # Port the Go backend listens on. The Vite dev server proxies /api here.
 export PORT=8080
@@ -13,3 +12,10 @@ export ALLOWED_ORIGINS=http://localhost:5173
 # Where the frontend sends reports. Leave unset in development: the Vite
 # proxy handles it. Set in production to the deployed backend's URL.
 # export VITE_API_BASE=https://api.report-staging.relaxdiego.com
+
+# Names the street under a pin, the way the city's own form does. Leave it
+# unset and the backend asks OpenStreetMap instead, which needs no account —
+# that is enough for development. Get your own key from the Azure portal;
+# the city's is not ours to spend. In production this is a Fly secret, not a
+# value in fly.*.toml. See docs/deploy.md.
+# export AZURE_MAPS_KEY=

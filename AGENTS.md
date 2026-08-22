@@ -76,13 +76,20 @@ just to trigger a workflow** — the history is public and permanent, and
 - `backend/internal/api` — routes, size limits, CORS. Handlers stay thin.
 - `backend/internal/place` — names the street under a pin, so the report
   carries what the city's own form would have put in its location box. It is
-  the only part of the backend that talks to anyone but the city. It lives
-  here rather than in the browser because OpenStreetMap's terms want a
-  User-Agent saying who is calling, which a page cannot set — and this way a
-  citizen's location never leaves their device for a third party. One request
-  a second, no more; that limit is their policy, not a guess. A lookup that
-  fails is not an error: the report goes with its coordinates, as it did
-  before this existed.
+  the only part of the backend that talks to anyone but the city. Azure Maps
+  when `AZURE_MAPS_KEY` is set, which is the city's own geocoder and makes
+  the wording match theirs; OpenStreetMap's Nominatim otherwise, so a
+  developer with no account still gets a working form, at one request a
+  second because that is Nominatim's published limit.
+
+  **The city's own Azure key is readable in their public JavaScript. Do not
+  use it.** It bills their account, and this repository is public.
+
+  It lives in the backend, not the browser: Nominatim wants a User-Agent
+  naming the caller, a page cannot set one, and a key must never be shipped
+  to a browser. A citizen's location never leaves their device for a third
+  party as a result. A lookup that fails is not an error — the report goes
+  with its coordinates, as it did before this existed.
 - `backend/internal/photo` — **the only place photo metadata is decided.** It
   keeps a named few fields and drops everything else, by rebuilding the
   metadata from nothing rather than deleting from what arrived, so a tag

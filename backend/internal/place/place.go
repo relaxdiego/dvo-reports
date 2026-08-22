@@ -1,16 +1,26 @@
 // Package place turns a pair of coordinates into a street a person can read.
 //
 // The city's own form does this with Azure Maps and puts the answer in its
-// location box (js/map.js). This project cannot use their key, so it asks
-// OpenStreetMap's Nominatim the same question and sends the answer upstream
-// in the same field.
+// location box (js/map.js). This package asks the same question of the same
+// service, with this project's own key, and sends the answer upstream in the
+// same field — so a report filed here reads like one filed there.
 //
-// Nominatim is free and run on donated hardware, and its usage policy is the
-// reason for most of what is in here: an absolute maximum of one request a
-// second, and a User-Agent that says who is calling. A browser cannot set a
-// User-Agent, which is why this lives in the backend rather than in the page
-// — and a citizen's address never reaches a third party from their own
-// device as a result.
+// Two geocoders, chosen by whether a key is configured:
+//
+//   - Azure, when AZURE_MAPS_KEY is set. What the city itself uses, so the
+//     wording matches theirs and so does the test for whether a pin is in
+//     Davao.
+//   - Nominatim, otherwise. OpenStreetMap's, free and needing no account,
+//     which is what a developer gets without signing up for anything.
+//
+// The city's own key is readable in their public JavaScript. It is not used
+// here and must never be: it bills their account, and this repository is
+// public.
+//
+// Whichever is used, the lookup lives in the backend rather than the page.
+// Nominatim's terms want a User-Agent naming the caller, which a browser
+// cannot set, and Azure's key must not be shipped to one. A citizen's
+// location never reaches a third party from their own device as a result.
 //
 // Nothing is stored. A lookup that fails is not an error a citizen should
 // ever see: the report is filed with its coordinates instead, exactly as it
@@ -28,6 +38,11 @@ import (
 	"sync"
 	"time"
 )
+
+// Geocoder names the place at a pair of coordinates.
+type Geocoder interface {
+	Reverse(ctx context.Context, lat, lon float64) (Place, error)
+}
 
 // DefaultBaseURL is OpenStreetMap's public Nominatim.
 const DefaultBaseURL = "https://nominatim.openstreetmap.org"
@@ -49,8 +64,9 @@ type Place struct {
 	InDavao bool `json:"in_davao"`
 }
 
-// Client asks Nominatim. The zero value is not usable; use New.
-type Client struct {
+// Nominatim asks OpenStreetMap. The zero value is not usable; use
+// NewNominatim.
+type Nominatim struct {
 	http    *http.Client
 	baseURL string
 
@@ -60,18 +76,18 @@ type Client struct {
 	last time.Time
 }
 
-func New(baseURL string) *Client {
+func NewNominatim(baseURL string) *Nominatim {
 	if baseURL == "" {
 		baseURL = DefaultBaseURL
 	}
-	return &Client{
+	return &Nominatim{
 		http:    &http.Client{Timeout: 8 * time.Second},
 		baseURL: strings.TrimRight(baseURL, "/"),
 	}
 }
 
 // Reverse names the place at lat,lon.
-func (c *Client) Reverse(ctx context.Context, lat, lon float64) (Place, error) {
+func (c *Nominatim) Reverse(ctx context.Context, lat, lon float64) (Place, error) {
 	if err := c.wait(ctx); err != nil {
 		return Place{}, err
 	}
@@ -133,7 +149,7 @@ func (c *Client) Reverse(ctx context.Context, lat, lon float64) (Place, error) {
 
 // wait holds the caller until a request is allowed. It is the whole of the
 // rate limiting, and it is deliberately crude: one request at a time.
-func (c *Client) wait(ctx context.Context) error {
+func (c *Nominatim) wait(ctx context.Context) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if since := time.Since(c.last); since < minInterval {

@@ -31,7 +31,7 @@ func main() {
 			Upstream:       pickUpstream(log),
 			AllowedOrigins: splitList(envOr("ALLOWED_ORIGINS", "http://localhost:5173")),
 			Log:            log,
-			Places:         place.New(os.Getenv("NOMINATIM_BASE_URL")),
+			Places:         pickGeocoder(log),
 		}),
 		ReadHeaderTimeout: 5 * time.Second,
 		// Generous: a report carries photos over a phone connection.
@@ -88,4 +88,20 @@ func splitList(s string) []string {
 		}
 	}
 	return out
+}
+
+// pickGeocoder chooses who names the street under a pin.
+//
+// Azure Maps when a key is set, because that is what the city's own form
+// uses and a report then reads like one filed there. OpenStreetMap
+// otherwise, so that a developer with no Azure account still gets a working
+// form. Neither is required: without either, a report travels with its
+// coordinates, which is what the city's field held before this existed.
+func pickGeocoder(log *slog.Logger) place.Geocoder {
+	if key := os.Getenv("AZURE_MAPS_KEY"); key != "" {
+		log.Info("naming places with azure maps")
+		return place.NewAzure(key, os.Getenv("AZURE_MAPS_BASE_URL"))
+	}
+	log.Info("naming places with openstreetmap; set AZURE_MAPS_KEY to use the city's own geocoder")
+	return place.NewNominatim(os.Getenv("NOMINATIM_BASE_URL"))
 }

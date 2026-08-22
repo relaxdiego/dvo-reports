@@ -37,7 +37,7 @@ type Config struct {
 	// Places names the street a pin sits on, the way the city's own form
 	// does. Optional: without it a report carries its coordinates alone,
 	// which is what happened before there was a geocoder at all.
-	Places *place.Client
+	Places place.Geocoder
 }
 
 // New returns the backend's HTTP routes.
