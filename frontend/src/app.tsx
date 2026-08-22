@@ -245,6 +245,11 @@ function ReportTab({ withSession }: { withSession: WithSession }) {
       <button class="primary" type="submit" disabled={sending}>
         {sending ? 'Sending…' : 'Send report'}
       </button>
+      {/*
+        The other half of the header's notice, next to the thing it binds.
+        See the note there before changing this wording.
+      */}
+      <p class="hint">Sending means you agree to the city's terms.</p>
     </form>
   )
 }
@@ -609,11 +614,16 @@ function Header() {
         sending binds the reporter to the city's terms — on the city's own
         site that is a button they press, so it cannot live only behind a
         link nobody opens. The rest is the disclaimer page.
+
+        The terms half is written twice, like the emergency line: once here,
+        and once beside the send button, because this header is scrolled off
+        the screen by the time anyone presses it. Change one and change the
+        other.
       */}
       <p class="unofficial">
-        Unofficial site, not run by the city government. This is a community-run front end for{' '}
-        <a href={CITY_SITE}>reports.davaocity.gov.ph</a>. Use at your own risk. Sending a report
-        means agreeing to the city's terms — see the{' '}
+        Unofficial site, not run by or connected to the city government. Volunteers built it. It
+        sends your report to <a href={CITY_SITE}>reports.davaocity.gov.ph</a>. Use at your own
+        risk. Sending a report means you agree to the city's terms — see the{' '}
         <button type="button" class="linky" onClick={() => setShowDisclaimer(true)}>
           disclaimer
         </button>

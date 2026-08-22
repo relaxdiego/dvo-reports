@@ -132,6 +132,12 @@ just to trigger a workflow** — the history is public and permanent, and
   that sending a report means agreeing to the city's terms. On the city's
   own site the second is a button the reporter presses, so it cannot live
   only behind a link.
+
+  The second fact is written twice, the way the emergency line is: once in
+  the header, and once beside `Send report`, because the header has been
+  scrolled off the screen by the time anyone presses that button. A notice
+  that binds somebody belongs next to the thing it binds. Change one and
+  change the other.
 - `frontend/src/citynotice.tsx` — the city's disclaimer and privacy terms,
   copied word for word, bar one substitution the file explains. The city has
   no page to link to, so they are carried here, and copied rather than framed

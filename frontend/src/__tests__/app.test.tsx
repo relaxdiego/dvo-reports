@@ -561,12 +561,26 @@ describe('the disclaimer', () => {
     act(() => render(<App />, root))
 
     const line = root.querySelector('header .unofficial')!
-    expect(line.textContent).toContain('Unofficial site, not run by the city government')
+    expect(line.textContent).toContain('Unofficial site, not run by or connected to the city government')
     expect(line.textContent).toContain('Use at your own risk')
     // The one thing that binds the reporter, on the form and not only
     // behind the link: on the city's own site it is a button they press.
-    expect(line.textContent).toContain("Sending a report means agreeing to the city's terms")
+    expect(line.textContent).toContain("Sending a report means you agree to the city's terms")
     expect(root.querySelectorAll('header .linky')).toHaveLength(1)
+  })
+
+  // And again beside the send button, because the header above is scrolled
+  // off the screen by the time anyone presses it.
+  it('says what sending binds the reporter to, next to the send button', () => {
+    act(() => render(<App />, root))
+
+    const send = [...root.querySelectorAll('button[type="submit"]')].find(
+      (b) => b.textContent?.trim() === 'Send report',
+    )
+    if (!send) throw new Error('no "Send report" button')
+    expect(send.nextElementSibling?.textContent).toContain(
+      "Sending means you agree to the city's terms",
+    )
   })
 
   it('covers the page, this site first and the city after', () => {
