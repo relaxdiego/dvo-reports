@@ -4,6 +4,7 @@ import { forget, liveSession, remember, rememberedEmail } from './session'
 import { validate, MAX_PHOTOS } from './validate'
 import { osmLink, placeOfPhotos, readSnapshot, type Place, type Snapshot } from './exif'
 import { CityNotice } from './citynotice'
+import { SiteNotice } from './sitenotice'
 import {
   CATEGORIES,
   CATEGORY_LABELS,
@@ -577,10 +578,14 @@ function SignIn({ why, onDone }: { why: string; onDone: (token: string | null) =
   )
 }
 
+/** Which of the two notices is open over the page, if either. */
+type Notice = 'city' | 'site' | null
+
 function Header() {
-  // The city's terms are not a page anyone can link to, so they are carried
-  // here instead and opened over the form. See citynotice.tsx.
-  const [notice, setNotice] = useState(false)
+  // Neither notice is a page anyone can link to: the city's terms are a box
+  // on its front page, and this site's are its own. Both are carried here
+  // and opened over the form. See citynotice.tsx and sitenotice.tsx.
+  const [notice, setNotice] = useState<Notice>(null)
 
   return (
     <header>
@@ -590,11 +595,17 @@ function Header() {
         <a href={CITY_SITE}>reports.davaocity.gov.ph</a>. It is not run
         by the city government. Your report is passed on to that site and is not stored here.
         Sending one means agreeing to{' '}
-        <button type="button" class="linky" onClick={() => setNotice(true)}>
+        <button type="button" class="linky" onClick={() => setNotice('city')}>
           the city's disclaimer and privacy terms
-        </button>.
+        </button>
+        . Here is{' '}
+        <button type="button" class="linky" onClick={() => setNotice('site')}>
+          how this site handles your report
+        </button>
+        .
       </p>
-      {notice && <CityNotice onClose={() => setNotice(false)} />}
+      {notice === 'city' && <CityNotice onClose={() => setNotice(null)} />}
+      {notice === 'site' && <SiteNotice onClose={() => setNotice(null)} />}
     </header>
   )
 }

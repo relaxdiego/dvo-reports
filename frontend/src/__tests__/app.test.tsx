@@ -487,14 +487,19 @@ describe('picking the place on a map', () => {
 // The city has no page for its terms, so a reporter who never visits the
 // city's own site would otherwise never see what they are agreeing to.
 describe("the city's terms", () => {
-  function open() {
+  function open(phrase: string) {
     act(() => render(<App />, root))
-    const link = root.querySelector<HTMLButtonElement>('header .linky')!
+    const link = [...root.querySelectorAll<HTMLButtonElement>('header .linky')].find(
+      (b) => b.textContent?.trim() === phrase,
+    )
+    if (!link) throw new Error(`no preamble link reading "${phrase}"`)
     act(() => link.click())
   }
 
+  const openCity = () => open("the city's disclaimer and privacy terms")
+
   it("opens the city's words over the page", () => {
-    open()
+    openCity()
 
     const sheet = root.querySelector('[role="dialog"]')
     expect(sheet).not.toBeNull()
@@ -510,7 +515,7 @@ describe("the city's terms", () => {
   // A copy is only as good as the day it was taken, and the city can change
   // its terms without telling anyone.
   it('says when the copy was taken, and whose words they are', () => {
-    open()
+    openCity()
 
     const sheet = root.querySelector('[role="dialog"]')!
     expect(sheet.textContent).toContain('as of 22 August 2026')
@@ -519,10 +524,54 @@ describe("the city's terms", () => {
   })
 
   it('closes again and leaves the form behind it', () => {
-    open()
+    openCity()
     click('Close')
 
     expect(root.querySelector('[role="dialog"]')).toBeNull()
     expect(root.querySelector('#description')).not.toBeNull()
+  })
+})
+
+// This site's own terms. Separate from the city's on purpose: a reporter
+// should be able to tell whose promise is whose.
+describe("this site's own notice", () => {
+  function openSite() {
+    act(() => render(<App />, root))
+    const link = [...root.querySelectorAll<HTMLButtonElement>('header .linky')].find(
+      (b) => b.textContent?.trim() === 'how this site handles your report',
+    )!
+    act(() => link.click())
+  }
+
+  it('says the plain things: nothing kept, nothing promised', () => {
+    openSite()
+
+    const sheet = root.querySelector('[role="dialog"]')!
+    expect(sheet.textContent).toContain('What this site is')
+    expect(sheet.textContent).toContain('There is no database')
+    expect(sheet.textContent).toContain('you use it at your own risk')
+    expect(sheet.textContent).toContain('not run by the city government')
+  })
+
+  // Vague is worse than nothing here: a reporter cannot weigh "two
+  // identifiers" without being told what they are.
+  it('names what a photo carries on, rather than counting it', () => {
+    openSite()
+
+    const sheet = root.querySelector('[role="dialog"]')!
+    expect(sheet.textContent).toContain('names the press of the shutter')
+    expect(sheet.textContent).toContain('names the photograph')
+  })
+
+  // Two notices, never both at once, and each closes on its own.
+  it("stands apart from the city's notice", () => {
+    openSite()
+    expect(root.querySelectorAll('[role="dialog"]')).toHaveLength(1)
+    expect(root.querySelector('[role="dialog"]')?.textContent).not.toContain(
+      'Disclaimer Acceptance:',
+    )
+
+    click('Close')
+    expect(root.querySelector('[role="dialog"]')).toBeNull()
   })
 })

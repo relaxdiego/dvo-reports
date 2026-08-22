@@ -95,6 +95,11 @@ just to trigger a workflow** — the history is public and permanent, and
   no page to link to, so they are carried here. If you refresh the text,
   change `COPIED_ON` in the same commit: the date is what tells a reader how
   stale the copy is.
+- `frontend/src/sitenotice.tsx` — this project's own notice: what it keeps,
+  what it promises, and what it does not. Its sibling above carries the
+  city's. Keep the two apart, so a reporter can tell whose promise is whose,
+  and keep this one true rather than short — if it stops matching what the
+  code does, the code is not the thing that is wrong.
 - `frontend/src/map.tsx` — the OpenStreetMap place picker. It is the only
   code that talks to a third party, and it is loaded with a dynamic
   `import()` so that Leaflet is fetched only by a reporter who opens the map.
