@@ -816,14 +816,14 @@ function PhotoField({
             ))}
           </ul>
           {/*
-            Accurate rather than reassuring: the identifiers are sent too, and
-            a reporter who is told "everything else is removed" should be able
-            to believe it. The list is in backend/internal/photo.
+            This has to stay true as the filter changes. The list of what
+            survives is in backend/internal/photo, and it is short enough to
+            name here rather than summarise.
           */}
           <p class="hint">
-            The place and time shown here are sent to the city with your report, along with two
-            identifiers your phone writes onto a photo. Everything else the camera recorded — its
-            model, its settings — is removed first.
+            The place and time shown here are sent to the city with your report. Everything else
+            the camera recorded — its model, its settings, the identifiers it puts on a
+            photograph — is removed first.
           </p>
         </>
       )}

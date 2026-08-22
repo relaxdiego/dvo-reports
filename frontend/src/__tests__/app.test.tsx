@@ -553,14 +553,15 @@ describe("this site's own notice", () => {
     expect(sheet.textContent).toContain('not run by the city government')
   })
 
-  // Vague is worse than nothing here: a reporter cannot weigh "two
-  // identifiers" without being told what they are.
-  it('names what a photo carries on, rather than counting it', () => {
+  // The notice and backend/internal/photo have to say the same thing. If
+  // the filter starts keeping something again, this is the sentence that
+  // becomes a lie.
+  it('says a photo carries on only its place and time', () => {
     openSite()
 
     const sheet = root.querySelector('[role="dialog"]')!
-    expect(sheet.textContent).toContain('names the press of the shutter')
-    expect(sheet.textContent).toContain('names the photograph')
+    expect(sheet.textContent).toContain('Only the place and the time a photo carries go on')
+    expect(sheet.textContent).toContain('the identifiers it puts on each photograph — is removed')
   })
 
   // Two notices, never both at once, and each closes on its own.

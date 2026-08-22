@@ -38,14 +38,6 @@ var (
 		0x9011: true, // OffsetTimeOriginal
 		0x9012: true, // OffsetTimeDigitized
 	}
-
-	// keepApple are the two identifiers inside Apple's private block.
-	// 0x0020 names one press of the shutter; 0x002b names the photograph it
-	// produced. Neither identifies a phone or a person.
-	keepApple = map[uint16]bool{
-		0x0020: true, // ImageCaptureRequestID
-		0x002b: true, // PhotoIdentifier
-	}
 )
 
 // The whole GPS directory is kept. Position is the point of it, but the
@@ -53,15 +45,9 @@ var (
 // and are worth as much as the coordinates alone.
 
 const (
-	tagExifIFD   = 0x8769
-	tagGPSIFD    = 0x8825
-	tagMakerNote = 0x927c
+	tagExifIFD = 0x8769
+	tagGPSIFD  = 0x8825
 )
-
-// appleMakerNote is the signature Apple writes at the head of its private
-// block: "Apple iOS", two version bytes, then the byte order. Offsets inside
-// the block count from the start of the block, not from the file.
-var appleMakerNote = []byte("Apple iOS\x00\x00\x01MM")
 
 // typeSize is the width of one value of each TIFF type. An unknown type has
 // no width, so an entry using one is dropped rather than guessed at.
@@ -182,9 +168,6 @@ func filterExif(tiff []byte) []byte {
 
 	out0 := pick(ifd0, keepIFD0)
 	outExif := pick(exifIn, keepExif)
-	if mn := filterAppleMakerNote(find(exifIn, tagMakerNote)); mn != nil {
-		outExif = append(outExif, entry{tag: tagMakerNote, typ: 7, count: uint32(len(mn)), value: mn})
-	}
 	// The GPS directory is kept whole.
 	outGPS := gpsIn
 
@@ -271,15 +254,6 @@ func valueOffset(e entry, order binary.ByteOrder) uint32 {
 	return binary.BigEndian.Uint32(e.value)
 }
 
-func find(list []entry, tag uint16) []byte {
-	for _, e := range list {
-		if e.tag == tag {
-			return e.value
-		}
-	}
-	return nil
-}
-
 func pick(list []entry, keep map[uint16]bool) []entry {
 	var out []entry
 	for _, e := range list {
@@ -288,66 +262,6 @@ func pick(list []entry, keep map[uint16]bool) []entry {
 		}
 	}
 	return out
-}
-
-// filterAppleMakerNote rebuilds Apple's private block with only the kept
-// identifiers in it. Anything that is not Apple's block, or that holds
-// neither identifier, comes back nil and the block is dropped.
-func filterAppleMakerNote(mn []byte) []byte {
-	head := len(appleMakerNote)
-	if len(mn) < head+2 || !bytes.HasPrefix(mn, appleMakerNote) {
-		return nil
-	}
-	n := uint32(binary.BigEndian.Uint16(mn[head:]))
-	if uint64(head)+2+uint64(n)*12 > uint64(len(mn)) {
-		return nil
-	}
-	var keep []entry
-	for i := uint32(0); i < n; i++ {
-		rec := mn[uint32(head)+2+i*12:]
-		e := entry{
-			tag:   binary.BigEndian.Uint16(rec),
-			typ:   binary.BigEndian.Uint16(rec[2:]),
-			count: binary.BigEndian.Uint32(rec[4:]),
-		}
-		if !keepApple[e.tag] {
-			continue
-		}
-		w, ok := typeSize[e.typ]
-		if !ok {
-			continue
-		}
-		size := uint64(w) * uint64(e.count)
-		if size > 4 {
-			p := uint64(binary.BigEndian.Uint32(rec[8:]))
-			if p+size > uint64(len(mn)) {
-				continue
-			}
-			e.value = mn[p : p+size]
-		} else {
-			e.value = rec[8 : 8+size]
-		}
-		keep = append(keep, e)
-	}
-	if len(keep) == 0 {
-		return nil
-	}
-
-	// Apple counts offsets from the start of its own block, so the header is
-	// copied verbatim and the records are laid out after it.
-	var body, data bytes.Buffer
-	dataAt := uint32(head) + 2 + uint32(len(keep))*12
-	for _, e := range keep {
-		writeRecord(&body, e, dataAt+uint32(data.Len()), &data)
-	}
-	var out bytes.Buffer
-	out.Write(mn[:head])
-	var n2 [2]byte
-	binary.BigEndian.PutUint16(n2[:], uint16(len(keep)))
-	out.Write(n2[:])
-	out.Write(body.Bytes())
-	out.Write(data.Bytes())
-	return out.Bytes()
 }
 
 // writeRecord writes one 12-byte directory record, putting the value inline

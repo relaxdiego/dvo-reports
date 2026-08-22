@@ -40,10 +40,10 @@ export function SiteNotice({ onClose }: { onClose: () => void }) {
           </p>
           <p>
             <strong>Your photos:</strong> Photos are made smaller in your browser before they are
-            sent, so uploads are fast. Most of what a camera writes into a photo — its model, its
-            settings — is removed. The place and the time are kept. On an iPhone, two identifiers
-            Apple writes in are kept as well: one names the press of the shutter, the other names
-            the photograph. All of these are sent on, because the city's site receives them.
+            sent, so uploads are fast. Only the place and the time a photo carries go on to the
+            city with it. Everything else the camera wrote — its model, its settings, the
+            identifiers it puts on each photograph — is removed before your report leaves this
+            site.
           </p>
           <p>
             <strong>No promises:</strong> This site can break, go offline, or fail to deliver a

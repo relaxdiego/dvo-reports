@@ -69,18 +69,25 @@ func ifd(entries []tag, next, dataAt uint32) (dir, data []byte) {
 	return d.Bytes(), extra.Bytes()
 }
 
+// appleSignature is what Apple writes at the head of its private block:
+// "Apple iOS", two version bytes, then the byte order. The filter no longer
+// knows this string; the fixture writes it so the test can prove the whole
+// block is dropped.
+var appleSignature = []byte("Apple iOS\x00\x00\x01MM")
+
 // appleBlob is Apple's private block: its own header, big-endian records, and
-// offsets counted from the start of the block.
+// offsets counted from the start of the block. Every one of these is dropped;
+// the block is built in full so that dropping it is what is being tested.
 func appleBlob() []byte {
 	entries := []tag{
-		{0x0001, 9, 1, []byte{0, 0, 0, 15}}, // dropped: a version number
-		{0x0020, 2, 37, ascii(requestID)},   // kept
-		{0x002b, 2, 37, ascii(photoID)},     // kept
+		{0x0001, 9, 1, []byte{0, 0, 0, 15}}, // a version number
+		{0x0020, 2, 37, ascii(requestID)},   // ImageCaptureRequestID
+		{0x002b, 2, 37, ascii(photoID)},     // PhotoIdentifier
 	}
-	head := len(appleMakerNote)
+	head := len(appleSignature)
 	dataAt := uint32(head) + 2 + uint32(len(entries))*12
 	var dir, data bytes.Buffer
-	dir.Write(appleMakerNote)
+	dir.Write(appleSignature)
 	var n [2]byte
 	binary.BigEndian.PutUint16(n[:], uint16(len(entries)))
 	dir.Write(n[:])
@@ -215,8 +222,6 @@ func TestCleanKeepsOnlyTheNamedFields(t *testing.T) {
 	kept := []struct{ what, text string }{
 		{"the date the photo was taken", dateTaken},
 		{"the time offset", "+08:00"},
-		{"the capture request identifier", requestID},
-		{"the photo identifier", photoID},
 	}
 	for _, k := range kept {
 		if !bytes.Contains(got, []byte(k.text)) {
@@ -225,9 +230,15 @@ func TestCleanKeepsOnlyTheNamedFields(t *testing.T) {
 	}
 
 	dropped := []struct{ what, text string }{
-		// Not "Apple": that word is also the signature of the private block
-		// whose two identifiers are kept on purpose. The make is checked by
-		// tag below, where it cannot be confused with anything else.
+		// Both of these named one photograph rather than one phone, which is
+		// why they used to be kept. They are gone now: the place and the
+		// time are what a report needs, and an identifier a reporter cannot
+		// see the point of is one they should not have to justify.
+		{"the capture request identifier", requestID},
+		{"the photo identifier", photoID},
+		// Apple's whole private block goes with them, signature and all.
+		{"Apple's private block", "Apple iOS"},
+		{"the make", "Apple"},
 		{"the model", "iPhone 16 Pro"},
 		{"the software version", "18.6.2"},
 		{"the colour profile", "ICC_PROFILE"},
@@ -263,20 +274,13 @@ func TestCleanWritesExactlyTheKeptTags(t *testing.T) {
 	wantTags(t, "the main directory", root, 0x0132, tagExifIFD, tagGPSIFD)
 
 	exif := readDir(tiff, binary.BigEndian.Uint32(root[tagExifIFD]))
-	// DateTimeOriginal, OffsetTime, and Apple's block. No exposure setting,
-	// and no pixel dimensions describing the photo before it was resized.
-	wantTags(t, "the Exif directory", exif, 0x9003, 0x9010, tagMakerNote)
+	// DateTimeOriginal and OffsetTime, and nothing else: no exposure
+	// setting, no manufacturer's block, and no pixel dimensions describing
+	// the photo before it was resized.
+	wantTags(t, "the Exif directory", exif, 0x9003, 0x9010)
 
 	gps := readDir(tiff, binary.BigEndian.Uint32(root[tagGPSIFD]))
 	wantTags(t, "the GPS directory", gps, 0x0001, 0x0002, 0x0003, 0x0004, 0x001f)
-
-	mn := exif[tagMakerNote]
-	if !bytes.HasPrefix(mn, appleMakerNote) {
-		t.Fatal("the rebuilt private block lost Apple's signature, so no reader will find it")
-	}
-	if n := binary.BigEndian.Uint16(mn[len(appleMakerNote):]); n != 2 {
-		t.Errorf("the private block holds %d records, want exactly the 2 identifiers", n)
-	}
 }
 
 func wantTags(t *testing.T, what string, got map[uint16][]byte, want ...uint16) {
