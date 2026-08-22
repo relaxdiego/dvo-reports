@@ -564,10 +564,10 @@ describe('the photo field', () => {
     expect(root.querySelector('[role="alert"]')).toBeNull()
   })
 
-  // Three crosses can be on the screen at once: the one on a chosen kind,
-  // one per photo row, and the one that puts an error away. They are drawn
-  // by a single shared class, so a cross that does not carry it is one that
-  // will drift away from the others.
+  // Four crosses can be on the screen at once: the one on the unofficial
+  // notice, the one on a chosen kind, one per photo row, and the one that
+  // puts an error away. They are drawn by a single shared class, so a cross
+  // that does not carry it is one that will drift away from the others.
   it('draws every cross from the same class', async () => {
     await attach(...Array.from({ length: MAX_PHOTOS + 1 }, () => jpegPhoto()))
     click('Garbage')
@@ -575,10 +575,9 @@ describe('the photo field', () => {
     const crosses = [...root.querySelectorAll('*')].filter(
       (el) => el.children.length === 0 && el.textContent?.trim() === '×',
     )
-    // One per row, one on the chip, one on the "not added" error. The
-    // notice in the header is not one of them: it is minimized, not
-    // cleared, so it carries a minus and not a cross.
-    expect(crosses).toHaveLength(MAX_PHOTOS + 2)
+    // One per row, one on the chip, one on the "not added" error, one on
+    // the unofficial notice in the header.
+    expect(crosses).toHaveLength(MAX_PHOTOS + 3)
     for (const cross of crosses) {
       // On the glyph itself, or on the button holding it.
       const drawn = cross.classList.contains('x') || cross.parentElement!.classList.contains('x')
@@ -731,63 +730,45 @@ describe('the disclaimer', () => {
     expect(root.querySelectorAll('header .linky')).toHaveLength(1)
   })
 
-  function minmax() {
-    const button = root.querySelector<HTMLButtonElement>('header .unofficial .minmax')
-    if (!button) throw new Error('no minimize button on the unofficial notice')
+  function shorten() {
+    const button = root.querySelector<HTMLButtonElement>('header .unofficial .dismiss')
+    if (!button) throw new Error('no cross on the unofficial notice')
     return button
   }
 
   // Read once, the paragraph is only in the way of the form under it. The
-  // minus shortens it, and this browser remembers that, so a returning
+  // cross shortens it, and this browser remembers that, so a returning
   // reporter is not asked to read the whole of it again.
-  it('shortens when minimized, and stays short on the next visit', () => {
+  it('shortens when the cross is pressed, and stays short next visit', () => {
     act(() => render(<App />, root))
-    act(() => minmax().click())
+    act(() => shorten().click())
 
     const brief = root.querySelector('header .unofficial.brief')!
     expect(brief.textContent).toContain('Unofficial site')
     expect(brief.textContent).not.toContain('Volunteers built it')
+    expect(brief.querySelector('.dismiss')).toBeNull()
 
     render(null, root)
     act(() => render(<App />, root))
     expect(root.querySelector('header .unofficial.brief')).not.toBeNull()
   })
 
-  // It goes both ways. Nothing is cleared, so the whole notice comes back
-  // from the same corner it went into, and that is remembered too.
-  it('opens again from the same button, and stays open', () => {
-    act(() => render(<App />, root))
-    act(() => minmax().click())
-    act(() => minmax().click())
-
-    expect(root.querySelector('header .unofficial')!.textContent).toContain('Volunteers built it')
-    expect(root.querySelector('header .unofficial.brief')).toBeNull()
-
-    render(null, root)
-    act(() => render(<App />, root))
-    expect(root.querySelector('header .unofficial')!.textContent).toContain('Volunteers built it')
-  })
-
-  // The glyph has to say which way the button goes, and the label has to say
-  // it to a reader who cannot see the glyph.
-  it('says which way it goes, in the glyph and in the label', () => {
+  // The same cross as everywhere else on the page, in the same corner as the
+  // one that puts an error away, and named for what it actually does.
+  it("is the page's shared cross, in the corner", () => {
     act(() => render(<App />, root))
 
-    expect(minmax().textContent?.trim()).toBe('−')
-    expect(minmax().getAttribute('aria-label')).toBe('Shorten this notice')
-    expect(minmax().getAttribute('aria-expanded')).toBe('true')
-
-    act(() => minmax().click())
-    expect(minmax().textContent?.trim()).toBe('+')
-    expect(minmax().getAttribute('aria-label')).toBe('Show the whole notice')
-    expect(minmax().getAttribute('aria-expanded')).toBe('false')
+    expect(shorten().classList.contains('x')).toBe(true)
+    expect(shorten().classList.contains('dismiss')).toBe(true)
+    expect(shorten().textContent?.trim()).toBe('\u00d7')
+    expect(shorten().getAttribute('aria-label')).toBe('Shorten this notice')
   })
 
   // The fact that nobody official is behind this never leaves the page, and
   // the terms are still one tap away from the header after it is shortened.
   it('still says it is unofficial, and still opens the terms, once short', () => {
     act(() => render(<App />, root))
-    act(() => minmax().click())
+    act(() => shorten().click())
 
     const link = root.querySelector<HTMLButtonElement>('header .unofficial.brief .linky')!
     expect(link.textContent?.trim()).toBe('disclaimer')
@@ -800,7 +781,7 @@ describe('the disclaimer', () => {
   // of agreeing.
   it('leaves the terms beside the send button when it is short', () => {
     act(() => render(<App />, root))
-    act(() => minmax().click())
+    act(() => shorten().click())
 
     const send = [...root.querySelectorAll('button[type="submit"]')].find(
       (b) => b.textContent?.trim() === 'Send report',

@@ -741,42 +741,16 @@ function unofficialMinimized(): boolean {
   }
 }
 
-function rememberUnofficialMinimized(minimized: boolean): void {
+function rememberUnofficialMinimized(): void {
   try {
-    if (minimized) localStorage.setItem(UNOFFICIAL_KEY, '1')
-    else localStorage.removeItem(UNOFFICIAL_KEY)
+    localStorage.setItem(UNOFFICIAL_KEY, '1')
   } catch {
-    // Nothing to do: the choice lasts as long as this visit does.
+    // Nothing to do: the notice is short only for this visit.
   }
 }
 
 function Header({ onDisclaimer }: { onDisclaimer: () => void }) {
   const [minimized, setMinimized] = useState(unofficialMinimized)
-
-  /*
-    Not a cross. A cross clears something, and nothing here is being
-    cleared — the notice is only being made small, and it comes back from
-    the same corner it went into. So the glyph says which way it goes: a
-    minus while the whole notice is open, a plus while only the short line
-    is. It sits in the top corner of the notice in both states, where a
-    reporter looks for it, rather than after the text where it would move
-    every time the wording wrapped differently.
-  */
-  const toggle = (
-    <button
-      type="button"
-      class="minmax"
-      aria-expanded={!minimized}
-      aria-label={minimized ? 'Show the whole notice' : 'Shorten this notice'}
-      onClick={() => {
-        setMinimized(!minimized)
-        rememberUnofficialMinimized(!minimized)
-      }}
-    >
-      {/* Decoration; the button's own label is what is read out. */}
-      <span aria-hidden="true">{minimized ? '+' : '−'}</span>
-    </button>
-  )
 
   return (
     <header>
@@ -816,7 +790,6 @@ function Header({ onDisclaimer }: { onDisclaimer: () => void }) {
             disclaimer
           </button>
           .
-          {toggle}
         </p>
       ) : (
         <p class="unofficial">
@@ -827,7 +800,22 @@ function Header({ onDisclaimer }: { onDisclaimer: () => void }) {
             disclaimer
           </button>
           .
-          {toggle}
+          {/*
+            The same cross the rest of the page uses, in the corner the
+            error's cross sits in. It shortens rather than clears, so the
+            short line above is what it leaves behind.
+          */}
+          <button
+            type="button"
+            class="x dismiss"
+            aria-label="Shorten this notice"
+            onClick={() => {
+              setMinimized(true)
+              rememberUnofficialMinimized()
+            }}
+          >
+            <span aria-hidden="true">×</span>
+          </button>
         </p>
       )}
     </header>
