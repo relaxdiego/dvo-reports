@@ -56,9 +56,9 @@ textarea {
   resize: vertical;
 }
 
-/* The example is there to show what a useful description looks like, and it
-   has done its job by the time someone taps the box. Leaving it under the
-   cursor only gives them words to read past before they can start. */
+/* The placeholder asks for a description; by the time the box has focus the
+   reporter is already doing it, and the words are only something to type
+   over. */
 textarea:focus::placeholder {
   color: transparent;
 }

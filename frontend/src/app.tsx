@@ -232,7 +232,7 @@ function ReportTab({ withSession }: { withSession: WithSession }) {
         <textarea
           id="description"
           rows={4}
-          placeholder="A deep pothole in the outer lane, about 30 cm across."
+          placeholder="Tap to add a description."
           value={draft.description}
           onInput={(e) => set('description', (e.target as HTMLTextAreaElement).value)}
         />
