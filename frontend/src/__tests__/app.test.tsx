@@ -59,7 +59,7 @@ describe('the two tabs', () => {
       new Response(
         JSON.stringify({
           reports: [
-            { reference: 'DCR-1', title: 'Pothole: outer lane', description: 'x', location: 'y', status: 'ONGOING', filed: '2026-05-01T08:00:00Z' },
+            { reference: 'DCR-1', title: 'Pothole: outer lane', description: 'x', location: 'y', status: 'ONGOING', filed: '2026-05-01 08:00:00' },
           ],
         }),
         { status: 200 },
@@ -73,6 +73,9 @@ describe('the two tabs', () => {
 
     expect(root.querySelector('[role="dialog"]')).toBeNull()
     expect(root.textContent).toContain('Pothole: outer lane')
+    // The city's timestamp layout is not one the browser reads on its own.
+    expect(root.textContent).not.toContain('Invalid Date')
+    expect(root.textContent).toContain('2026')
     expect(fetchMock.mock.calls[0][1]?.headers).toMatchObject({ 'X-City-Session': 'tk-1' })
   })
 

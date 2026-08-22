@@ -64,6 +64,8 @@ export interface Resolution {
 /** What has happened to one filed report. */
 export interface History {
   reference: string
+  /** The second number the city puts on a report, once its office has one. */
+  city_reference?: string
   steps: Step[]
   /** The city's reason for a report it rejected or wants filed again. */
   note?: string

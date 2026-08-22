@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"html"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -164,9 +165,9 @@ func (c *City) MyReports(ctx context.Context, token string) ([]Filed, error) {
 	for _, d := range out.Data {
 		f := Filed{
 			Reference:   string(d.ControlNo),
-			Title:       d.Title,
-			Description: d.Complain,
-			Location:    d.Location,
+			Title:       text(d.Title),
+			Description: text(d.Complain),
+			Location:    text(d.Location),
 			Status:      strings.ToUpper(strings.TrimSpace(d.Status)),
 			Filed:       d.DateReported,
 		}
@@ -200,12 +201,9 @@ func (c *City) History(ctx context.Context, reference, token string) (History, e
 				URL string `json:"url"`
 			} `json:"attachments"`
 		} `json:"result"`
-		Invalid struct {
-			Reason string `json:"reason"`
-		} `json:"invalid"`
-		Resubmit struct {
-			Reason string `json:"reason"`
-		} `json:"resubmit"`
+		Invalid     reason     `json:"invalid"`
+		Resubmit    reason     `json:"resubmit"`
+		ReferenceNo flexString `json:"referenceno"`
 	}
 	q := url.Values{"trans": {"getdetails"}, "controlno": {reference}, "xtk": {token}}
 	if err := c.get(ctx, "complainController", q, &out); err != nil {
@@ -217,11 +215,11 @@ func (c *City) History(ctx context.Context, reference, token string) (History, e
 	if len(out.Data) == 0 {
 		return History{}, ErrNoSuchReport
 	}
-	h := History{Reference: reference}
+	h := History{Reference: reference, CityReference: string(out.ReferenceNo)}
 	for _, d := range out.Data {
 		h.Steps = append(h.Steps, Step{
 			Status: strings.ToUpper(strings.TrimSpace(d.Status)),
-			Office: d.Office,
+			Office: text(d.Office),
 			At:     d.StartDate,
 		})
 	}
@@ -239,7 +237,7 @@ func (c *City) History(ctx context.Context, reference, token string) (History, e
 		if r.Office == "" {
 			continue
 		}
-		res := Resolution{Office: r.Office}
+		res := Resolution{Office: text(r.Office)}
 		for _, a := range r.Attachments {
 			if a.URL != "" {
 				res.Files = append(res.Files, a.URL)
@@ -411,6 +409,34 @@ func fallback(s, or string) string {
 		return or
 	}
 	return s
+}
+
+// text is what the city stored, ready to be read by a person. The city keeps
+// the form's input HTML-escaped, so an office called "CITY MAYOR'S OFFICE"
+// comes back with the apostrophe written as an entity.
+func text(s string) string { return html.UnescapeString(s) }
+
+// reason is the city's explanation for a status that needs one. It arrives as
+// an object with a reason when there is one, and as an empty JSON array when
+// there is not, so a plain struct cannot read both.
+type reason struct {
+	Reason string `json:"reason"`
+}
+
+func (r *reason) UnmarshalJSON(b []byte) error {
+	trimmed := strings.TrimSpace(string(b))
+	if !strings.HasPrefix(trimmed, "{") {
+		*r = reason{}
+		return nil
+	}
+	// A named type, so decoding does not call this method again.
+	type plain reason
+	var p plain
+	if err := json.Unmarshal(b, &p); err != nil {
+		return err
+	}
+	*r = reason(p)
+	return nil
 }
 
 // flexString is a JSON string that the city sometimes sends as a number.

@@ -56,7 +56,33 @@ The city's tracking page reads two more calls with the same token
    belonging to another reporter — the token decides whose reports can be
    read.
 
-A dead session is `isValid: false` on both, the same as on a submission.
+A dead session is `isValid: false` on both, the same as on a submission. When
+the session is good the key is absent, so its absence is not a refusal.
+
+### What a real reply looks like
+
+The history call is the first part of the city's API this project has seen
+answer for real, rather than guessed from their front end. Four things in it
+are worth writing down, because none of them can be read off their code:
+
+- **Empty means an empty array, not an empty object.** `invalid`, `resubmit`,
+  and `result` come back as `[]` when there is nothing in them, and as an
+  object (`invalid`, `resubmit`) or a filled array (`result`) when there is.
+  A decoder that expects only the object form fails on the whole reply.
+- **Timestamps are `2026-03-14 16:55:59`.** No `T`, no time zone; local time
+  in Davao. Some browsers refuse that layout, so the frontend repairs it
+  before reading it. `enddate` is `null` on the step in progress.
+- **Text is HTML-escaped.** An office called `CITY MAYOR'S OFFICE` arrives as
+  `CITY MAYOR&#039;S OFFICE`. The same goes for a report's own title,
+  description, and location in the list.
+- **There is a second number.** `referenceno` sits beside the control number
+  and is the one the city's own staff quote back. It is empty until their
+  office has issued it.
+
+`data[]` also carries a `details` field, which on the first step repeats the
+whole report body. This project does not read it: the reporter already has
+their own words, and it is one more copy of a citizen's report moving through
+a server that is supposed to keep none.
 
 The status words the city uses are `REPORTED`, `ENCODED`, `FORVERIFICATION`,
 `FORREMARKS`, `RECEIVED`, `PENDING`, `ONGOING`, `RESOLVED`, `COMPLETED`, plus

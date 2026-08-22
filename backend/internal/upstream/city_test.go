@@ -408,3 +408,56 @@ func TestHistoryReportsAnUnknownReference(t *testing.T) {
 		t.Fatalf("want ErrNoSuchReport, got %v", err)
 	}
 }
+
+// The shape the live site answers with. The city sends `invalid`, `resubmit`,
+// and `result` as empty arrays when there is nothing in them, and as objects
+// or filled arrays when there is — a struct that expects only the object form
+// fails to decode the whole reply, and the reporter is told the city could
+// not say what happened. It also writes an apostrophe as an entity, and its
+// timestamps are not RFC 3339.
+func TestHistoryReadsTheShapeTheCityActuallySends(t *testing.T) {
+	city := newFakeCity(t, `{"referenceno":"20260314170358392",
+		"data":[
+			{"startdate":"2026-03-14 16:55:59","enddate":"2026-03-14 17:31:38","status":"REPORTED","details":"","officename":""},
+			{"startdate":"2026-03-18 13:21:27","enddate":null,"status":"RECEIVED","details":"Forwarded for feedback","officename":"CITY MAYOR&#039;S OFFICE"}],
+		"result":[],"invalid":[],"resubmit":[],"forresubmission":false}`)
+
+	got, err := city.client().History(context.Background(), "DCR-2026-0001", "tk-1")
+	if err != nil {
+		t.Fatalf("want nil, got %v", err)
+	}
+	if len(got.Steps) != 2 {
+		t.Fatalf("steps %+v", got.Steps)
+	}
+	if got.Steps[1].Office != "CITY MAYOR'S OFFICE" {
+		t.Errorf("office %q, want the apostrophe unescaped", got.Steps[1].Office)
+	}
+	// The layout is the city's own. Nothing here parses it; the browser does.
+	if got.Steps[0].At != "2026-03-14 16:55:59" {
+		t.Errorf("timestamp %q, want it passed through", got.Steps[0].At)
+	}
+	if got.CityReference != "20260314170358392" {
+		t.Errorf("city reference %q", got.CityReference)
+	}
+	if got.Note != "" {
+		t.Errorf("note %q, want none", got.Note)
+	}
+}
+
+// The list is escaped the same way the history is.
+func TestMyReportsUnescapesWhatTheCityStored(t *testing.T) {
+	city := newFakeCity(t, `{"data":[{"controlno":"DCR-2026-0001","title":"Drainage: the mayor&#039;s street",
+		"complain":"Blocked &amp; overflowing.","location":"Quimpo Blvd","current_status":"RECEIVED",
+		"date_reported":"2026-03-14 16:55:59"}]}`)
+
+	got, err := city.client().MyReports(context.Background(), "tk-1")
+	if err != nil {
+		t.Fatalf("want nil, got %v", err)
+	}
+	if got[0].Title != "Drainage: the mayor's street" {
+		t.Errorf("title %q", got[0].Title)
+	}
+	if got[0].Description != "Blocked & overflowing." {
+		t.Errorf("description %q", got[0].Description)
+	}
+}

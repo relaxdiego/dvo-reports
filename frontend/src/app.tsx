@@ -354,6 +354,9 @@ function Progress({ history }: { history: History }) {
   return (
     <>
       {history.note && <p class="note">The city says: {history.note}</p>}
+      {history.city_reference && (
+        <p class="hint">The city also files this one as reference {history.city_reference}.</p>
+      )}
       <ol class="steps">
         {history.steps.map((s, i) => (
           <li key={`${s.status}-${s.at}-${i}`}>
@@ -618,17 +621,26 @@ function newestFirst(list: Filed[]): Filed[] {
   })
 }
 
+/**
+ * The city writes a timestamp as "2026-03-14 16:55:59": a space where the
+ * browser wants a T, and no time zone. Some browsers refuse that outright, so
+ * it is repaired here and read as local time, which is what the city means.
+ */
+function cityTime(s: string): number {
+  return Date.parse(s.trim().replace(' ', 'T'))
+}
+
 function time(s: string): number {
-  const t = Date.parse(s)
+  const t = cityTime(s)
   return Number.isNaN(t) ? 0 : t
 }
 
 /**
- * The city's timestamps have no documented layout, so one that the browser
- * cannot read is shown as the city wrote it rather than as "Invalid Date".
+ * A timestamp in a layout no browser can read is shown as the city wrote it,
+ * rather than as "Invalid Date".
  */
 function whenText(s: string): string {
-  const t = Date.parse(s)
+  const t = cityTime(s)
   if (Number.isNaN(t)) return s
   return new Date(t).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })
 }

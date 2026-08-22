@@ -65,8 +65,13 @@ type Resolution struct {
 
 // History is what has happened to one filed report.
 type History struct {
-	// Reference is the control number the history belongs to.
+	// Reference is the control number the history belongs to. The city calls
+	// it the transaction number.
 	Reference string `json:"reference"`
+	// CityReference is the second number the city puts on a report once it
+	// has been through their office, and the one their staff quote back.
+	// Empty until the city has issued it.
+	CityReference string `json:"city_reference,omitempty"`
 	// Steps are the status changes, newest first.
 	Steps []Step `json:"steps"`
 	// Note is the city's reason for a status that needs one — a report it
