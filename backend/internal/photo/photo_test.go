@@ -12,9 +12,12 @@ import (
 // did not produce.
 
 const (
+	// Invented, and obviously so. These stand for the two identifiers a
+	// phone writes onto a capture. Real ones belong to a real photograph
+	// somebody took, and this repository is public.
 	dateTaken = "2025:09:07 09:16:00"
-	requestID = "CAD94CD5-5774-45AE-8AA6-40210451BD18"
-	photoID   = "C143ABBF-5D25-4DA2-81E6-6385BD990285"
+	requestID = "11111111-2222-4333-8444-555555555555"
+	photoID   = "66666666-7777-4888-8999-AAAAAAAAAAAA"
 )
 
 type tag struct {
