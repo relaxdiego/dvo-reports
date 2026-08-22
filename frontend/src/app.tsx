@@ -1,3 +1,4 @@
+import type { ComponentChildren } from 'preact'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/hooks'
 import { ApiError, lookupPlace, myReports, reportHistory, sendCode, submitReport, verifyCode, type Place as Street } from './api'
 import { forget, liveSession, remember, rememberedEmail } from './session'
@@ -16,6 +17,31 @@ import {
 import './app.css'
 
 const CITY_SITE = 'https://reports.davaocity.gov.ph'
+
+/**
+ * An error the reporter can put away. Each one names something they can do
+ * about it, and once they have done it the message is only in the way — of
+ * the photo rows it sits above, or of the button it sits under. The cross
+ * clears whatever state put it there, so it does not come back until the
+ * thing goes wrong again.
+ */
+function ErrorMessage({
+  onDismiss,
+  children,
+}: {
+  onDismiss: () => void
+  children: ComponentChildren
+}) {
+  return (
+    <p class="error" role="alert">
+      {children}
+      <button type="button" class="dismiss" aria-label="Dismiss this message" onClick={onDismiss}>
+        {/* The cross is decoration; the button's own label is what is read out. */}
+        <span aria-hidden="true">×</span>
+      </button>
+    </p>
+  )
+}
 
 const emptyDraft: Draft = {
   category: '',
@@ -253,7 +279,7 @@ function ReportTab({
         <LocationField draft={draft} set={set} fromPhotos={fromPhotos} />
       </fieldset>
 
-      {error && <p class="error" role="alert">{error}</p>}
+      {error && <ErrorMessage onDismiss={() => setError(null)}>{error}</ErrorMessage>}
 
       {/*
         The other half of the header's notice, worded the same, above the
@@ -421,6 +447,12 @@ function FiledReport({ report, withSession }: { report: Filed; withSession: With
   const [open, setOpen] = useState(false)
   const [history, setHistory] = useState<History | null>(null)
   const [error, setError] = useState<string | null>(null)
+  /*
+    Put away rather than cleared: the error is what stops the effect below
+    asking the city again, so forgetting it would send the same failing
+    request the moment the message was dismissed.
+  */
+  const [hidden, setHidden] = useState(false)
 
   // The history is a second call to the city, so it is only made for the
   // report the reporter actually opened, and only once.
@@ -463,7 +495,7 @@ function FiledReport({ report, withSession }: { report: Filed; withSession: With
               ))}
             </ul>
           )}
-          {error && <p class="error" role="alert">{error}</p>}
+          {error && !hidden && <ErrorMessage onDismiss={() => setHidden(true)}>{error}</ErrorMessage>}
           {!history && !error && (
             <p class="hint waiting" role="status">
               <span class="spinner" aria-hidden="true" />
@@ -591,7 +623,7 @@ function SignIn({ why, onDone }: { why: string; onDone: (token: string | null) =
           )}
         </fieldset>
 
-        {error && <p class="error" role="alert">{error}</p>}
+        {error && <ErrorMessage onDismiss={() => setError(null)}>{error}</ErrorMessage>}
 
         <button class="primary" type="submit" disabled={busy || !email.trim() || (stage === 'code' && !code.trim())}>
           {busy ? 'Waiting…' : stage === 'email' ? 'Send me a code' : 'Sign in'}
@@ -882,19 +914,19 @@ function PhotoField({
         on the input itself rather than on something pretending to be it.
       */}
       {refused.length > 0 && (
-        <p class="error" role="alert">
+        <ErrorMessage onDismiss={() => setRefused([])}>
           {refused.length === 1
             ? `${refused[0]} does not record where it was taken, so it was not added.`
             : `${refused.length} photos do not record where they were taken, so they were not added.`}{' '}
           This site files a report at the place the photograph itself carries. Switch location on in
           your camera and take the picture again.
-        </p>
+        </ErrorMessage>
       )}
       {overflow > 0 && (
-        <p class="error" role="alert">
+        <ErrorMessage onDismiss={() => setOverflow(0)}>
           {overflow === 1 ? 'One photo was' : `${overflow} photos were`} not added: a report
           carries at most {MAX_PHOTOS}.
-        </p>
+        </ErrorMessage>
       )}
       {photos.length > 0 && (
         <>

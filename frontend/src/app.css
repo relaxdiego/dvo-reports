@@ -277,11 +277,31 @@ button[disabled] {
 }
 
 .error {
+  position: relative;
   margin: 1rem 0 0;
   padding: 0.7rem 0.9rem;
+  /* Room for the cross, so a long message does not run underneath it. */
+  padding-inline-end: 2.6rem;
   border-radius: var(--radius);
   border: 1px solid var(--danger);
   color: var(--danger);
+}
+
+/* The way to put an error away once it has been read and acted on. */
+.dismiss {
+  position: absolute;
+  top: 0.3rem;
+  inset-inline-end: 0.3rem;
+  width: 2rem;
+  height: 2rem;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
 }
 
 .reference {

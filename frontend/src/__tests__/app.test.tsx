@@ -449,6 +449,23 @@ describe('the photo field', () => {
     expect(alert?.textContent).toContain(`at most ${MAX_PHOTOS}`)
   })
 
+  // A message that has been read and acted on is only in the way of the
+  // photos below it.
+  it('lets the reporter put an error away', async () => {
+    await attach(jpegPhoto({ gps: false }))
+
+    const alert = root.querySelector('[role="alert"]')!
+    const x = alert.querySelector<HTMLButtonElement>('.dismiss')!
+    expect(x.getAttribute('aria-label')).toBe('Dismiss this message')
+    // The cross itself is decoration; the label is what is read out.
+    expect(x.querySelector('[aria-hidden="true"]')?.textContent).toBe('×')
+
+    act(() => x.click())
+    await settle()
+
+    expect(root.querySelector('[role="alert"]')).toBeNull()
+  })
+
   // The photo already knows where the problem is. Nobody is asked for it
   // again, and nobody may answer differently.
   it('takes the place from the photos, and lets it go with them', async () => {
