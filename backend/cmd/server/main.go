@@ -32,6 +32,7 @@ func main() {
 			AllowedOrigins: splitList(envOr("ALLOWED_ORIGINS", "http://localhost:5173")),
 			Log:            log,
 			Places:         pickGeocoder(log),
+			AlertURL:       os.Getenv("ALERT_URL"),
 		}),
 		ReadHeaderTimeout: 5 * time.Second,
 		// Generous: a report carries photos over a phone connection.

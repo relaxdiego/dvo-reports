@@ -29,7 +29,13 @@ is the system of record. This project stores nothing.
   stored, so `upstream submit failed` in `internal/api` is the whole record.
   Keep it carrying the city's own reply and everything about the attempt
   that is not the citizen's own — never the description, the address, the
-  coordinates, or a photograph.
+  coordinates, or a photograph. The same handler posts a line to `ALERT_URL`,
+  which is a third party: that one carries no part of the report at all, not
+  even the city's reply, because the city quotes the title back. See `alert`
+  in `internal/api`. The same handler posts a line to `ALERT_URL`,
+  which is a third party: that one carries no part of the report at all, not
+  even the city's reply, because the city quotes the title back. See `alert`
+  in `internal/api`.
 - **Never present this as official.** The "unofficial" notice in the header
   and in `README.md` stays.
 - **Do not hide upstream errors from the logs, or show them to the citizen.**

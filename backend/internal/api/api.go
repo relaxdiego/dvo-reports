@@ -39,6 +39,10 @@ type Config struct {
 	// does. Optional: without it a report carries its coordinates alone,
 	// which is what happened before there was a geocoder at all.
 	Places place.Geocoder
+	// AlertURL is posted to when a report is not filed, so a broken submit
+	// path reaches somebody. Optional, and set in production only: staging
+	// files nothing, so it has nothing to report. See alert.
+	AlertURL string
 }
 
 // New returns the backend's HTTP routes.
@@ -226,12 +230,14 @@ func submit(w http.ResponseWriter, r *http.Request, cfg Config) {
 		// The report is filed and has a real reference. Saying it failed
 		// would be worse than saying the photos did not make it.
 		cfg.Log.Error("upstream photos not attached", append(attempt, "reference", receipt.Reference, "err", err)...)
+		alert(cfg, "a report was filed but its photos were not attached to it. Read the reason with: fly logs -a dvo-reports-api | grep 'upstream photos not attached'")
 		writeJSON(w, http.StatusCreated, photosMissing{Receipt: receipt, Warning: "the report was filed, but the photos did not upload; you can add them on the city's own site using the reference"})
 		return
 	case err != nil:
 		// The upstream error may quote the city site's own HTML. Log it,
 		// but tell the citizen something they can act on.
 		cfg.Log.Error("upstream submit failed", append(attempt, "err", err)...)
+		alert(cfg, "a report was not filed: the city's site did not accept it. Read the reason with: fly logs -a dvo-reports-api | grep 'upstream submit failed'")
 		writeError(w, http.StatusBadGateway, "the city's reporting site did not accept the report; please try again later")
 		return
 	}

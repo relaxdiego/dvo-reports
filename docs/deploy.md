@@ -165,6 +165,7 @@ repository.
 | `AZURE_MAPS_KEY`  | unset                   | Names the street under a pin. Unset falls back to OpenStreetMap. |
 | `AZURE_MAPS_BASE_URL` | Azure Maps          | Override for testing the street lookup.          |
 | `NOMINATIM_BASE_URL` | OpenStreetMap's      | Override for the fallback, for testing.          |
+| `ALERT_URL`       | unset                   | Posted to when a report is not filed. Production only. |
 
 ### The street under a pin
 
@@ -226,33 +227,61 @@ failure leaves. See "Watching for a broken submit" below.
 ### Watching for a broken submit
 
 The city's API is not documented and can change without warning. When it
-does, `Submit` starts failing in production and nothing else notices, so the
-log line is worth watching:
+does, `Submit` starts failing in production and nothing else notices. Reading
+the log is how the reason is found:
 
 ```sh
 fly logs -a dvo-reports-api | grep 'upstream submit failed'
 ```
 
-**Fly does not alert on what a log line says.** Their own docs are explicit:
-"Fly.io doesn't include built-in alerting on metrics, so you'll need to set up
-alerting yourself." The only mail Fly sends by itself is for a failed deploy
-and for a machine running out of memory. Getting an email when a submission
-fails needs one of:
+Nobody reads a log they have no reason to open, so the backend also posts a
+line to `ALERT_URL` when a report is not filed. Any address that accepts a
+`POST` will do; **healthchecks.io** is what this is set up for, because its
+free tier is free for good and needs nothing running anywhere:
 
-- **Ship the logs out.** Fly's log search in Grafana keeps 7 days and cannot
-  alert. A log shipper, or the Logs API, sends them to a service that can —
-  Sentry, Better Stack, Axiom. Least code, one more account.
-- **Count the failures and alert on the number.** The backend would expose a
-  counter, Fly's Prometheus would scrape it, and a Grafana alert rule would
-  mail on `increase(...) > 0`. Fly's own managed Grafana at fly-metrics.net
-  cannot hold alert rules, so the rule lives in a Grafana Cloud account or a
-  self-hosted one.
-- **Mail from the backend.** `net/smtp` is in the standard library, so this
-  adds no dependency, but it adds a secret, and a bad afternoon on the city's
-  side becomes a mailbox full of identical messages unless it is rate
-  limited.
+1. Sign up and create a check named `dvo-reports submit`.
+2. Set its **period** as long as it will go, and its grace time to a few
+   minutes. The check is not a cron job: no news is good news here, and a
+   short period would mail you for the silence.
+3. Copy its ping URL and set it as a Fly secret on production only, with
+   `/fail` on the end:
 
-None of these is built yet.
+   ```sh
+   fly secrets set ALERT_URL=https://hc-ping.com/<uuid>/fail -a dvo-reports-api
+   ```
+
+Staging files nothing, so it has nothing to report and gets no `ALERT_URL`.
+Nor does a laptop: with the variable unset, nothing is posted anywhere.
+
+The check goes down on the first failed report and mails you. It is a latch:
+it stays down, and further failures do not mail you again, so an afternoon of
+them is one message. Clear it in their web interface once the city is
+answering again — a check nobody clears is a check nobody reads.
+
+**The alert carries no part of the report.** Not the description, the
+address, the coordinates, a photograph, nor the city's own reply, which
+quotes the title back and so the first line of what the reporter wrote. It
+says filing broke and which log line holds the reason. That is a rule with a
+test on it: see `TestTheAlertCarriesNoPartOfTheReport`.
+
+**The ping URL is the credential.** Anyone holding it can mark the check up
+or down. It is a Fly secret, it is not in this repository, and the backend
+strips it out of any error before logging it.
+
+#### If you outgrow it
+
+Healthchecks tells you filing broke, and nothing more; the reason is in
+`fly logs`, which Fly keeps for a few days. Two ways up from there, both with
+a free tier, neither set up here:
+
+- **Sentry** (free: 5,000 errors a month, 30-day retention) groups repeats
+  into one issue and keeps the error text, so the reason is in the alert
+  rather than in a log you have to catch in time. It costs a dependency in
+  `go.mod`, or a hand-written POST to their ingest endpoint.
+- **Better Stack** (free: 3 GB of logs, kept 3 days) takes the whole log
+  stream and alerts on a search of it. That means shipping logs, and the
+  citizen's data is in those logs — read what leaves this machine before
+  turning it on.
 
 ### Moving off Fly
 
