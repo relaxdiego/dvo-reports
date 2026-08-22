@@ -189,7 +189,11 @@ sheet opened above it, and every test passed.
 make test-browser     # needs chromium on PATH
 ```
 
-It taps the place on a photo's row in a real browser, which opens a map over
-the form, and fails if anything from the form paints over that sheet. It is not in CI, which has no browser.
-Run it after touching a sheet, a map, or anything layered over anything else,
-and read the screenshots it leaves in /tmp.
+It drives two things a real browser has to be asked about. It taps the place
+on a photo's row, which opens a map over the form, and fails if anything from
+the form paints over that sheet. Then it opens the disclaimer and fails if the
+page behind shows through, if anything inside it scrolls on its own, or if
+`Close` sits on the first screen instead of after the last of the terms. It is
+not in CI, which has no browser. Run it after touching a sheet, a map, or
+anything layered over anything else, and read the screenshots it leaves
+in /tmp.
