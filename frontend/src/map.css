@@ -26,6 +26,16 @@
   background: var(--line);
 }
 
+/* The pin on a place already settled, drawn in map.tsx and coloured here.
+   It does not follow --accent into dark mode: OpenStreetMap's tiles are the
+   same pale ones whatever the phone's theme, so the pin is read against
+   those, not against the page. Red because that is the colour a map pin is
+   in every application a reporter already uses. */
+.mappin-drop {
+  color: #ea4335;
+  filter: drop-shadow(0 2px 2px rgb(0 0 0 / 40%));
+}
+
 /* The place the report will carry: dead centre, and never under a finger. */
 .mappin {
   position: absolute;

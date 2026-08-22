@@ -178,6 +178,16 @@ function useEscape(onClose: () => void) {
 }
 
 /**
+ * The pin dropped on a place that is settled. A balloon with a point, which
+ * is what every map application has taught people a pin looks like, so it
+ * needs no explaining. `currentColor` hands the colour to map.css.
+ */
+const PIN = `
+  <svg width="26" height="35" viewBox="0 0 26 35" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <path fill="currentColor" d="M13 34C13 34 24.5 18.6 24.5 11.6A11.5 11.5 0 1 0 1.5 11.6C1.5 18.6 13 34 13 34Z"/>
+  </svg>`
+
+/**
  * The Leaflet map itself. It is set up once and then left alone: Leaflet owns
  * this element, and re-rendering must not reach inside it.
  *
@@ -194,14 +204,14 @@ function Canvas({ start, onMove, mark }: { start: Spot; onMove?: (spot: Spot) =>
     L.tileLayer(TILES, { maxZoom: 19, attribution: CREDIT }).addTo(map)
 
     if (mark) {
-      // A drawn circle rather than Leaflet's own pin, whose image files do
-      // not survive a bundler without being pointed at by hand.
-      L.circleMarker([start.lat, start.lon], {
-        radius: 9,
-        weight: 3,
-        color: '#0b5fff',
-        fillColor: '#ffffff',
-        fillOpacity: 0.6,
+      // Leaflet's own pin is an image file, and image files do not survive a
+      // bundler without being pointed at by hand. This is the same shape
+      // drawn inline, anchored on its point rather than its middle, and
+      // coloured from map.css so the colour lives in one place.
+      L.marker([start.lat, start.lon], {
+        icon: L.divIcon({ html: PIN, className: 'mappin-drop', iconSize: [26, 35], iconAnchor: [13, 35] }),
+        interactive: false,
+        keyboard: false,
       }).addTo(map)
     }
 
