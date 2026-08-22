@@ -498,9 +498,12 @@ describe("the city's terms", () => {
 
     const sheet = root.querySelector('[role="dialog"]')
     expect(sheet).not.toBeNull()
+    // "the site's", where the city writes "our": on this page "our" would
+    // read as this project, which wrote none of it.
     expect(sheet?.textContent).toContain(
-      'By using Davao City Reports App, you hereby consent to our Privacy Policy',
+      "By using Davao City Reports App, you hereby consent to the site's Privacy Policy",
     )
+    expect(sheet?.textContent).not.toContain('consent to our Privacy Policy')
     expect(sheet?.textContent).toContain('Disclaimer Acceptance:')
   })
 
@@ -511,7 +514,7 @@ describe("the city's terms", () => {
 
     const sheet = root.querySelector('[role="dialog"]')!
     expect(sheet.textContent).toContain('as of 22 August 2026')
-    expect(sheet.textContent).toContain("These are the city's words")
+    expect(sheet.textContent).toContain("The following are the city's words")
     expect(sheet.querySelector('a')?.getAttribute('href')).toBe('https://reports.davaocity.gov.ph')
   })
 

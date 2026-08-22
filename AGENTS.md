@@ -91,9 +91,10 @@ just to trigger a workflow** — the history is public and permanent, and
   could judge them. The tags describing the old pixels travel with it and are
   wrong; `backend/internal/photo` drops them.
 - `frontend/src/citynotice.tsx` — the city's disclaimer and privacy terms,
-  copied word for word. The city has no page to link to, so they are carried
-  here. If you refresh the text, change `COPIED_ON` in the same commit: the
-  date is what tells a reader how stale the copy is.
+  copied word for word, bar one substitution the file explains. The city has
+  no page to link to, so they are carried here. If you refresh the text,
+  change `COPIED_ON` in the same commit: the date is what tells a reader how
+  stale the copy is.
 - `frontend/src/map.tsx` — the OpenStreetMap place picker. It is the only
   code that talks to a third party, and it is loaded with a dynamic
   `import()` so that Leaflet is fetched only by a reporter who opens the map.

@@ -1,12 +1,13 @@
 /**
- * The city's own disclaimer and privacy terms, copied word for word.
+ * The city's own disclaimer and privacy terms, copied word for word bar
+ * one substitution, noted at OPENING below.
  *
  * There is nothing to link to. `reports.davaocity.gov.ph` shows this text in
  * a box on its front page and has no page of its own for it: /privacy,
  * /privacy-policy and /terms all answer 404. So a reporter using this front
  * end would never see the terms they are agreeing to unless they are carried
- * here. They are the city's words, not this project's, and they are not
- * summarised or shortened.
+ * here. They are the city's words, not this project's, and apart from the
+ * one word at OPENING they are not edited, summarised, or shortened.
  *
  * The city can change them whenever it likes, and nothing here would notice.
  * That is why COPIED_ON is shown next to them: a reader can tell how old
@@ -22,8 +23,14 @@ const CITY_SITE = 'https://reports.davaocity.gov.ph'
 /** The heading the city puts on it. */
 const TITLE = 'Disclaimer'
 
+/**
+ * The city writes "our Privacy Policy" here. Read on this page, "our" would
+ * point at this project, which is not who wrote the policy and not who holds
+ * the data — so it says "the site's" instead. It is the only word changed,
+ * and the sentence is otherwise the city's.
+ */
 const OPENING =
-  'By using Davao City Reports App, you hereby consent to our Privacy Policy and agree to its terms:'
+  "By using Davao City Reports App, you hereby consent to the site's Privacy Policy and agree to its terms:"
 
 /** Each of the city's paragraphs, as its own bold lead-in and its sentence. */
 const TERMS: { lead: string; text: string }[] = [
@@ -59,8 +66,9 @@ export function CityNotice({ onClose }: { onClose: () => void }) {
       <div class="sheetbody">
         <h2>The city's {TITLE.toLowerCase()}</h2>
         <p class="hint">
-          These are the city's words, copied from <a href={CITY_SITE}>{CITY_SITE.replace('https://', '')}</a> as of{' '}
-          {COPIED_ON}. The city may have changed them since, and its site has no page for them to link to.
+          The following are the city's words, copied from{' '}
+          <a href={CITY_SITE}>{CITY_SITE.replace('https://', '')}</a> as of {COPIED_ON}. The city may have
+          changed them since.
         </p>
 
         <div class="notice">
