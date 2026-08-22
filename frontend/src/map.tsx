@@ -84,7 +84,12 @@ export function MapPicker({
     <div class="sheet" role="dialog" aria-modal="true" aria-label="Pick the place on a map">
       <div class="sheetbody">
         <h2>Point at the place</h2>
-        {!start && <p class="hint" role="status">Finding where you are…</p>}
+        {!start && (
+          <p class="hint waiting" role="status">
+            <span class="spinner" aria-hidden="true" />
+            Finding where you are…
+          </p>
+        )}
         {start && (
           <>
             <div class="mapwrap">

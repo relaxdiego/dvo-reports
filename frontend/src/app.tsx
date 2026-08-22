@@ -420,7 +420,12 @@ function FiledReport({ report, withSession }: { report: Filed; withSession: With
             </ul>
           )}
           {error && <p class="error" role="alert">{error}</p>}
-          {!history && !error && <p class="hint">Reading what happened…</p>}
+          {!history && !error && (
+            <p class="hint waiting" role="status">
+              <span class="spinner" aria-hidden="true" />
+              Reading what happened…
+            </p>
+          )}
           {history && <Progress history={history} />}
         </div>
       )}

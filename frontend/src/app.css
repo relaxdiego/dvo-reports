@@ -352,6 +352,20 @@ h2 {
   }
 }
 
+/* The same spinner, smaller, beside a single line of text. For a wait that
+   sits inside something already on the page rather than replacing it. */
+.waiting {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.waiting .spinner {
+  flex: none;
+  width: 0.9rem;
+  height: 0.9rem;
+}
+
 /* A reporter who asked for less motion still needs to see that something is
    happening, so the spinner pulses instead of turning. */
 @media (prefers-reduced-motion: reduce) {

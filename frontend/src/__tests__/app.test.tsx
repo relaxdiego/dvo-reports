@@ -175,6 +175,34 @@ describe('reloading the list', () => {
   })
 })
 
+describe('opening one report', () => {
+  // A line of text alone reads as a page that has stopped working. The list
+  // already turns a spinner while it waits; so does this.
+  it('turns a spinner while the city is asked what happened', async () => {
+    localStorage.setItem('dvo-reports.session', JSON.stringify({ token: 'tk-1' }))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn<typeof fetch>(async (input) => {
+        // The list answers; the history never does, so the wait stays on screen.
+        if (String(input).endsWith('/api/reports')) {
+          return new Response(JSON.stringify({ reports: listOf(1) }), { status: 200 })
+        }
+        return new Promise<Response>(() => {})
+      }),
+    )
+
+    act(() => render(<App />, root))
+    click('My reports')
+    await settle()
+    act(() => root.querySelector<HTMLButtonElement>('.reporthead')!.click())
+    await settle()
+
+    const waiting = root.querySelector('.reportbody [role="status"]')
+    expect(waiting?.textContent).toContain('Reading what happened')
+    expect(waiting?.querySelector('.spinner')).not.toBeNull()
+  })
+})
+
 describe('the photo field', () => {
   // `capture` would send a phone straight to the camera and hide the photos
   // the reporter already has.
@@ -280,6 +308,29 @@ describe('picking the place on a map', () => {
     expect(body.get('lon')).toBe('125.60778')
     // No address was typed, and the map alone is enough to file.
     expect(body.get('address')).toBe('')
+  })
+
+  it('turns a spinner while it looks for the reporter', async () => {
+    // A browser that is asked and never answers, which is what a phone
+    // waiting on a permission prompt looks like.
+    Object.defineProperty(navigator, 'geolocation', {
+      configurable: true,
+      value: { getCurrentPosition: () => {} },
+    })
+
+    act(() => render(<App />, root))
+    click('Pick it on a map')
+    for (let i = 0; i < 40; i++) {
+      await act(async () => { await new Promise((r) => setTimeout(r, 1)) })
+      if (root.querySelector('[role="dialog"]')) break
+    }
+
+    const waiting = root.querySelector('[role="dialog"] [role="status"]')
+    expect(waiting?.textContent).toContain('Finding where you are')
+    expect(waiting?.querySelector('.spinner')).not.toBeNull()
+    // Nothing to confirm yet, so the button that would file a place is off.
+    const use = [...root.querySelectorAll('button')].find((b) => b.textContent?.trim() === 'Use this place')
+    expect(use?.disabled).toBe(true)
   })
 
   it('closes without changing the report when it is cancelled', async () => {
