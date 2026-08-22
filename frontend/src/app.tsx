@@ -1,10 +1,11 @@
 import type { ComponentChildren } from 'preact'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/hooks'
 import { ApiError, lookupPlace, myReports, reportHistory, sendCode, submitReport, verifyCode, type Place as Street } from './api'
-import { forget, liveSession, remember, rememberedEmail } from './session'
+import { forget, liveSession, needsWelcome, remember, rememberedEmail, welcomed } from './session'
 import { validate, MAX_PHOTOS } from './validate'
 import { osmLink, placeOfPhotos, readSnapshot, type Place, type Snapshot } from './exif'
 import { Disclaimer } from './disclaimer'
+import { Welcome } from './welcome'
 import {
   CATEGORIES,
   CATEGORY_LABELS,
@@ -107,6 +108,10 @@ export function App() {
   // button.
   const [showDisclaimer, setShowDisclaimer] = useState(false)
   const [ask, setAsk] = useState<Ask | null>(null)
+  // Asked once, before anything else, because nothing here works without an
+  // account on the city's site. The answer lives in this browser, so the
+  // question is read once and never again. See welcome.tsx.
+  const [showWelcome, setShowWelcome] = useState(needsWelcome)
 
   // The stored session is the source of truth, not a state variable: it
   // outlives the page, and reading it here keeps the two from drifting.
@@ -178,6 +183,14 @@ export function App() {
         />
       )}
       {showDisclaimer && <Disclaimer onClose={() => setShowDisclaimer(false)} />}
+      {showWelcome && (
+        <Welcome
+          onClose={() => {
+            welcomed()
+            setShowWelcome(false)
+          }}
+        />
+      )}
       <footer class="build">{__BUILD_TIME__} {__BUILD_SHA__}</footer>
     </main>
   )

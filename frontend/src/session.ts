@@ -10,6 +10,7 @@
 
 const TOKEN_KEY = 'dvo-reports.session'
 const EMAIL_KEY = 'dvo-reports.email'
+const WELCOME_KEY = 'dvo-reports.welcomed'
 
 export interface Session {
   token: string
@@ -46,6 +47,24 @@ export function forget(): void {
 
 export function rememberedEmail(): string {
   return read(EMAIL_KEY) ?? ''
+}
+
+/**
+ * Whether to open the welcome sheet, which says an account on the city's
+ * site is needed before anything here works. See welcome.tsx.
+ *
+ * It belongs in this file because this is where the browser's own memory of
+ * the reporter lives, and because storage can throw. A remembered address
+ * answers the question on its own: somebody who has signed in has an
+ * account, and telling them to go and get one is only in the way.
+ */
+export function needsWelcome(): boolean {
+  return read(WELCOME_KEY) === null && rememberedEmail() === '' && liveSession() === null
+}
+
+/** Records that the welcome sheet has been read, so it does not come back. */
+export function welcomed(): void {
+  write(WELCOME_KEY, 'yes')
 }
 
 // Storage throws in a browser that has it switched off, and in a private

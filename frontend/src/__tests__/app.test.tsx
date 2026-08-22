@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { render } from 'preact'
 import { act } from 'preact/test-utils'
 import { App } from '../app'
+import { welcomed } from '../session'
 import { MAX_PHOTOS } from '../validate'
 import { jpegPhoto } from './fixtures'
 
@@ -17,6 +18,11 @@ let root: HTMLDivElement
 
 beforeEach(() => {
   localStorage.clear()
+  // Everything below is a reporter who has been here before. The welcome
+  // sheet is only for a first visit, and it covers the page, so a test that
+  // did not say so would be testing the sheet rather than the form. The
+  // sheet has its own tests at the end of this file.
+  welcomed()
   root = document.createElement('div')
   document.body.appendChild(root)
 })
@@ -835,5 +841,64 @@ describe('the emergency line on the page', () => {
 
     const call = root.querySelector('header .emergencyline a')!
     expect(call.getAttribute('href')).toBe('tel:911')
+  })
+})
+
+// Nothing here works without an account on the city's site, and this app
+// cannot make one. Said on the way in, it costs a first-time reporter one
+// tap; left unsaid, it costs them a written report and a set of photos.
+describe('the welcome sheet', () => {
+  /** A reporter who has never been here, unlike everybody else in this file. */
+  function firstVisit() {
+    localStorage.clear()
+    act(() => render(<App />, root))
+    return root.querySelector('[role="dialog"]')
+  }
+
+  it('opens on a first visit and says where to register', () => {
+    const sheet = firstVisit()!
+
+    expect(sheet.textContent).toContain('You need a city account first')
+    // The registration page itself, not the city's front page: a reporter
+    // sent for one thing should land on it.
+    const go = sheet.querySelector('a.gobutton')!
+    expect(go.getAttribute('href')).toBe('https://reports.davaocity.gov.ph/user.html')
+  })
+
+  // The code is texted to the number the account was registered with, so the
+  // number chosen at registration is the one decision that cannot be undone
+  // later without registering again.
+  it('says the sign-in code goes to a phone, not an inbox', () => {
+    expect(firstVisit()!.textContent).toContain('text message')
+  })
+
+  it('stays away once it has been put away', () => {
+    firstVisit()
+    click('I already have one')
+    expect(root.querySelector('[role="dialog"]')).toBeNull()
+
+    render(null, root)
+    act(() => render(<App />, root))
+    expect(root.querySelector('[role="dialog"]')).toBeNull()
+  })
+
+  // Somebody signed in has an account by definition. Sending them off to get
+  // one is worse than saying nothing.
+  it('stays away from a reporter who is already signed in', () => {
+    localStorage.clear()
+    localStorage.setItem('dvo-reports.session', JSON.stringify({ token: 'tk-1' }))
+    act(() => render(<App />, root))
+
+    expect(root.querySelector('[role="dialog"]')).toBeNull()
+  })
+
+  // The address outlives the token: a reporter whose session has expired has
+  // still been here, and still has an account.
+  it('stays away from a reporter whose session has expired', () => {
+    localStorage.clear()
+    localStorage.setItem('dvo-reports.email', 'someone@example.com')
+    act(() => render(<App />, root))
+
+    expect(root.querySelector('[role="dialog"]')).toBeNull()
   })
 })

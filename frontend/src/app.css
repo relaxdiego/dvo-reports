@@ -152,6 +152,7 @@ button.x:focus-visible {
 
 button.primary,
 button.secondary,
+a.gobutton,
 .filebutton {
   font: inherit;
   border-radius: var(--radius);
@@ -172,13 +173,26 @@ button.secondary,
   margin-top: 0.6rem;
 }
 
-button.primary {
+button.primary,
+a.gobutton {
   width: 100%;
   margin-top: 1.5rem;
   background: var(--accent);
   color: var(--accent-fg);
   border: 0;
   font-weight: 600;
+}
+
+/* A link drawn as the primary button. The welcome sheet's main action leaves
+   for the city's site, so it has to be an anchor; centring is by hand
+   because a link does not centre its own text the way a button does. */
+a.gobutton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  text-align: center;
+  text-decoration: none;
 }
 
 button.secondary,

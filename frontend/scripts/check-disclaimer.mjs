@@ -30,6 +30,10 @@ try {
   for (const [name, viewport] of SCREENS) {
     const page = await browser.newPage()
     await page.setViewport(viewport)
+    // A fresh browser profile is always a first visit, so the welcome sheet
+    // would open over the form. It is not what this script checks, so this
+    // page arrives as a reporter who has been here before. See session.ts.
+    await page.evaluateOnNewDocument(() => localStorage.setItem('dvo-reports.welcomed', 'yes'))
     await page.goto(url, { waitUntil: 'networkidle2' })
 
     await page.evaluate(() => {

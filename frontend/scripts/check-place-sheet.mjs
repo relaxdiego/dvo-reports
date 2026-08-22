@@ -39,6 +39,10 @@ const fail = []
 try {
   const page = await browser.newPage()
   await page.setViewport({ width: 390, height: 844, deviceScaleFactor: 2 }) // a phone
+  // A fresh browser profile is always a first visit, so the welcome sheet
+  // would open over the form. It is not what this script checks, so this
+  // page arrives as a reporter who has been here before. See session.ts.
+  await page.evaluateOnNewDocument(() => localStorage.setItem('dvo-reports.welcomed', 'yes'))
   await page.goto(url, { waitUntil: 'networkidle2' })
 
   const input = await page.waitForSelector('#photos')
