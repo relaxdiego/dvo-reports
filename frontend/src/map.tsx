@@ -141,10 +141,6 @@ export function MapView({
           <Canvas start={at} mark />
         </div>
         {caption && <p class="hint">{caption}</p>}
-        <p class="hint">
-          {at.lat}, {at.lon} — as the camera recorded it. This is not the place your report is
-          filed under; that is the one on the form.
-        </p>
         <button class="primary" type="button" onClick={onClose}>
           Close
         </button>

@@ -329,7 +329,9 @@ describe('the photo field', () => {
     const sheet = root.querySelector('[role="dialog"]')
     expect(sheet).not.toBeNull()
     expect(sheet?.querySelector('.leaflet-container')).not.toBeNull()
-    expect(sheet?.textContent).toContain('7.09753, 125.62229')
+    // The sheet no longer spells the place out. What names the photograph it
+    // belongs to is the date the camera wrote on it.
+    expect(sheet?.textContent).toContain('Taken September 7, 2025')
     // The form is still underneath, not replaced.
     expect(root.querySelector('#description')).not.toBeNull()
 
