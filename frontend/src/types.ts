@@ -15,7 +15,7 @@ export type Category = (typeof CATEGORIES)[number]
 export const CATEGORY_LABELS: Record<string, string> = {
   garbage: 'Garbage',
   drainage: 'Drainage / flooding',
-  pothole: 'Pothole',
+  pothole: 'Pothole (Lubak)',
   streetlight: 'Street light',
   obstruction: 'Blocked road',
   'illegal-parking': 'Illegal parking',
