@@ -152,3 +152,18 @@ just to trigger a workflow** — the history is public and permanent, and
 ```sh
 make lint && make test
 ```
+
+### When the change is one the eye judges
+
+`make test` renders nothing: jsdom has no layout, so it cannot see one thing
+covering another. A map drawn on the form once painted straight over the
+sheet opened above it, and every test passed.
+
+```sh
+make test-browser     # needs chromium on PATH
+```
+
+It drives the adjust-location flow in a real browser and fails if anything
+from the form paints over the sheet. It is not in CI, which has no browser.
+Run it after touching a sheet, a map, or anything layered over anything else,
+and read the screenshots it leaves in /tmp.

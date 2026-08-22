@@ -19,6 +19,7 @@
     "@types/leaflet": "^1.9.22",
     "@types/node": "^24.13.3",
     "jsdom": "^30.0.1",
+    "puppeteer-core": "^25.8.0",
     "typescript": "~6.0.2",
     "vite": "^8.2.0",
     "vitest": "^4.1.11"

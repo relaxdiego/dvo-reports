@@ -1,7 +1,12 @@
 /* Only the map picker uses these, and they load with it. */
 
+/* `isolation` keeps Leaflet's own numbering — its panes at 400, its controls
+   at 1000 — inside this box. Without it those numbers compete with the rest
+   of the page, and the map on the form paints over the sheet opened above
+   it. The ring below is numbered against this box, not the page. */
 .mapwrap {
   position: relative;
+  isolation: isolate;
   margin-top: 0.5rem;
   border: 1px solid var(--line);
   border-radius: var(--radius);

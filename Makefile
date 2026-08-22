@@ -40,6 +40,17 @@ test-backend: ## Run the Go tests
 test-frontend: deps ## Run the frontend tests
 	cd frontend && npm run test
 
+# Not part of `make test`: it needs a browser, which CI does not have. Run it
+# by hand after touching anything the eye judges — a sheet, a map, a layer
+# that sits over another. jsdom renders nothing and will not catch it.
+.PHONY: test-browser
+test-browser: build-frontend ## Check the adjust-location flow in a real browser
+	cd frontend && npx vite preview --port 4174 & \
+	  sleep 4; \
+	  npx vite-node frontend/scripts/make-fixture.ts /tmp/dvo-geo.jpg; \
+	  node frontend/scripts/check-adjust-location.mjs http://localhost:4174/ /tmp/dvo-geo.jpg /tmp; \
+	  status=$$?; kill %1; exit $$status
+
 .PHONY: lint
 lint: deps ## Vet the Go code and type check the frontend
 	cd backend && go vet ./...

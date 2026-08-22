@@ -347,9 +347,13 @@ h2 {
 
 /* The sign-in sheet. It covers the page because nothing else can happen
    until the city knows who is reporting. */
+/* Over everything, and the z-index is not decoration: Leaflet numbers its
+   own layers up to 1000, so a map drawn on the form underneath will paint
+   straight through a sheet that leaves this out. */
 .sheet {
   position: fixed;
   inset: 0;
+  z-index: 100;
   display: flex;
   align-items: flex-end;
   justify-content: center;
