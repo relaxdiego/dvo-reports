@@ -56,6 +56,12 @@ interface Ask {
 
 export function App() {
   const [tab, setTab] = useState<Tab>('report')
+  // The disclaimer is not a page anyone can link to: the city's terms are a
+  // box on its front page, and this site's are its own. Both are carried
+  // here and opened over the form. See disclaimer.tsx. It lives up here
+  // because the header opens it and so does the line beside the send
+  // button.
+  const [showDisclaimer, setShowDisclaimer] = useState(false)
   const [ask, setAsk] = useState<Ask | null>(null)
 
   // The stored session is the source of truth, not a state variable: it
@@ -110,10 +116,10 @@ export function App() {
 
   return (
     <main>
-      <Header />
+      <Header onDisclaimer={() => setShowDisclaimer(true)} />
       <Tabs tab={tab} onChange={setTab} />
       {tab === 'report' ? (
-        <ReportTab withSession={withSession} />
+        <ReportTab withSession={withSession} onDisclaimer={() => setShowDisclaimer(true)} />
       ) : (
         <PastTab past={past} onLoad={loadPast} withSession={withSession} />
       )}
@@ -126,6 +132,7 @@ export function App() {
           }}
         />
       )}
+      {showDisclaimer && <Disclaimer onClose={() => setShowDisclaimer(false)} />}
     </main>
   )
 }
@@ -155,7 +162,13 @@ function Tabs({ tab, onChange }: { tab: Tab; onChange: (t: Tab) => void }) {
   )
 }
 
-function ReportTab({ withSession }: { withSession: WithSession }) {
+function ReportTab({
+  withSession,
+  onDisclaimer,
+}: {
+  withSession: WithSession
+  onDisclaimer: () => void
+}) {
   const [draft, setDraft] = useState<Draft>(emptyDraft)
   const [error, setError] = useState<string | null>(null)
   const [sending, setSending] = useState(false)
@@ -241,14 +254,22 @@ function ReportTab({ withSession }: { withSession: WithSession }) {
 
       {error && <p class="error" role="alert">{error}</p>}
 
+      {/*
+        The other half of the header's notice, worded the same, above the
+        button rather than below it: the eye travels down to the button and
+        stops there, and on a phone anything under it can be off the screen.
+        See the note in the header before changing this wording.
+      */}
+      <p class="terms">
+        Sending a report means you agree to the city's terms — see the{' '}
+        <button type="button" class="linky" onClick={onDisclaimer}>
+          disclaimer
+        </button>
+        .
+      </p>
       <button class="primary" type="submit" disabled={sending}>
         {sending ? 'Sending…' : 'Send report'}
       </button>
-      {/*
-        The other half of the header's notice, next to the thing it binds.
-        See the note there before changing this wording.
-      */}
-      <p class="hint">Sending means you agree to the city's terms.</p>
     </form>
   )
 }
@@ -589,12 +610,7 @@ function SignIn({ why, onDone }: { why: string; onDone: (token: string | null) =
   )
 }
 
-function Header() {
-  // The disclaimer is not a page anyone can link to: the city's terms are a
-  // box on its front page, and this site's are its own. Both are carried
-  // here and opened over the form. See disclaimer.tsx.
-  const [showDisclaimer, setShowDisclaimer] = useState(false)
-
+function Header({ onDisclaimer }: { onDisclaimer: () => void }) {
   return (
     <header>
       <h1>Davao City issue report</h1>
@@ -620,15 +636,14 @@ function Header() {
         other.
       */}
       <p class="unofficial">
-        Unofficial site, not run by or connected to the city government. Volunteers built it. It
-        sends your report to <a href={CITY_SITE}>reports.davaocity.gov.ph</a>. Use at your own
+        Unofficial site, not run by or connected to the city government. Volunteers built it to
+        send your report to <a href={CITY_SITE}>reports.davaocity.gov.ph</a>. Use at your own
         risk. Sending a report means you agree to the city's terms — see the{' '}
-        <button type="button" class="linky" onClick={() => setShowDisclaimer(true)}>
+        <button type="button" class="linky" onClick={onDisclaimer}>
           disclaimer
         </button>
         .
       </p>
-      {showDisclaimer && <Disclaimer onClose={() => setShowDisclaimer(false)} />}
     </header>
   )
 }

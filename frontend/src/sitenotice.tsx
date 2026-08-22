@@ -42,41 +42,47 @@ export function SiteNotice() {
           <strong>Not official:</strong> This site is not run by the city government. It is a
           faster way to send a report to the city's own site,{' '}
           <a href={CITY_SITE}>reports.davaocity.gov.ph</a>. Your report ends up there, and that is
-          the site that officially holds it. The code here is open for anyone to read.
+          the site that officially holds it.
         </p>
         <p>
-          <strong>Nothing stored:</strong> Your report — the words, the address, the photos, your
-          contact details — passes through this site on its way to the city. It is not kept here.
-          There is no database, and no log holds a copy of anything you write. Once the city
-          receives your report, the city holds it under its own terms.
+          <strong>Nothing stored:</strong> Your report — the words, the place, the photos, your
+          contact details — passes through this site on its way to the city. It is held only long
+          enough to pass it on, and then it is gone. There is no database here, and no log here
+          holds your report, your photos, or your contact details. The city holds your report
+          under its own terms, and gives you a reference number. Keep that number: because nothing
+          stays here, it is your only record, and it is how you follow up with the city.
         </p>
         <p>
-          <strong>Your sign-in:</strong> The city sends a one-time code to your phone by text
-          message. The key that keeps you signed in stays in your own browser. This site never
-          sees or stores a password.
+          <strong>Your sign-in:</strong> You sign in with the e-mail address on your city account.
+          The city then sends a one-time code by text message, to the phone number registered with
+          that account. The key that keeps you signed in is kept in your own browser, and this site
+          never sees or stores a password. That key passes through this site each time you send
+          something, and is not kept here.
         </p>
         <p>
           <strong>Your photos:</strong> Photos are made smaller in your browser before they are
           sent, so uploads are fast. A photo can carry the place and the time it was taken. Only
           those two things go on to the city. Everything else the camera wrote — its model, its
           settings, the identifiers it puts on each photograph — is removed before your report
-          leaves this site.
-        </p>
-        <p>
-          <strong>The place is your photo's:</strong> A report from here is filed where the
-          photograph says it was taken. You cannot type an address and there is no pin to move,
-          so a photo taken with the camera's location switched off cannot be used here. Switch
-          it on and take the picture again.
+          leaves this site. Your report is filed at the place your photo carries: you cannot type a
+          different address here, so if that place is wrong, use the city's own site instead. To put
+          a street name on your report, this site sends the photo's coordinates — and nothing else —
+          to a map service. The small map is drawn with pictures from OpenStreetMap, so opening it
+          tells that service which area you are looking at.
         </p>
         <p>
           <strong>No promises:</strong> This site can break, go offline, or fail to deliver a
-          report. It is offered as it is, with no guarantee, and you use it at your own risk. If
-          something here is broken, you can say so on <a href={SOURCE}>its page on GitHub</a>.
+          report. It is offered free and as it is, with no guarantee of any kind, and you use it at
+          your own risk. The people who build it are volunteers, and they are not responsible for
+          any loss that comes from using it, including a report that never arrives. If you are not
+          shown a reference number, treat the report as not sent, and send it again on the city's
+          own site. For a hazard, or anything urgent, do not rely on this site: use the city's own
+          site or the phone number it lists.
         </p>
         <p>
-          <strong>If it matters:</strong> For a hazard, or anything urgent, use the city's own
-          site or the phone number it lists. And whenever you send a report — from here or from
-          anywhere — keep the reference number. It is how you follow up with the city.
+          <strong>Anyone can check:</strong> The code that runs this site is open for anyone to
+          read, on <a href={SOURCE}>its page on GitHub</a>. If something here is broken, you can
+          say so there.
         </p>
       </div>
 

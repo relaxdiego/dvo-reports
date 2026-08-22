@@ -118,6 +118,17 @@ button.secondary,
   padding: 0.7rem 1.1rem;
 }
 
+/* Close enough to the button to be read as part of pressing it. */
+.terms {
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin: 1.5rem 0 0;
+}
+
+.terms + button.primary {
+  margin-top: 0.6rem;
+}
+
 button.primary {
   width: 100%;
   margin-top: 1.5rem;

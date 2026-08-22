@@ -131,8 +131,9 @@ just to trigger a workflow** — the history is public and permanent, and
   canvas would otherwise throw the date and the place away before the backend
   could judge them. The tags describing the old pixels travel with it and are
   wrong; `backend/internal/photo` drops them.
-- `frontend/src/disclaimer.tsx` — the disclaimer page, opened from the one
-  link on the form. It covers the whole page, holds no frame of anyone
+- `frontend/src/disclaimer.tsx` — the disclaimer page, opened from either of
+  the two links on the form: the one in the header, and the one beside
+  `Send report`. It covers the whole page, holds no frame of anyone
   else's site, and has no scroll box inside it: the way out is the `Close`
   button after the last of the terms, so reaching it means scrolling past
   them. It only puts the two halves below in order — this project's first,
@@ -145,10 +146,14 @@ just to trigger a workflow** — the history is public and permanent, and
   only behind a link.
 
   The second fact is written twice, the way the emergency line is: once in
-  the header, and once beside `Send report`, because the header has been
-  scrolled off the screen by the time anyone presses that button. A notice
-  that binds somebody belongs next to the thing it binds. Change one and
-  change the other.
+  the header, and once directly above `Send report`, because the header has
+  been scrolled off the screen by the time anyone presses that button. A
+  notice that binds somebody belongs next to the thing it binds, and it goes
+  above the button rather than below it — the eye travels down to the button
+  and stops, and on a phone anything under it can be off the screen. Both
+  copies carry the same sentence and both open the disclaimer, so the terms
+  can be read at the moment of agreeing and not only before starting. Change
+  one and change the other.
 - `frontend/src/citynotice.tsx` — the city's disclaimer and privacy terms,
   copied word for word, bar one substitution the file explains. The city has
   no page to link to, so they are carried here, and copied rather than framed

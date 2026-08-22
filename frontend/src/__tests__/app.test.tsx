@@ -569,18 +569,29 @@ describe('the disclaimer', () => {
     expect(root.querySelectorAll('header .linky')).toHaveLength(1)
   })
 
-  // And again beside the send button, because the header above is scrolled
-  // off the screen by the time anyone presses it.
-  it('says what sending binds the reporter to, next to the send button', () => {
+  // And again just above the send button, because the header is scrolled off
+  // the screen by the time anyone presses it, and because a notice under the
+  // button is one the eye never reaches.
+  it('says what sending binds the reporter to, above the send button', () => {
     act(() => render(<App />, root))
 
     const send = [...root.querySelectorAll('button[type="submit"]')].find(
       (b) => b.textContent?.trim() === 'Send report',
     )
     if (!send) throw new Error('no "Send report" button')
-    expect(send.nextElementSibling?.textContent).toContain(
-      "Sending means you agree to the city's terms",
-    )
+    const terms = send.previousElementSibling!
+    expect(terms.textContent).toContain("Sending a report means you agree to the city's terms")
+    expect(terms.querySelector('.linky')?.textContent?.trim()).toBe('disclaimer')
+  })
+
+  // Both links open the same page, so the reporter can read the terms at the
+  // moment they are about to agree to them, not only before they started.
+  it('opens from the line by the send button too', () => {
+    act(() => render(<App />, root))
+
+    const link = root.querySelector<HTMLButtonElement>('.terms .linky')!
+    act(() => link.click())
+    expect(root.querySelector('[role="dialog"]')).not.toBeNull()
   })
 
   it('covers the page, this site first and the city after', () => {

@@ -1,9 +1,10 @@
 /**
  * The reporter's session with the city's site, kept in this browser.
  *
- * The city will not accept a report from an anonymous citizen: it sends a
- * one-time code to a registered e-mail address and gives back a token. That
- * token and the address stay here. The backend relays both and keeps
+ * The city will not accept a report from an anonymous citizen: the e-mail
+ * address names the account, the city texts a one-time code to the phone
+ * registered against it, and the code is exchanged for a token. That token
+ * and the address stay here. The backend relays both and keeps
  * neither, so this is the only place either one lives.
  */
 
