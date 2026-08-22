@@ -362,14 +362,18 @@ func titleFor(r report.Report) string {
 	return summary
 }
 
-// categoryLabels are the report.Categories in the words a city clerk reads.
-// "other" is absent on purpose; see titleFor.
+// categoryLabels are the report.Categories in words. They are the same words
+// the reporter picked, so the title the clerk reads names the thing the chip
+// named: keep this list in step with CATEGORY_LABELS in frontend/src/types.ts.
+// Where a chip adds something only the reporter needs — a Bisaya name, a
+// second example — this keeps the base word alone. "other" is absent on
+// purpose; see titleFor.
 var categoryLabels = map[string]string{
 	"garbage":         "Garbage",
 	"drainage":        "Drainage",
 	"pothole":         "Pothole",
-	"streetlight":     "Streetlight",
-	"obstruction":     "Obstruction",
+	"streetlight":     "Street light",
+	"obstruction":     "Blocked road",
 	"illegal-parking": "Illegal parking",
 }
 

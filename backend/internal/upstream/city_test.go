@@ -289,6 +289,22 @@ func TestTitleForPrefixesTheCategory(t *testing.T) {
 	}
 }
 
+// The prefix is the word the reporter's chip carried, not a synonym of it.
+// These two have drifted apart before; the chips are in
+// frontend/src/types.ts.
+func TestTitleForUsesTheWordTheReporterSaw(t *testing.T) {
+	for category, want := range map[string]string{
+		"streetlight": "Street light: ",
+		"obstruction": "Blocked road: ",
+	} {
+		r := goodReport()
+		r.Category = category
+		if got := titleFor(r); !strings.HasPrefix(got, want) {
+			t.Errorf("%s: title %q, want prefix %q", category, got, want)
+		}
+	}
+}
+
 // "other" has no label worth showing a clerk, so it gets no prefix.
 func TestTitleForLeavesOtherUnprefixed(t *testing.T) {
 	r := goodReport()

@@ -11,7 +11,15 @@ export const CATEGORIES = [
 
 export type Category = (typeof CATEGORIES)[number]
 
-/** Labels shown to the reporter. Keys must match CATEGORIES. */
+/**
+ * Labels shown to the reporter. Keys must match CATEGORIES.
+ *
+ * The city sees these words too: `categoryLabels` in
+ * `backend/internal/upstream/city.go` puts them at the front of the title.
+ * Change a word here and change it there. What is in brackets or after a
+ * slash is for the reporter alone and the backend leaves it off, so those
+ * two lists read the same without being character for character equal.
+ */
 export const CATEGORY_LABELS: Record<string, string> = {
   garbage: 'Garbage',
   drainage: 'Drainage / flooding',
