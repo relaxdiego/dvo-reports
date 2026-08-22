@@ -73,17 +73,25 @@ button:focus-visible {
 .chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  /* Only the space between rows is a gap. The space between chips sits on
+     the chips themselves, as a margin, because a gap cannot shrink and that
+     space has to leave with the chip it follows. See below. */
+  row-gap: 0.5rem;
 }
 
 .chip {
   font: inherit;
   padding: 0.55rem 0.9rem;
+  margin-inline-end: 0.5rem;
   border: 1px solid var(--line);
   border-radius: 999px;
   background: transparent;
   color: var(--fg);
   cursor: pointer;
+  /* The label never wraps, so a chip on its way out narrows instead of
+     growing taller, and the clipped text does not spill. */
+  white-space: nowrap;
+  overflow: hidden;
   transition: opacity 150ms ease;
 }
 
@@ -95,15 +103,31 @@ button:focus-visible {
 
 /* Once a kind is chosen the rest are clutter on a small screen, so they fade
    and go. They are hidden rather than dimmed: a chip that is still there but
-   unreachable is worse than one that left. `allow-discrete` is what lets the
-   fade finish before `display: none` lands; a browser without it hides them
-   at once, which is the same outcome without the softness. */
+   unreachable is worse than one that left.
+
+   They do not only fade: each one shrinks to nothing at the same time, so the
+   chosen chip slides up to the front instead of jumping there once they are
+   gone. The shrinking is done with `font-size`, `padding` and `margin` rather
+   than a width, because a chip has no width to animate from — it is as wide as
+   its own label, and `width: auto` is not a number a browser can count down.
+
+   `allow-discrete` is what lets all that finish before `display: none` lands;
+   a browser without it hides them at once, which is the same outcome without
+   the softness. */
 .chips.picked .chip:not(.on) {
   opacity: 0;
+  font-size: 0;
+  padding: 0;
+  margin-inline-end: 0;
+  border-width: 0;
   display: none;
   transition:
-    opacity 150ms ease,
-    display 150ms allow-discrete;
+    opacity 600ms ease,
+    font-size 600ms ease,
+    padding 600ms ease,
+    margin-inline-end 600ms ease,
+    border-width 600ms ease,
+    display 600ms allow-discrete;
 }
 
 /* The chosen chip is the way back: pressing it again clears the choice and
