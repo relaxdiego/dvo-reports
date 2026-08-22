@@ -365,12 +365,12 @@ func titleFor(r report.Report) string {
 // categoryLabels are the report.Categories in the words a city clerk reads.
 // "other" is absent on purpose; see titleFor.
 var categoryLabels = map[string]string{
-	"garbage":      "Garbage",
-	"drainage":     "Drainage",
-	"pothole":      "Pothole",
-	"streetlight":  "Streetlight",
-	"obstruction":  "Obstruction",
-	"stray-animal": "Stray animal",
+	"garbage":         "Garbage",
+	"drainage":        "Drainage",
+	"pothole":         "Pothole",
+	"streetlight":     "Streetlight",
+	"obstruction":     "Obstruction",
+	"illegal-parking": "Illegal parking",
 }
 
 // summarize collapses the description onto one line and cuts it to a title's

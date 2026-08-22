@@ -61,7 +61,7 @@ var Categories = []string{
 	"pothole",
 	"streetlight",
 	"obstruction",
-	"stray-animal",
+	"illegal-parking",
 	"other",
 }
 

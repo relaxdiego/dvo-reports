@@ -257,7 +257,7 @@ describe('choosing what the problem is', () => {
     act(() => render(<App />, root))
 
     expect(chips()).toContain('Garbage')
-    expect(chips()).toContain('Stray animal')
+    expect(chips()).toContain('Illegal parking')
     expect(root.querySelector('.chips')!.className).toBe('chips')
 
     click('Garbage')

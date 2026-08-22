@@ -5,7 +5,7 @@ export const CATEGORIES = [
   'pothole',
   'streetlight',
   'obstruction',
-  'stray-animal',
+  'illegal-parking',
   'other',
 ] as const
 
@@ -18,7 +18,7 @@ export const CATEGORY_LABELS: Record<string, string> = {
   pothole: 'Pothole',
   streetlight: 'Street light',
   obstruction: 'Blocked road',
-  'stray-animal': 'Stray animal',
+  'illegal-parking': 'Illegal parking',
   other: 'Something else',
 }
 
