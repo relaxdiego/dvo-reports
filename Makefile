@@ -44,11 +44,11 @@ test-frontend: deps ## Run the frontend tests
 # by hand after touching anything the eye judges — a sheet, a map, a layer
 # that sits over another. jsdom renders nothing and will not catch it.
 .PHONY: test-browser
-test-browser: build-frontend ## Check the adjust-location flow in a real browser
+test-browser: build-frontend ## Check the sheet over the form in a real browser
 	cd frontend && npx vite preview --port 4174 & \
 	  sleep 4; \
 	  npx vite-node frontend/scripts/make-fixture.ts /tmp/dvo-geo.jpg; \
-	  node frontend/scripts/check-adjust-location.mjs http://localhost:4174/ /tmp/dvo-geo.jpg /tmp; \
+	  node frontend/scripts/check-place-sheet.mjs http://localhost:4174/ /tmp/dvo-geo.jpg /tmp; \
 	  status=$$?; kill %1; exit $$status
 
 .PHONY: lint

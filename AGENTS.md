@@ -91,7 +91,9 @@ just to trigger a workflow** — the history is public and permanent, and
   party as a result. A lookup that fails is not an error — the report goes
   with its coordinates, as it did before this existed.
 - `backend/internal/photo` — **the only place photo metadata is decided.** It
-  keeps a named few fields and drops everything else, by rebuilding the
+  also answers whether a photograph says where it was taken, which is what
+  `report.Validate` refuses a report on. It keeps a named few fields and
+  drops everything else, by rebuilding the
   metadata from nothing rather than deleting from what arrived, so a tag
   survives only because that file names it. Do not add a second filter
   anywhere, and do not strip in the frontend: `frontend/src/image.ts` carries
@@ -100,11 +102,18 @@ just to trigger a workflow** — the history is public and permanent, and
 - `frontend/src/validate.ts` — mirrors the backend rules so the reporter
   learns about a problem before uploading photos. If you change one, change
   both, and remember the backend's answer is the one that counts. A report
-  needs at least one photo and a pair of coordinates. It does **not** need
-  the photo to carry the coordinates: a camera with its location switched
-  off is ordinary, and that reporter moves the pin themselves rather than
-  being turned away. Nobody types an address: `Draft.address` is the street
-  looked up from the pin, and an empty one is fine.
+  needs at least one photo and a pair of coordinates.
+
+  **The coordinates come from the photograph, and from nowhere else.** A
+  photo that does not carry its own place is refused where it is chosen, in
+  `PhotoField` in `app.tsx`; `backend/internal/report` refuses it again with
+  `photo.HasLocation`, and that is the copy that is trusted. Nobody types an
+  address, nobody drags a pin, and there is no place picker to open. This is
+  deliberate and it turns people away: a camera with its location switched
+  off is ordinary, and that reporter is told to switch it on rather than
+  being allowed to say where they think they were. Do not add a way around
+  it without being asked. `Draft.address` is the street looked up from those
+  coordinates, and an empty one is fine.
 - `frontend/src/image.ts` — shrinking photos before upload. This is the main
   reason the client feels fast. Do not remove it. It also copies the
   original's metadata block onto the resized photo, unread: drawing to a
@@ -125,12 +134,13 @@ just to trigger a workflow** — the history is public and permanent, and
   The emergency line is written twice on purpose: once on the page, in the
   header, where nobody has to go looking for it, and once at the top of this
   notice. Change one and change the other.
-- `frontend/src/map.tsx` — the OpenStreetMap place picker, and the small map
-  drawn on the form under it. It is the only code that talks to a third
-  party, and it is loaded with a dynamic `import()`. Do not import it from
-  anywhere eagerly: Leaflet is fetched once a reporter has a place to draw
-  or one to choose, which means after a photo is attached, and never on the
-  first page load.
+- `frontend/src/map.tsx` — the small map drawn on the form, and the same map
+  opened over it when a reporter taps the coordinates on a photo. Neither
+  one chooses anything: they draw the place the photographs carry. It is the
+  only code that talks to a third party, and it is loaded with a dynamic
+  `import()`. Do not import it from anywhere eagerly: Leaflet is fetched once
+  there is a place to draw, which means after a photo is attached, and never
+  on the first page load.
 
 ## Conventions
 
@@ -138,9 +148,9 @@ just to trigger a workflow** — the history is public and permanent, and
   reason in the commit message.
 - Frontend: Preact, no UI framework, no component library. The bundle
   everybody downloads is about 13 kB gzipped; a change that doubles it needs
-  a reason. Leaflet sits outside that number because it is in the map
-  picker's own chunk — keep new weight behind a dynamic `import()` the same
-  way, rather than growing the first page load.
+  a reason. Leaflet sits outside that number because it is in the map's own
+  chunk — keep new weight behind a dynamic `import()` the same way, rather
+  than growing the first page load.
 - Photos are sniffed with `http.DetectContentType`, not trusted from the
   upload's `Content-Type` header. This backend hands files to a government
   site.
@@ -163,7 +173,7 @@ sheet opened above it, and every test passed.
 make test-browser     # needs chromium on PATH
 ```
 
-It drives the adjust-location flow in a real browser and fails if anything
-from the form paints over the sheet. It is not in CI, which has no browser.
+It taps the place on a photo's row in a real browser, which opens a map over
+the form, and fails if anything from the form paints over that sheet. It is not in CI, which has no browser.
 Run it after touching a sheet, a map, or anything layered over anything else,
 and read the screenshots it leaves in /tmp.

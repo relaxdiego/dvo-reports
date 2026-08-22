@@ -5,6 +5,8 @@ package report
 import (
 	"fmt"
 	"strings"
+
+	"github.com/relaxdiego/dvo-reports/backend/internal/photo"
 )
 
 // MaxPhotos is the number of images one report may carry.
@@ -97,6 +99,14 @@ func (r Report) Validate() error {
 		}
 		if len(p.Data) > MaxPhotoBytes {
 			return fmt.Errorf("photo %q is %d bytes, limit is %d", p.Filename, len(p.Data), MaxPhotoBytes)
+		}
+		// The place on a report is the one its photographs recorded. Nobody
+		// types it and nobody drags a pin, so a photograph that does not
+		// carry one leaves the report saying nothing about where the problem
+		// is. The browser turns such a photo away before it is uploaded;
+		// this is the copy of that rule that is trusted.
+		if !photo.HasLocation(p.Data) {
+			return fmt.Errorf("photo %q does not record where it was taken", p.Filename)
 		}
 	}
 	return nil

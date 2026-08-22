@@ -10,7 +10,9 @@
  * backend's filter rewrites photos big-endian on the way through, so the
  * browser meets both.
  */
-export function jpegPhoto(opts: { big?: boolean; gps?: boolean; date?: boolean; offset?: string } = {}) {
+export function jpegPhoto(
+  opts: { big?: boolean; gps?: boolean; date?: boolean; offset?: string; at?: { lat: number; lon: number } } = {},
+) {
   const big = opts.big ?? false
   const parts: number[] = []
   const u16 = (v: number) => (big ? [v >> 8, v & 255] : [v & 255, v >> 8])
@@ -40,11 +42,21 @@ export function jpegPhoto(opts: { big?: boolean; gps?: boolean; date?: boolean; 
     exifEntries.push({ tag: 0x9011, type: 2, count: 7, data: [...opts.offset].map((c) => c.charCodeAt(0)).concat(0) })
   }
 
+  // Degrees, minutes and seconds, the way a camera writes a coordinate.
+  // Seconds carry two decimal places, which is finer than the app keeps.
+  const dms = (v: number) => {
+    const d = Math.floor(v)
+    const m = Math.floor((v - d) * 60)
+    const s = Math.round(((v - d) * 60 - m) * 6000)
+    return [...rational(d, 1), ...rational(m, 1), ...rational(s, 100)]
+  }
+  const at = opts.at ?? { lat: 7.09753, lon: 125.62229 }
+
   const gpsEntries: typeof entries = [
     { tag: 0x0001, type: 2, count: 2, inline: ['N'.charCodeAt(0), 0] },
-    { tag: 0x0002, type: 5, count: 3, data: [...rational(7, 1), ...rational(5, 1), ...rational(5112, 100)] },
+    { tag: 0x0002, type: 5, count: 3, data: dms(at.lat) },
     { tag: 0x0003, type: 2, count: 2, inline: ['E'.charCodeAt(0), 0] },
-    { tag: 0x0004, type: 5, count: 3, data: [...rational(125, 1), ...rational(37, 1), ...rational(2025, 100)] },
+    { tag: 0x0004, type: 5, count: 3, data: dms(at.lon) },
   ]
 
   const dirSize = (n: number) => 2 + 12 * n + 4

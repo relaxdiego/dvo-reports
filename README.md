@@ -106,14 +106,20 @@ model, the software, the settings, the thumbnail, and every other embedded
 block are dropped. The list lives in `backend/internal/photo`, and the backend
 is the only place it is applied.
 
-**The map is the one exception, and it is your choice.** If you open the map
-to point at a place, your browser asks
+**Your photos must say where they were taken.** This site files a report at
+the place written inside the photograph, and at no other place. You cannot
+type an address, and there is no map to drag a pin on. A photo taken with the
+camera's location switched off is refused, and you are asked to switch it on
+and take the picture again. That is a deliberate choice: a report the city can
+act on has to say where the problem is, and the camera is the only thing here
+that knows.
+
+**The map is the one thing that reaches a third party.** Once a photo is
+attached, the place it recorded is drawn on a map, and your browser asks
 [OpenStreetMap](https://www.openstreetmap.org/copyright) for the squares of
 map around that spot. Those requests go straight from your phone to their
-servers, so they reveal roughly where you are looking. The app says so before
-you open it, and nothing else about your report is ever sent there. Typing an
-address, or using the phone's own location, contacts nobody but this site's
-own backend.
+servers, so they reveal roughly where the photograph was taken. Nothing else
+about your report is ever sent there.
 
 ## Contributing
 

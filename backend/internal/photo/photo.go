@@ -47,6 +47,9 @@ var (
 const (
 	tagExifIFD = 0x8769
 	tagGPSIFD  = 0x8825
+
+	tagGPSLatitude  = 0x0002
+	tagGPSLongitude = 0x0004
 )
 
 // typeSize is the width of one value of each TIFF type. An unknown type has
@@ -115,6 +118,96 @@ func Clean(img []byte) []byte {
 	}
 	out.Write(img[i:]) // The scan and everything after it.
 	return out.Bytes()
+}
+
+// HasLocation reports whether img carries the coordinates its camera wrote
+// when the picture was taken.
+//
+// This project files a report at the place the photographs record, and at no
+// other place: nobody types an address and nobody drags a pin. A photograph
+// that cannot answer where it was taken is therefore not one the city can be
+// sent, and this is how that is decided.
+//
+// It only reads. Clean keeps the whole GPS directory, so the answer is the
+// same before and after the filter has run.
+func HasLocation(img []byte) bool {
+	tiff := exifTIFF(img)
+	if len(tiff) < 8 {
+		return false
+	}
+	var order binary.ByteOrder
+	switch {
+	case tiff[0] == 'I' && tiff[1] == 'I':
+		order = binary.LittleEndian
+	case tiff[0] == 'M' && tiff[1] == 'M':
+		order = binary.BigEndian
+	default:
+		return false
+	}
+	if order.Uint16(tiff[2:]) != 42 {
+		return false
+	}
+	for _, e := range readIFD(tiff, order, order.Uint32(tiff[4:])) {
+		if e.tag != tagGPSIFD {
+			continue
+		}
+		gps := readIFD(tiff, order, valueOffset(e, order))
+		return readable(gps, tagGPSLatitude) && readable(gps, tagGPSLongitude)
+	}
+	return false
+}
+
+// exifTIFF returns the TIFF block inside a JPEG's Exif segment, or nil when
+// the file is not a JPEG or carries no such segment.
+func exifTIFF(img []byte) []byte {
+	if len(img) < 4 || img[0] != 0xFF || img[1] != 0xD8 {
+		return nil
+	}
+	i := 2
+	for i+4 <= len(img) && img[i] == 0xFF {
+		marker := img[i+1]
+		if marker == 0xD8 || (marker >= 0xD0 && marker <= 0xD7) {
+			i += 2
+			continue
+		}
+		if marker == 0xDA || marker == 0xD9 {
+			return nil // The picture itself starts here; metadata is behind us.
+		}
+		length := int(binary.BigEndian.Uint16(img[i+2:]))
+		if length < 2 || i+2+length > len(img) {
+			return nil
+		}
+		seg := img[i+4 : i+2+length]
+		if marker == 0xE1 && bytes.HasPrefix(seg, []byte("Exif\x00\x00")) {
+			return seg[6:]
+		}
+		i += 2 + length
+	}
+	return nil
+}
+
+// readable reports whether one coordinate is there and can be read: three
+// rationals, none of them divided by zero. A tag that is present but says
+// nothing is worth no more than a missing one.
+//
+// readIFD has already rewritten the values as big-endian, whatever the file
+// used.
+func readable(gps []entry, tag uint16) bool {
+	for _, e := range gps {
+		if e.tag != tag {
+			continue
+		}
+		if e.typ != 5 || e.count < 3 || len(e.value) < 24 {
+			return false
+		}
+		for i := 0; i < 3; i++ {
+			if binary.BigEndian.Uint32(e.value[i*8+4:]) == 0 {
+				return false
+			}
+		}
+		return true
+	}
+	return false
 }
 
 func writeSegment(out *bytes.Buffer, marker byte, body []byte) {

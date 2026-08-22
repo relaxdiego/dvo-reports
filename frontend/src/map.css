@@ -26,32 +26,16 @@
   background: var(--line);
 }
 
-/* Both pins: the one Leaflet plants on a settled place, and the one the
-   picker holds still while the map moves under it. One shape, drawn in
-   map.tsx, and one colour, named here.
+/* The pin Leaflet plants on the place the photographs recorded. One shape,
+   drawn in map.tsx, and one colour, named here.
 
    The colour does not follow --accent into dark mode: OpenStreetMap's tiles
    are the same pale ones whatever the phone's theme, so a pin is read
    against those, not against the page. Red because that is the colour a map
    pin is in every application a reporter already uses. */
-.mappin,
 .mappin-drop {
   color: #ea4335;
   filter: drop-shadow(0 2px 2px rgb(0 0 0 / 40%));
-}
-
-/* The place the report will carry: dead centre, and never under a finger.
-   The margin hangs the pin by its point, because the point is the
-   coordinate — so the point is what sits at the centre of the frame, and the
-   balloon stands above it. */
-.mappin {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  margin: -35px 0 0 -13px;
-  line-height: 0;
-  pointer-events: none;
-  z-index: 600;
 }
 
 /* Leaflet ships its own light colours. Keep its furniture readable when the

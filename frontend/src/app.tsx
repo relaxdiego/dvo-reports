@@ -628,12 +628,13 @@ function Header() {
 }
 
 /**
- * The map is a few tens of kilobytes of Leaflet, which most reports do not
- * need: an address and the phone's own location are often enough. So it is
- * fetched the moment a reporter asks for it, and never before.
+ * The map is a few tens of kilobytes of Leaflet, and a reporter who has
+ * attached nothing has no place to draw. So it is fetched the moment there is
+ * one, and never before.
  *
- * Both the picker and the view of a photo's place come from that one chunk,
- * so whichever is opened first pays for it and the second is immediate.
+ * Both the map on the form and the one a photo's coordinates open come from
+ * that one chunk, so whichever is wanted first pays for it and the second is
+ * immediate.
  */
 type MapModule = typeof import('./map')
 
@@ -664,38 +665,32 @@ function LocationField({
 }: {
   draft: Draft
   set: <K extends keyof Draft>(key: K, value: Draft[K]) => void
-  /** Where the attached photos say the problem is, if they say anything. */
+  /** Where the attached photos say the problem is. */
   fromPhotos: Place | null
 }) {
-  const [byReporter, setByReporter] = useState(false)
-  const [picking, setPicking] = useState(false)
   const [street, setStreet] = useState<Street | null>(null)
   const [naming, setNaming] = useState(false)
   const map = useMapChunk()
-  const MapPicker = map.module?.MapPicker
   const MapHere = map.module?.MapHere
 
-  // The photos usually already know where the problem is, so the pin follows
-  // them — until the reporter moves it themselves. After that it is theirs,
-  // and adding or removing a photo does not move it.
+  // The place is the photographs' to give, and nobody's to type. Every photo
+  // attached carries one, because one that does not is turned away in the
+  // field above, so the pin is simply where they were taken. It follows them
+  // as they are added and removed, and goes when the last one does.
   useEffect(() => {
-    if (byReporter) return
     set('lat', fromPhotos?.lat ?? null)
     set('lon', fromPhotos?.lon ?? null)
-  }, [fromPhotos, byReporter, set])
+  }, [fromPhotos, set])
 
   const placed = draft.lat !== null && draft.lon !== null
   const at = placed ? { lat: draft.lat as number, lon: draft.lon as number } : null
 
-  // Leaflet is fetched once there is a place to draw or one to choose, not
-  // on first load: a reporter who has attached nothing never asks for it.
-  // Both the map on the form and the picker come out of that one chunk, so
-  // whichever is wanted first pays for it.
-  const wanted = placed || picking
+  // Leaflet is fetched once there is a place to draw, not on first load: a
+  // reporter who has attached nothing never asks for it.
   useEffect(() => {
-    if (!wanted || map.module || map.opening || map.failed) return
+    if (!placed || map.module || map.opening || map.failed) return
     void map.open()
-  }, [wanted, map.module, map.opening, map.failed, map.open])
+  }, [placed, map.module, map.opening, map.failed, map.open])
 
   // The city's own form fills its location box from whatever the pin sits
   // on, so this one does too. The answer is shown rather than hidden: it is
@@ -720,27 +715,14 @@ function LocationField({
     return () => { dropped = true }
   }, [lat, lon, set])
 
-  const pick = ({ lat, lon }: { lat: number; lon: number }) => {
-    setByReporter(true)
-    set('lat', lat)
-    set('lon', lon)
-    setPicking(false)
-  }
-
   return (
     <>
       {/*
-        Nothing here until there is a photo. The pin comes off the photograph,
-        so before one is attached this section has no map to draw and nothing
-        to say that the photo field has not already said.
+        Nothing here until there is a photo. The pin comes off the
+        photograph, so before one is attached this section has no map to draw
+        and nothing to say that the photo field has not already said.
       */}
-      {(draft.photos.length > 0 || placed) && <label>Location</label>}
-
-      {draft.photos.length > 0 && !placed && (
-        <p class="hint">
-          None of your photos recorded where it was taken, so the place has to be set by hand.
-        </p>
-      )}
+      {at && <label>Location</label>}
 
       {at && MapHere && <MapHere key={`${at.lat},${at.lon}`} at={at} />}
       {at && !MapHere && !map.failed && (
@@ -759,8 +741,8 @@ function LocationField({
       {at && !naming && street && !street.in_davao && (
         <p class="note" role="alert">
           This looks like it is outside Davao City. The city's own site turns away a report from
-          outside the city, so this one may not be accepted. Move the pin if it is in the wrong
-          place.
+          outside the city, so this one may not be accepted. Check that you attached the right
+          photos.
         </p>
       )}
       {/*
@@ -769,35 +751,30 @@ function LocationField({
         cannot show is photographs that disagree with each other, so that is
         the only case that still gets a sentence.
       */}
-      {at && !byReporter && fromPhotos?.spread && (
+      {at && fromPhotos?.spread && (
         <p class="hint">
-          Your photos were taken in different places, so the pin is on the first one. Move it if it
-          is wrong.
+          Your photos were taken in different places, so the report goes to the first one. Take out
+          the photos that belong somewhere else.
         </p>
       )}
 
-      {(draft.photos.length > 0 || placed) && (
-        <button type="button" class="secondary" onClick={() => setPicking(true)} disabled={map.failed}>
-          {placed ? 'Adjust location' : 'Set the location'}
-        </button>
-      )}
-
-      {map.failed && (
-        <p class="error" role="alert">
-          The map could not be loaded, so the place cannot be set. Check your connection and reload
-          the page.
-        </p>
-      )}
-
-      {picking && MapPicker && <MapPicker at={at} onPick={pick} onClose={() => setPicking(false)} />}
-      {picking && !MapPicker && !map.failed && (
-        <p class="hint waiting" role="status">
-          <span class="spinner" aria-hidden="true" />
-          Opening the map…
+      {/*
+        A map that will not load costs the reporter nothing now: the place is
+        already on the report, and this only says why the picture of it is
+        missing.
+      */}
+      {at && map.failed && (
+        <p class="hint">
+          The map could not be drawn. The place your photos recorded is still on the report.
         </p>
       )}
     </>
   )
+}
+
+/** True when a photo says where it was taken, which is what lets it in. */
+function carriesPlace(snap: Snapshot | null): boolean {
+  return snap !== null && snap.lat !== null && snap.lon !== null
 }
 
 /** What each attached photo says about itself. Missing until it is read. */
@@ -840,12 +817,24 @@ function PhotoField({
   onChange: (p: File[]) => void
 }) {
   const input = useRef<HTMLInputElement>(null)
+  const [refused, setRefused] = useState<string[]>([])
 
-  const add = (e: Event) => {
+  /*
+    A photo is read before it is accepted, and one that does not say where it
+    was taken is turned away. This is the whole rule the report rests on: the
+    place is not typed, not guessed, and not picked off a map — it is what the
+    camera wrote into the picture. A photograph without it cannot say where
+    the problem is, so it is not a report.
+  */
+  const add = async (e: Event) => {
     const picked = Array.from((e.target as HTMLInputElement).files ?? [])
-    onChange([...photos, ...picked].slice(0, MAX_PHOTOS))
-    // Let the same file be picked again after it is removed.
+    // Let the same file be picked again after it is removed. Cleared now,
+    // because the reads below take a moment and the reporter may be quick.
     if (input.current) input.current.value = ''
+    const snaps = await Promise.all(picked.map(readSnapshot))
+    const kept = picked.filter((_, i) => carriesPlace(snaps[i]))
+    setRefused(picked.filter((_, i) => !carriesPlace(snaps[i])).map((f) => f.name))
+    if (kept.length > 0) onChange([...photos, ...kept].slice(0, MAX_PHOTOS))
   }
 
   return (
@@ -862,6 +851,15 @@ function PhotoField({
         own, so the button below needs no script, and a keyboard still lands
         on the input itself rather than on something pretending to be it.
       */}
+      {refused.length > 0 && (
+        <p class="error" role="alert">
+          {refused.length === 1
+            ? `${refused[0]} does not record where it was taken, so it was not added.`
+            : `${refused.length} photos do not record where they were taken, so they were not added.`}{' '}
+          This site files a report at the place the photograph itself carries. Switch location on in
+          your camera and take the picture again.
+        </p>
+      )}
       {photos.length > 0 && (
         <>
           <ul class="photolist">

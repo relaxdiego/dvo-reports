@@ -11,10 +11,12 @@ export const MAX_DESCRIPTION = 2000
  * This copy exists so the reporter learns about a problem before spending
  * time and mobile data uploading photos.
  *
- * A photo is required: a report the city can act on shows the problem. Its
- * place is not required to come from the photo, though — a camera that does
- * not record where it was is common, and a reporter can move the pin
- * themselves. What is required is that a place ends up set.
+ * A photo is required: a report the city can act on shows the problem. So is
+ * the place written inside that photo. Nobody types or picks a location here
+ * — a photograph that does not say where it was taken is turned away when it
+ * is attached, so by the time this runs the coordinates are the camera's own.
+ * The check below is what is left of that rule: a draft with photos but no
+ * place should not exist.
  */
 export function validate(d: Draft): string | null {
   if (!d.category) return 'Pick what kind of problem this is.'
@@ -23,6 +25,6 @@ export function validate(d: Draft): string | null {
   if (desc.length > MAX_DESCRIPTION) return `The description is too long (limit ${MAX_DESCRIPTION} characters).`
   if (d.photos.length === 0) return 'Add at least one photo of the problem.'
   if (d.photos.length > MAX_PHOTOS) return `You can attach at most ${MAX_PHOTOS} photos.`
-  if (d.lat === null || d.lon === null) return 'Set the place on the map.'
+  if (d.lat === null || d.lon === null) return 'Your photos do not say where they were taken.'
   return null
 }

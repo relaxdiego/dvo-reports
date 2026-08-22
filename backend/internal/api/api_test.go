@@ -3,6 +3,7 @@ package api
 import (
 	"bytes"
 	"context"
+	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"io"
@@ -13,6 +14,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/relaxdiego/dvo-reports/backend/internal/photo"
 	"github.com/relaxdiego/dvo-reports/backend/internal/report"
 	"github.com/relaxdiego/dvo-reports/backend/internal/upstream"
 )
@@ -101,12 +103,64 @@ func form(t *testing.T, fields map[string]string, photos map[string][]byte) (str
 	return w.FormDataContentType(), &buf
 }
 
-// gifBytes is the smallest thing http.DetectContentType calls an image.
-var gifBytes = []byte("GIF89a\x01\x00\x01\x00\x00\x00\x00;")
+// geoPhoto is the smallest JPEG that says where it was taken: an Exif segment
+// carrying a GPS directory with a latitude and a longitude, and no picture at
+// all. Every photo a report may carry has to say this much, so every test
+// that files a report sends one.
+//
+// It is written big-endian by hand, so what is tested is reading a file this
+// project did not produce.
+func geoPhoto() []byte {
+	entry := func(tag, typ uint16, count, value uint32) []byte {
+		b := make([]byte, 12)
+		binary.BigEndian.PutUint16(b, tag)
+		binary.BigEndian.PutUint16(b[2:], typ)
+		binary.BigEndian.PutUint32(b[4:], count)
+		binary.BigEndian.PutUint32(b[8:], value)
+		return b
+	}
+	// Degrees, minutes, seconds, each a numerator over a denominator.
+	dms := func(d, m, sec uint32) []byte {
+		var b []byte
+		for _, pair := range [][2]uint32{{d, 1}, {m, 1}, {sec, 1}} {
+			n := make([]byte, 8)
+			binary.BigEndian.PutUint32(n, pair[0])
+			binary.BigEndian.PutUint32(n[4:], pair[1])
+			b = append(b, n...)
+		}
+		return b
+	}
+
+	var tiff bytes.Buffer
+	tiff.WriteString("MM")              // big-endian
+	tiff.Write([]byte{0, 42})           // the TIFF marker
+	tiff.Write([]byte{0, 0, 0, 8})      // IFD0 starts here
+	tiff.Write([]byte{0, 1})            // one record in it
+	tiff.Write(entry(0x8825, 4, 1, 26)) // the GPS directory
+	tiff.Write([]byte{0, 0, 0, 0})      // no second image
+	tiff.Write([]byte{0, 2})            // two GPS records
+	tiff.Write(entry(0x0002, 5, 3, 56)) // latitude
+	tiff.Write(entry(0x0004, 5, 3, 80)) // longitude
+	tiff.Write([]byte{0, 0, 0, 0})      // end of the GPS directory
+	tiff.Write(dms(7, 5, 51))           // 7°5'51" north
+	tiff.Write(dms(125, 37, 20))        // 125°37'20" east
+
+	body := append([]byte("Exif\x00\x00"), tiff.Bytes()...)
+	out := []byte{0xFF, 0xD8, 0xFF, 0xE1}
+	var n [2]byte
+	binary.BigEndian.PutUint16(n[:], uint16(len(body)+2))
+	out = append(out, n[:]...)
+	out = append(out, body...)
+	return append(out, 0xFF, 0xD9)
+}
+
+// blindPhoto is a JPEG that does not say where it was taken. No report may
+// carry one.
+var blindPhoto = []byte{0xFF, 0xD8, 0xFF, 0xD9}
 
 // onePhoto is what every valid report now carries at least one of.
 func onePhoto() map[string][]byte {
-	return map[string][]byte{"photo.gif": gifBytes}
+	return map[string][]byte{"photo.jpg": geoPhoto()}
 }
 
 func goodFields() map[string]string {
@@ -120,7 +174,7 @@ func goodFields() map[string]string {
 
 func TestSubmitRelaysTheReport(t *testing.T) {
 	up := &fakeUpstream{}
-	ct, body := form(t, goodFields(), map[string][]byte{"photo.gif": gifBytes})
+	ct, body := form(t, goodFields(), onePhoto())
 
 	req := httptest.NewRequest("POST", "/api/reports", body)
 	req.Header.Set("Content-Type", ct)
@@ -141,11 +195,14 @@ func TestSubmitRelaysTheReport(t *testing.T) {
 	if up.got.Category != "pothole" || up.got.Lat != 7.0731 {
 		t.Errorf("upstream got %+v", up.got)
 	}
-	if len(up.got.Photos) != 1 || !bytes.Equal(up.got.Photos[0].Data, gifBytes) {
-		t.Errorf("photos did not arrive intact: %+v", up.got.Photos)
+	// The photo is filtered on the way through, so it is not the same bytes.
+	// What has to survive is the place it was taken: that is what the report
+	// is filed on.
+	if len(up.got.Photos) != 1 || !photo.HasLocation(up.got.Photos[0].Data) {
+		t.Errorf("photos did not arrive with their place: %+v", up.got.Photos)
 	}
-	if up.got.Photos[0].MediaType != "image/gif" {
-		t.Errorf("media type %q, want image/gif", up.got.Photos[0].MediaType)
+	if up.got.Photos[0].MediaType != "image/jpeg" {
+		t.Errorf("media type %q, want image/jpeg", up.got.Photos[0].MediaType)
 	}
 }
 
@@ -162,6 +219,27 @@ func TestSubmitRejectsAnInvalidReport(t *testing.T) {
 
 	if rec.Code != http.StatusUnprocessableEntity {
 		t.Fatalf("status %d, want 422; body %s", rec.Code, rec.Body)
+	}
+}
+
+// The one rule this site is opinionated about. A photograph is where the
+// place comes from, so one that does not carry a place is refused, and the
+// report goes nowhere.
+func TestSubmitRefusesAPhotoThatDoesNotSayWhereItWasTaken(t *testing.T) {
+	up := &fakeUpstream{}
+	ct, body := form(t, goodFields(), map[string][]byte{"blind.jpg": blindPhoto})
+
+	req := httptest.NewRequest("POST", "/api/reports", body)
+	req.Header.Set("Content-Type", ct)
+	req.Header.Set(sessionHeader, "tk-1")
+	rec := httptest.NewRecorder()
+	newTestHandler(up).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("status %d, want 422; body %s", rec.Code, rec.Body)
+	}
+	if up.got.Category != "" {
+		t.Error("the report reached the city's site anyway")
 	}
 }
 
@@ -187,7 +265,7 @@ func TestSubmitHidesUpstreamFailureDetail(t *testing.T) {
 func TestSubmitRejectsTooManyPhotos(t *testing.T) {
 	photos := map[string][]byte{}
 	for i := 0; i <= report.MaxPhotos; i++ {
-		photos[string(rune('a'+i))+".gif"] = gifBytes
+		photos[string(rune('a'+i))+".jpg"] = geoPhoto()
 	}
 	ct, body := form(t, goodFields(), photos)
 
@@ -305,7 +383,7 @@ func TestSubmitReturnsTheReferenceWhenOnlyThePhotosFailed(t *testing.T) {
 		err:     upstream.ErrPhotosNotAttached,
 		receipt: upstream.Receipt{Reference: "REF-7"},
 	}
-	ct, body := form(t, goodFields(), map[string][]byte{"a.gif": gifBytes})
+	ct, body := form(t, goodFields(), onePhoto())
 
 	req := httptest.NewRequest("POST", "/api/reports", body)
 	req.Header.Set("Content-Type", ct)

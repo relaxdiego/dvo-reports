@@ -60,6 +60,12 @@ export function SiteNotice({ onClose }: { onClose: () => void }) {
             site.
           </p>
           <p>
+            <strong>The place is your photo's:</strong> A report from here is filed where the
+            photograph says it was taken. You cannot type an address and there is no pin to move,
+            so a photo taken with the camera's location switched off cannot be used here. Switch
+            it on and take the picture again.
+          </p>
+          <p>
             <strong>No promises:</strong> This site can break, go offline, or fail to deliver a
             report. It is offered as it is, with no guarantee, and you use it at your own risk. If
             something here is broken, you can say so on <a href={SOURCE}>its page on GitHub</a>.

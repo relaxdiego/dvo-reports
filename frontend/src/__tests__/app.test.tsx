@@ -54,8 +54,12 @@ async function attachPhotos(...files: File[]) {
   act(() => { input.dispatchEvent(new Event('change', { bubbles: true })) })
   for (let i = 0; i < 20; i++) {
     await act(async () => { await new Promise((r) => setTimeout(r, 2)) })
-    if (root.querySelectorAll('.photorow').length === files.length) break
+    if (root.querySelectorAll('.photorow').length > 0) break
   }
+  // A photo is read once to decide whether it may be attached at all, and
+  // again to show what it says. The rows can be on the page before that
+  // second read has finished.
+  await settle()
 }
 
 function click(text: string) {
@@ -317,10 +321,10 @@ describe('the photo field', () => {
   // A reporter is sending a photograph of a real place to a government site.
   // What it carries is theirs to see first.
   it('gives each photo a row showing where and when it was taken', async () => {
-    await attach(jpegPhoto({ offset: '+08:00' }), jpegPhoto({ gps: false }))
+    await attach(jpegPhoto({ offset: '+08:00' }))
 
     const rows = root.querySelectorAll('.photorow')
-    expect(rows).toHaveLength(2)
+    expect(rows).toHaveLength(1)
 
     const link = rows[0].querySelector('a')
     expect(link?.textContent).toBe('7.09753, 125.62229')
@@ -329,10 +333,25 @@ describe('the photo field', () => {
     expect(link?.getAttribute('target')).toBe('_blank')
     // The time sits under the coordinates, in the same row.
     expect(rows[0].textContent).toContain('2025')
+  })
 
-    // A photo with no place says so rather than showing nothing.
-    expect(rows[1].querySelector('a')).toBeNull()
-    expect(rows[1].textContent).toContain('No place recorded')
+  // The rule the whole form rests on. The place is not typed and not picked
+  // off a map, so a photograph that does not carry one cannot be part of a
+  // report, and it is turned away where it is chosen rather than at the end.
+  it('turns away a photo that does not say where it was taken', async () => {
+    await attach(jpegPhoto({ gps: false }))
+
+    expect(root.querySelectorAll('.photorow')).toHaveLength(0)
+    const refused = root.querySelector('[role="alert"]')
+    expect(refused?.textContent).toContain('does not record where it was taken')
+    expect(refused?.textContent).toContain('Switch location on in your camera')
+  })
+
+  it('keeps the photos that do carry a place and refuses the rest', async () => {
+    await attach(jpegPhoto(), jpegPhoto({ gps: false }))
+
+    expect(root.querySelectorAll('.photorow')).toHaveLength(1)
+    expect(root.querySelector('[role="alert"]')?.textContent).toContain('does not record where it was taken')
   })
 
   // Opening a new tab loses a half-written report, so a plain tap shows the
@@ -405,9 +424,9 @@ describe('the photo field', () => {
     expect(list.compareDocumentPosition(button) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 
-  // The photo already knows where the problem is. Asking the reporter for the
-  // same thing again is work they do not need to do.
-  it('starts the place from the photos, and lets it go with them', async () => {
+  // The photo already knows where the problem is. Nobody is asked for it
+  // again, and nobody may answer differently.
+  it('takes the place from the photos, and lets it go with them', async () => {
     await attach(jpegPhoto())
     await settle()
 
@@ -415,43 +434,17 @@ describe('the photo field', () => {
     const form = root.querySelector('form')!.textContent!
     expect(form.indexOf('Photos')).toBeLessThan(form.indexOf('Location'))
 
-    // The pin is really down, not only described: the button offers to move
-    // it rather than to place one.
-    expect(form).toContain('Adjust location')
-
     const remove = root.querySelector<HTMLButtonElement>('.photorow .remove')!
     act(() => remove.click())
     await settle()
 
     // With the photo gone there is nothing to file and nowhere to file it,
     // so the whole location section goes with it.
-    const after = root.querySelector('form')!.textContent!
-    expect(after).not.toContain('Adjust location')
-    expect(after).not.toContain('Set the location')
+    expect(root.querySelector('form')!.textContent).not.toContain('Location')
   })
 })
 
-describe('picking the place on a map', () => {
-  /**
-   * A browser that hands over a location, or refuses to. Only `geolocation`
-   * is replaced: Leaflet reads the rest of `navigator` as it loads, so a
-   * stand-in object would break the map before it started.
-   */
-  function geolocation(coords: { latitude: number; longitude: number } | null) {
-    Object.defineProperty(navigator, 'geolocation', {
-      configurable: true,
-      value: {
-        getCurrentPosition: (ok: PositionCallback, fail: PositionErrorCallback) =>
-          coords ? ok({ coords } as GeolocationPosition) : fail({} as GeolocationPositionError),
-      },
-    })
-  }
-
-  afterEach(() => {
-    // @ts-expect-error jsdom has no geolocation of its own to put back.
-    delete navigator.geolocation
-  })
-
+describe('the map on the form', () => {
   /**
    * Waits for something the dynamic import has to arrive before. Loading
    * Leaflet is real work competing with the other test files, so this waits
@@ -466,72 +459,38 @@ describe('picking the place on a map', () => {
     throw new Error(`${what} never appeared; the page says: ${root.textContent}`)
   }
 
-  const opened = () => waitFor('the map', '.leaflet-container')
-
   // Leaflet is tens of kilobytes. A reporter who has attached nothing has
   // nowhere to put a pin, so nothing may load it yet.
-  it('does not fetch the map until a photo gives it somewhere to start', () => {
+  it('does not fetch the map until a photo gives it somewhere to draw', () => {
     act(() => render(<App />, root))
 
     expect(root.querySelector('.leaflet-container')).toBeNull()
     expect(root.textContent).not.toContain('Location')
-    expect(root.textContent).not.toContain('Adjust location')
   })
 
-  // The point of the whole rearrangement: a geotagged photo means the
-  // reporter never has to say where they are.
+  // The point of the whole arrangement: the photograph says where it was
+  // taken, so the reporter is never asked and never has to answer.
   it('draws the place on the form as soon as a photo carries one', async () => {
     await attachPhotos(jpegPhoto())
     await waitFor('the map on the form', '.leaflet-container')
 
-    // On the form, not over it.
+    // On the form, not over it, and with nothing to press: this map shows a
+    // place, it does not ask for one.
     expect(root.querySelector('[role="dialog"]')).toBeNull()
     expect(root.querySelector('.mapwrap.inline .leaflet-container')).not.toBeNull()
-    expect(root.textContent).toContain('Adjust location')
-
-    // The way to move the pin sits under the map showing where it is.
-    const drawn = root.querySelector('.mapwrap.inline')!
-    const adjust = [...root.querySelectorAll('button')].find((b) => b.textContent?.trim() === 'Adjust location')!
-    expect(drawn.compareDocumentPosition(adjust) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(root.textContent).not.toContain('Adjust location')
+    expect(root.textContent).not.toContain('Set the location')
   })
 
-  it('opens the picker on the pin the photo already put down', async () => {
+  it('files the report at the place the photo recorded', async () => {
+    localStorage.setItem('dvo-reports.session', JSON.stringify({ token: 'tk-1' }))
     await attachPhotos(jpegPhoto())
-    await waitFor('the map on the form', '.leaflet-container')
-    click('Adjust location')
-    await waitFor('the picker', '[role="dialog"]')
-
-    // Taking the place without moving the map takes whatever the picker
-    // opened on. That is the photo's own place, not the browser's idea of
-    // where the phone is.
-    click('Use this location')
     await settle()
+
     const body = await fileAndRead()
     expect(body.get('lat')).toBe('7.09753')
     expect(body.get('lon')).toBe('125.62229')
-  })
-
-  // A camera with its location switched off is common, and that reporter is
-  // not turned away.
-  it('lets a reporter whose photo has no place set one by hand', async () => {
-    geolocation({ latitude: 7.06423, longitude: 125.60778 })
-    await attachPhotos(jpegPhoto({ gps: false }))
-    await settle()
-
-    expect(root.textContent).toContain('None of your photos recorded where it was taken')
-    expect(root.querySelector('.leaflet-container')).toBeNull()
-
-    click('Set the location')
-    await opened()
-    click('Use this location')
-    await waitFor('the map on the form', '.mapwrap.inline .leaflet-container')
-
-    expect(root.textContent).toContain('Adjust location')
-
-    // The place they set is the one the report carries.
-    const body = await fileAndRead()
-    expect(body.get('lat')).toBe('7.06423')
-    expect(body.get('lon')).toBe('125.60778')
+    expect(body.getAll('photos')).toHaveLength(1)
   })
 
   // The city's form fills its location box from the pin. So does this one,
@@ -556,16 +515,12 @@ describe('picking the place on a map', () => {
   // Each of these pins somewhere of its own: answers are remembered for as
   // long as the page is open, so two tests sharing a spot would share a
   // street as well.
-  it('warns when the pin is outside the city', async () => {
+  it('warns when the photos were taken outside the city', async () => {
     vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () =>
       new Response(JSON.stringify({ address: 'Session Road, Baguio', in_davao: false }), { status: 200 }),
     ))
-    geolocation({ latitude: 16.4116, longitude: 120.5933 })
 
-    await attachPhotos(jpegPhoto({ gps: false }))
-    click('Set the location')
-    await opened()
-    click('Use this location')
+    await attachPhotos(jpegPhoto({ at: { lat: 16.4116, lon: 120.5933 } }))
     await settle()
 
     const warning = root.querySelector('[role="alert"]')
@@ -577,110 +532,13 @@ describe('picking the place on a map', () => {
   // A geocoder that is down must not stop anybody filing anything.
   it('files with the coordinates alone when no street can be found', async () => {
     vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => new Response('nope', { status: 503 })))
-    geolocation({ latitude: 7.11111, longitude: 125.61111 })
 
-    await attachPhotos(jpegPhoto({ gps: false }))
-    click('Set the location')
-    await opened()
-    click('Use this location')
+    await attachPhotos(jpegPhoto({ at: { lat: 7.11111, lon: 125.61111 } }))
     await settle()
 
     expect(root.querySelector('.street')).toBeNull()
-    expect(root.textContent).toContain('Adjust location')
+    expect(root.textContent).toContain('Location')
     expect(root.textContent).not.toContain('Looking up the street')
-  })
-
-  it('starts at the middle of the city when the browser refuses', async () => {
-    geolocation(null)
-    await attachPhotos(jpegPhoto({ gps: false }))
-    click('Set the location')
-    await opened()
-
-    expect(root.textContent).toContain('the map starts at the middle of the city')
-
-    // Accepting that start files the middle of the city, not nothing.
-    click('Use this location')
-    await settle()
-    const body = await fileAndRead()
-    expect(body.get('lat')).toBe('7.0731')
-    expect(body.get('lon')).toBe('125.6128')
-  })
-
-  it('sends the place the reporter picked', async () => {
-    localStorage.setItem('dvo-reports.session', JSON.stringify({ token: 'tk-1' }))
-    geolocation({ latitude: 7.06423, longitude: 125.60778 })
-    const fetchMock = vi.fn<typeof fetch>(async (input) => {
-      const url = String(input)
-      if (url.includes('/api/place')) {
-        return new Response(
-          JSON.stringify({ address: 'Quimpo Boulevard, Talomo, Davao City', in_davao: true }),
-          { status: 200 },
-        )
-      }
-      return new Response(JSON.stringify({ reference: 'DCR-9' }), { status: 201 })
-    })
-    vi.stubGlobal('fetch', fetchMock)
-
-    await attachPhotos(jpegPhoto({ gps: false }))
-    click('Set the location')
-    await opened()
-    click('Use this location')
-    await settle()
-
-    // The picker closes, and the form draws where the report will go.
-    expect(root.querySelector('[role="dialog"]')).toBeNull()
-    expect(root.textContent).toContain('Adjust location')
-
-    click('Pothole')
-    const description = root.querySelector<HTMLTextAreaElement>('#description')!
-    description.value = 'A deep pothole in the outer lane.'
-    act(() => { description.dispatchEvent(new Event('input', { bubbles: true })) })
-    act(() => { root.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })) })
-    await settle()
-
-    const filed = fetchMock.mock.calls.find(([url]) => String(url).endsWith('/api/reports'))!
-    const body = filed[1]?.body as FormData
-    expect(body.get('lat')).toBe('7.06423')
-    expect(body.get('lon')).toBe('125.60778')
-    // Nobody typed this. It is the street under the pin, looked up the way
-    // the city's own form looks its own up.
-    expect(body.get('address')).toBe('Quimpo Boulevard, Talomo, Davao City')
-    expect(body.getAll('photos')).toHaveLength(1)
-  })
-
-  it('turns a spinner while it looks for the reporter', async () => {
-    // A browser that is asked and never answers, which is what a phone
-    // waiting on a permission prompt looks like.
-    Object.defineProperty(navigator, 'geolocation', {
-      configurable: true,
-      value: { getCurrentPosition: () => {} },
-    })
-
-    await attachPhotos(jpegPhoto({ gps: false }))
-    click('Set the location')
-    await waitFor('the map sheet', '[role="dialog"]')
-
-    const waiting = root.querySelector('[role="dialog"] [role="status"]')
-    expect(waiting?.textContent).toContain('Finding where you are')
-    expect(waiting?.querySelector('.spinner')).not.toBeNull()
-    // Nothing to confirm yet, so the button that would file a place is off.
-    const use = [...root.querySelectorAll('button')].find((b) => b.textContent?.trim() === 'Use this location')
-    expect(use?.disabled).toBe(true)
-  })
-
-  it('closes without changing the report when it is cancelled', async () => {
-    geolocation({ latitude: 7.06423, longitude: 125.60778 })
-    await attachPhotos(jpegPhoto({ gps: false }))
-    click('Set the location')
-    await opened()
-    click('Cancel')
-    await settle()
-
-    expect(root.querySelector('[role="dialog"]')).toBeNull()
-    // No pin was put down, so the button still offers to place one.
-    expect(root.querySelector('.mapwrap.inline')).toBeNull()
-    expect(root.textContent).toContain('Set the location')
-    expect(root.textContent).not.toContain('Adjust location')
   })
 })
 

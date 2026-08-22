@@ -441,3 +441,68 @@ func gpsOf(t *testing.T, tiff []byte) map[uint16][]byte {
 	}
 	return readDir(tiff, binary.BigEndian.Uint32(p))
 }
+
+// gpsOnly is a JPEG whose only metadata is the GPS directory it is given.
+// Little-endian, like a phone's.
+func gpsOnly(gps []tag) []byte {
+	size := func(n int) uint32 { return uint32(2 + 12*n + 4) }
+	const head = 8
+	ifd0 := []tag{{0x8825, 4, 1, nil}}
+	gpsAt := head + size(len(ifd0))
+	ifd0[0].val = le32(gpsAt)
+	dataAt := gpsAt + size(len(gps))
+
+	d0, x0 := ifd(ifd0, 0, dataAt)
+	dG, xG := ifd(gps, 0, dataAt+uint32(len(x0)))
+
+	var tiff bytes.Buffer
+	tiff.Write([]byte{'I', 'I', 42, 0})
+	tiff.Write(le32(head))
+	tiff.Write(d0)
+	tiff.Write(dG)
+	tiff.Write(x0)
+	tiff.Write(xG)
+
+	var b bytes.Buffer
+	b.Write([]byte{0xFF, 0xD8})
+	b.Write(segment(0xE1, append([]byte("Exif\x00\x00"), tiff.Bytes()...)))
+	b.Write([]byte{0xFF, 0xD9})
+	return b.Bytes()
+}
+
+// A report is filed at the place its photographs carry, so this is the
+// question that decides whether a photograph may be sent at all.
+func TestHasLocation(t *testing.T) {
+	degrees := func(a, b, c uint32) []byte {
+		return bytes.Join([][]byte{rational(a, 1), rational(b, 1), rational(c, 1)}, nil)
+	}
+	both := []tag{
+		{0x0002, 5, 3, degrees(7, 5, 51)},
+		{0x0004, 5, 3, degrees(125, 37, 20)},
+	}
+
+	cases := map[string]struct {
+		img  []byte
+		want bool
+	}{
+		"a phone's own photo":          {phonePhoto(), true},
+		"the same photo once filtered": {Clean(phonePhoto()), true},
+		"nothing but the coordinates":  {gpsOnly(both), true},
+		"no metadata at all":           {[]byte{0xFF, 0xD8, 0xFF, 0xD9}, false},
+		"a latitude and no longitude":  {gpsOnly(both[:1]), false},
+		// A tag that is there but says nothing is worth no more than a
+		// missing one. Some cameras really do write this.
+		"a coordinate divided by zero": {gpsOnly([]tag{
+			{0x0002, 5, 3, bytes.Join([][]byte{rational(7, 0), rational(5, 1), rational(51, 1)}, nil)},
+			both[1],
+		}), false},
+		"not a JPEG at all": {[]byte("GIF89a"), false},
+	}
+	for name, c := range cases {
+		t.Run(name, func(t *testing.T) {
+			if got := HasLocation(c.img); got != c.want {
+				t.Errorf("HasLocation = %v, want %v", got, c.want)
+			}
+		})
+	}
+}

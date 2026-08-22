@@ -46,12 +46,12 @@ describe('validate', () => {
   // The place comes from the photo when the camera recorded one, and from
   // the reporter when it did not. Either way it has to end up set.
   it('needs a place', () => {
-    expect(validate(draft({ lat: null, lon: null }))).toMatch(/on the map/)
+    expect(validate(draft({ lat: null, lon: null }))).toMatch(/where they were taken/)
   })
 
-  // A camera that does not record where it was is common, and that reporter
-  // is not turned away: they move the pin instead.
-  it('does not care where the place came from', () => {
+  // The place is the photographs'. A draft that has photos but no place
+  // should not be reachable, because a photo without one is never accepted.
+  it('takes the place the photos gave it', () => {
     expect(validate(draft({ lat: 7.1, lon: 125.6 }))).toBeNull()
   })
 })

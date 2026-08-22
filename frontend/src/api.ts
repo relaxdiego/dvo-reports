@@ -105,24 +105,9 @@ async function errorMessage(res: Response): Promise<string> {
   return `The server refused the request (${res.status}).`
 }
 
-/** Reads the browser's location. Rejects with a message fit to show. */
-export function currentPosition(): Promise<{ lat: number; lon: number }> {
-  return new Promise((resolve, reject) => {
-    if (!navigator.geolocation) {
-      reject(new Error('This browser cannot share a location.'))
-      return
-    }
-    navigator.geolocation.getCurrentPosition(
-      (p) => resolve({ lat: roundCoord(p.coords.latitude), lon: roundCoord(p.coords.longitude) }),
-      () => reject(new Error('Could not get your location. Move the map to the place instead.')),
-      { enableHighAccuracy: true, timeout: 10_000, maximumAge: 60_000 },
-    )
-  })
-}
-
 /**
- * ~1 m of precision, and no more of the reporter's location than that. The
- * map picker rounds the same way, so a place carries the same detail however
+ * ~1 m of precision, and no more of the reporter's location than that. A
+ * photograph's own coordinates are rounded the same way, so a place carries
  * it was chosen.
  */
 export function roundCoord(n: number): number {
@@ -137,8 +122,8 @@ export interface Place {
 
 /**
  * Answers already given, for as long as the page is open. OpenStreetMap asks
- * that results be cached, and a reporter nudging the pin back to where it was
- * would otherwise ask the same question twice.
+ * that results be cached, and a reporter taking a photo out and putting it
+ * back would otherwise ask the same question twice.
  */
 const named = new Map<string, Place>()
 
