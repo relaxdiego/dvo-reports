@@ -755,12 +755,7 @@ function LocationField({
           Looking up the street…
         </p>
       )}
-      {at && !naming && street?.address && (
-        <p class="street">
-          {street.address}
-          <span class="meta"> — named by OpenStreetMap, and sent to the city as the location.</span>
-        </p>
-      )}
+      {at && !naming && street?.address && <p class="street">{street.address}</p>}
       {at && !naming && street && !street.in_davao && (
         <p class="note" role="alert">
           This looks like it is outside Davao City. The city's own site turns away a report from
@@ -768,13 +763,16 @@ function LocationField({
           place.
         </p>
       )}
-      {at && (
+      {/*
+        Nothing is said about a pin that is where it should be. The map shows
+        it, and the street under it is named above. The one thing the map
+        cannot show is photographs that disagree with each other, so that is
+        the only case that still gets a sentence.
+      */}
+      {at && !byReporter && fromPhotos?.spread && (
         <p class="hint">
-          {byReporter
-            ? `The place you set: ${at.lat}, ${at.lon}.`
-            : fromPhotos
-              ? photoPlaceText(fromPhotos)
-              : `${at.lat}, ${at.lon}.`}
+          Your photos were taken in different places, so the pin is on the first one. Move it if it
+          is wrong.
         </p>
       )}
 
@@ -966,17 +964,6 @@ function PhotoRow({
       )}
     </li>
   )
-}
-
-/** Why the pin is where it is, when the photos are what put it there. */
-function photoPlaceText(p: Place): string {
-  const where = `(${p.lat}, ${p.lon})`
-  const change = 'Move the pin if it is wrong.'
-  if (p.of === 1) return `Using the place your photo was taken ${where}. ${change}`
-  if (p.spread) {
-    return `Your photos were taken in different places, so this is the place of the first one ${where}. ${change}`
-  }
-  return `Using the middle of the ${p.of} photos that carry a place ${where}. ${change}`
 }
 
 /** The camera's own clock, written the way the reporter's phone writes dates. */

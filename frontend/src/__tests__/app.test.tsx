@@ -388,7 +388,6 @@ describe('the photo field', () => {
 
     // The form is ordered so the photos come first and put the pin down.
     const form = root.querySelector('form')!.textContent!
-    expect(form).toContain('Using the place your photo was taken (7.09753, 125.62229)')
     expect(form.indexOf('Photos')).toBeLessThan(form.indexOf('Location'))
 
     // The pin is really down, not only described: the button offers to move
@@ -402,7 +401,6 @@ describe('the photo field', () => {
     // With the photo gone there is nothing to file and nowhere to file it,
     // so the whole location section goes with it.
     const after = root.querySelector('form')!.textContent!
-    expect(after).not.toContain('Using the place')
     expect(after).not.toContain('Adjust location')
     expect(after).not.toContain('Set the location')
   })
@@ -497,7 +495,10 @@ describe('picking the place on a map', () => {
     click('Use this place')
     await waitFor('the map on the form', '.mapwrap.inline .leaflet-container')
 
-    expect(root.textContent).toContain('The place you set: 7.06423, 125.60778')
+    expect(root.textContent).toContain('Adjust location')
+    click('Adjust location')
+    await waitFor('the picker', '[role="dialog"]')
+    expect(root.textContent).toContain('The ring is at 7.06423, 125.60778')
   })
 
   // The city's form fills its location box from the pin. So does this one,
@@ -552,7 +553,7 @@ describe('picking the place on a map', () => {
     await settle()
 
     expect(root.querySelector('.street')).toBeNull()
-    expect(root.textContent).toContain('The place you set: 7.11111, 125.61111')
+    expect(root.textContent).toContain('Adjust location')
     expect(root.textContent).not.toContain('Looking up the street')
   })
 
@@ -589,7 +590,7 @@ describe('picking the place on a map', () => {
 
     // The picker closes, and the form draws where the report will go.
     expect(root.querySelector('[role="dialog"]')).toBeNull()
-    expect(root.textContent).toContain('The place you set: 7.06423, 125.60778')
+    expect(root.textContent).toContain('Adjust location')
 
     click('Pothole')
     const description = root.querySelector<HTMLTextAreaElement>('#description')!
@@ -637,7 +638,10 @@ describe('picking the place on a map', () => {
     await settle()
 
     expect(root.querySelector('[role="dialog"]')).toBeNull()
-    expect(root.textContent).not.toContain('The place you set')
+    // No pin was put down, so the button still offers to place one.
+    expect(root.querySelector('.mapwrap.inline')).toBeNull()
+    expect(root.textContent).toContain('Set the location')
+    expect(root.textContent).not.toContain('Adjust location')
   })
 })
 
