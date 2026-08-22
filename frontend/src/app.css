@@ -104,7 +104,50 @@ button:focus-visible {
    a button cannot hold anyway. */
 .chip .x {
   margin-inline-start: 0.5rem;
+  /* Held to the text's own line so the larger glyph does not grow the pill. */
+  height: 1em;
+}
+
+/* Every cross on the page is the same cross: the one that clears a chosen
+   kind, the one that takes a photo out of the report, the one that puts an
+   error away. One glyph (×, U+00D7 — not the letter x), one size, quiet
+   until it is pointed at.
+
+   The colour is inherited on purpose. A cross takes the colour of whatever
+   it sits in — the accent of a chosen chip, the red of an error, the plain
+   text of a photo row — so it stays readable in both themes without naming
+   a colour of its own. */
+.x {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: inherit;
+  font-size: 1.25rem;
+  line-height: 1;
   opacity: 0.7;
+}
+
+/* When the cross is the whole button, it also needs something to hit. The
+   chip's cross is not one of these: it is decoration inside a bigger button,
+   and a button cannot hold another button. */
+button.x {
+  flex: none;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+/* Pointed at, or tabbed to, it comes forward. The tint is drawn from the
+   cross's own colour, so it works wherever the cross sits. */
+button.x:hover,
+button.x:focus-visible {
+  opacity: 1;
+  background: color-mix(in srgb, currentColor 12%, transparent);
 }
 
 button.primary,
@@ -250,24 +293,9 @@ button[disabled] {
 }
 
 /* In a row the button sits at the end, not over the corner of a thumbnail. */
-.photorow .remove {
-  position: static;
-  flex: none;
-}
-
+/* At the end of the row it belongs to. Its look is the shared one above. */
 .remove {
-  position: absolute;
-  top: -0.4rem;
-  right: -0.4rem;
-  width: 1.6rem;
-  height: 1.6rem;
-  border-radius: 50%;
-  border: 1px solid var(--line);
-  background: var(--bg);
-  color: var(--fg);
-  font-size: 1rem;
-  line-height: 1;
-  cursor: pointer;
+  margin-inline-start: auto;
 }
 
 .hint {
@@ -287,21 +315,13 @@ button[disabled] {
   color: var(--danger);
 }
 
-/* The way to put an error away once it has been read and acted on. */
+/* The way to put an error away once it has been read and acted on. It sits
+   in the corner of the box rather than at the end of the text, which can be
+   three lines long on a phone. Its look is the shared one above. */
 .dismiss {
   position: absolute;
   top: 0.3rem;
   inset-inline-end: 0.3rem;
-  width: 2rem;
-  height: 2rem;
-  border: 0;
-  border-radius: 50%;
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  font-size: 1.25rem;
-  line-height: 1;
-  cursor: pointer;
 }
 
 .reference {

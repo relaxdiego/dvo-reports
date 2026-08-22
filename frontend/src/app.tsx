@@ -35,7 +35,7 @@ function ErrorMessage({
   return (
     <p class="error" role="alert">
       {children}
-      <button type="button" class="dismiss" aria-label="Dismiss this message" onClick={onDismiss}>
+      <button type="button" class="x dismiss" aria-label="Dismiss this message" onClick={onDismiss}>
         {/* The cross is decoration; the button's own label is what is read out. */}
         <span aria-hidden="true">×</span>
       </button>
@@ -259,7 +259,7 @@ function ReportTab({
                 {CATEGORY_LABELS[c]}
                 {on && (
                   <span class="x" aria-hidden="true">
-                    &times;
+                    ×
                   </span>
                 )}
               </button>
@@ -1050,8 +1050,8 @@ function PhotoRow({
           <span class="meta">{snap?.taken ? takenText(snap.taken) : 'No date recorded.'}</span>
         )}
       </div>
-      <button type="button" class="remove" aria-label={`Remove ${file.name}`} onClick={onRemove}>
-        ×
+      <button type="button" class="x remove" aria-label={`Remove ${file.name}`} onClick={onRemove}>
+        <span aria-hidden="true">×</span>
       </button>
       {MapView && at && (
         <MapView

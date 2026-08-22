@@ -489,6 +489,26 @@ describe('the photo field', () => {
     expect(root.querySelector('[role="alert"]')).toBeNull()
   })
 
+  // Three crosses can be on the screen at once: the one on a chosen kind,
+  // one per photo row, and the one that puts an error away. They are drawn
+  // by a single shared class, so a cross that does not carry it is one that
+  // will drift away from the others.
+  it('draws every cross from the same class', async () => {
+    await attach(...Array.from({ length: MAX_PHOTOS + 1 }, () => jpegPhoto()))
+    click('Garbage')
+
+    const crosses = [...root.querySelectorAll('*')].filter(
+      (el) => el.children.length === 0 && el.textContent?.trim() === '×',
+    )
+    // One per row, one on the chip, one on the "not added" error.
+    expect(crosses).toHaveLength(MAX_PHOTOS + 2)
+    for (const cross of crosses) {
+      // On the glyph itself, or on the button holding it.
+      const drawn = cross.classList.contains('x') || cross.parentElement!.classList.contains('x')
+      expect(drawn).toBe(true)
+    }
+  })
+
   // The photo already knows where the problem is. Nobody is asked for it
   // again, and nobody may answer differently.
   it('takes the place from the photos, and lets it go with them', async () => {
