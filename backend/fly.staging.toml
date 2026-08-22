@@ -13,11 +13,8 @@ primary_region = "sin"
 [env]
   # Exact matches only, so every origin the browser app is served from has to
   # be listed. While the custom domains are not set up, that is the Cloudflare
-  # Pages branch alias.
-  #
-  # Pull request previews get a per-deploy URL that cannot be listed ahead of
-  # time, so a preview cannot submit a report to this backend. That is a known
-  # gap, not a bug to chase.
+  # Pages branch alias. It becomes https://report-staging.relaxdiego.com at
+  # launch; see the pre-flight checklist.
   ALLOWED_ORIGINS = "https://staging.dvo-reports.pages.dev"
 
 [http_service]

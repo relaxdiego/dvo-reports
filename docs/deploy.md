@@ -22,7 +22,6 @@ target from what triggered it:
 | -------------- | ----------------- | --------------------------------- |
 | Push to `main` | `staging`         | `report-staging.relaxdiego.com`   |
 | Tag `v*`       | `production`      | `report.relaxdiego.com`           |
-| Pull request   | `pr-<number>`     | a throwaway preview URL           |
 
 So `main` is always live on staging, and production only moves when you tag a
 release:
@@ -35,9 +34,19 @@ Nothing is published unless `make lint`, `make test`, and `make build` pass
 first: the deploy job needs the check job, which is why both live in one
 workflow file. GitHub cannot express that dependency across two.
 
-Pull requests opened from a fork get no preview. GitHub withholds secrets
-from them, so the deploy could not work, and the job is skipped rather than
-failing.
+**A pull request is checked and never deployed.** No preview URL, and no
+backend of its own. Code that has not been merged does not reach a server,
+whether it came from this repository or a fork. Review a pull request by
+running it locally:
+
+```sh
+gh pr checkout <number>
+devbox run -- make lint && devbox run -- make test
+devbox run -- make dev
+```
+
+A manual `workflow_dispatch` run deploys staging, the same as a push to
+`main`.
 
 ### One-time setup
 
@@ -55,7 +64,7 @@ failing.
    `CLOUDFLARE_ACCOUNT_ID`. The token needs one permission —
    *Account · Cloudflare Pages · Edit*.
 
-3. **GitHub Environments** named `production`, `staging`, and `preview`. Give
+3. **GitHub Environments** named `production` and `staging`. Give
    each a variable `VITE_API_BASE` holding its backend URL. The frontend is
    baked at build time, so changing one needs a new deploy.
 
@@ -89,8 +98,7 @@ Two Fly apps, one per environment, built from `backend/Dockerfile`:
 | Production  | `dvo-reports-api`          | `backend/fly.production.toml`|
 
 CI deploys them: a push to `main` deploys staging, a `v*` tag deploys
-production. A pull request does not get its own backend — a preview talks to
-staging.
+production. A pull request deploys nothing.
 
 Both apps scale to zero. The first request after an idle period waits for the
 machine to start, well under a second, and the city's own API is slower than
@@ -140,8 +148,9 @@ repository.
 `ALLOWED_ORIGINS` is set in each `fly.*.toml`. It must name the frontend for
 that environment — the two are on different hosts, so a wrong value shows up
 as every submission failing in the browser with a CORS error. The list is
-exact matches only, which is why a pull request preview, whose URL is
-generated per deploy, cannot submit against the staging backend.
+exact matches only. A frontend run locally is served from
+`http://localhost:5173`, which is the default and is not in either deployed
+list.
 
 **`UPSTREAM` must never be `echo` in a deployed environment.** Echo invents
 reference numbers, so a citizen would be told their report was filed when it

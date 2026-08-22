@@ -8,13 +8,14 @@ name: ci
 #
 #   push to main   -> staging     -> report-staging.relaxdiego.com
 #   tag v*         -> production  -> report.relaxdiego.com
-#   pull request   -> pr-<number> -> a throwaway preview URL
 #
 # VITE_API_BASE is baked in at build time, so each target is built on its
 # own, with the value from the GitHub Environment named below.
 #
-# The backend is a container on Fly, one app per environment. It is not
-# deployed for a pull request: a preview talks to the staging backend.
+# The backend is a container on Fly, one app per environment.
+#
+# A pull request is checked and never deployed. Nothing from an unmerged
+# branch reaches a server; review one by running it locally.
 
 on:
   push:
@@ -57,7 +58,6 @@ jobs:
 
   deploy-backend:
     needs: check
-    # No per-preview backend. A pull request preview talks to staging.
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     environment:
@@ -92,18 +92,10 @@ jobs:
 
   deploy:
     needs: check
-    # Secrets are withheld from a pull request opened from a fork, so a
-    # preview cannot work there. Skip it rather than show a contributor a red
-    # check they have no way to fix.
-    if: >-
-      github.event_name != 'pull_request' ||
-      github.event.pull_request.head.repo.full_name == github.repository
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     environment:
-      name: >-
-        ${{ startsWith(github.ref, 'refs/tags/v') && 'production'
-            || github.event_name == 'push' && 'staging'
-            || 'preview' }}
+      name: ${{ startsWith(github.ref, 'refs/tags/v') && 'production' || 'staging' }}
     steps:
       - uses: actions/checkout@v7
 
@@ -112,10 +104,8 @@ jobs:
         run: |
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             echo "branch=production"
-          elif [[ "$GITHUB_EVENT_NAME" == push ]]; then
-            echo "branch=staging"
           else
-            echo "branch=pr-${{ github.event.number }}"
+            echo "branch=staging"
           fi >> "$GITHUB_OUTPUT"
 
       - uses: jetify-com/devbox-install-action@v0.15.0
