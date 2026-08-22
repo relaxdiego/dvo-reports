@@ -883,9 +883,7 @@ function PhotoField({
             name here rather than summarise.
           */}
           <p class="hint">
-            The place and time shown here are sent to the city with your report. Everything else
-            the camera recorded — its model, its settings, the identifiers it puts on a
-            photograph — is removed first.
+            The place and time shown here are sent to the city with your report.
           </p>
         </>
       )}
