@@ -27,9 +27,7 @@ func main() {
 	srv := &http.Server{
 		Addr: addr,
 		Handler: api.New(api.Config{
-			// TODO: swap for the real reports.davaocity.gov.ph client once
-			// its submit flow is documented. Echo accepts everything.
-			Upstream:       &upstream.Echo{},
+			Upstream:       pickUpstream(log),
 			AllowedOrigins: splitList(envOr("ALLOWED_ORIGINS", "http://localhost:5173")),
 			Log:            log,
 		}),
@@ -58,6 +56,18 @@ func main() {
 	if err := srv.Shutdown(shutdownCtx); err != nil {
 		log.Error("shutdown failed", "err", err)
 	}
+}
+
+// pickUpstream returns the real city client unless UPSTREAM=echo asks for
+// the stand-in. The default is the real one on purpose: Echo invents
+// reference numbers, and a citizen who gets one believes a report was filed
+// when it was not.
+func pickUpstream(log *slog.Logger) upstream.Client {
+	if envOr("UPSTREAM", "city") == "echo" {
+		log.Warn("using the echo upstream: reports are NOT sent to the city and reference numbers are invented")
+		return &upstream.Echo{}
+	}
+	return &upstream.City{BaseURL: envOr("UPSTREAM_BASE_URL", upstream.DefaultBaseURL)}
 }
 
 func envOr(key, fallback string) string {

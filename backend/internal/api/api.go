@@ -44,13 +44,68 @@ func New(cfg Config) http.Handler {
 	mux.HandleFunc("GET /api/categories", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]any{"categories": report.Categories})
 	})
+	mux.HandleFunc("POST /api/auth/otp", func(w http.ResponseWriter, r *http.Request) {
+		sendOTP(w, r, cfg)
+	})
+	mux.HandleFunc("POST /api/auth/session", func(w http.ResponseWriter, r *http.Request) {
+		verifyOTP(w, r, cfg)
+	})
 	mux.HandleFunc("POST /api/reports", func(w http.ResponseWriter, r *http.Request) {
 		submit(w, r, cfg)
 	})
 	return cors(cfg.AllowedOrigins, mux)
 }
 
+// sessionHeader carries the city's session token. It is not a bearer token:
+// the city wants it as a form field, and this backend puts it there.
+const sessionHeader = "X-City-Session"
+
+// sendOTP asks the city to send a one-time code. The e-mail address is
+// relayed and not kept, and never reaches the log.
+func sendOTP(w http.ResponseWriter, r *http.Request, cfg Config) {
+	var in struct {
+		Email string `json:"email"`
+	}
+	if err := readJSON(r, &in); err != nil || strings.TrimSpace(in.Email) == "" {
+		writeError(w, http.StatusBadRequest, "an email address is required")
+		return
+	}
+	if err := cfg.Upstream.SendOTP(r.Context(), strings.TrimSpace(in.Email)); err != nil {
+		cfg.Log.Error("upstream sendOTP failed", "err", err)
+		writeError(w, http.StatusBadGateway, "the city's site could not send a code; please try again later")
+		return
+	}
+	cfg.Log.Info("otp requested")
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// verifyOTP exchanges the code for a session and hands it back to the
+// browser, which is the only place it is kept.
+func verifyOTP(w http.ResponseWriter, r *http.Request, cfg Config) {
+	var in struct {
+		Email string `json:"email"`
+		OTP   string `json:"otp"`
+	}
+	if err := readJSON(r, &in); err != nil || strings.TrimSpace(in.Email) == "" || strings.TrimSpace(in.OTP) == "" {
+		writeError(w, http.StatusBadRequest, "an email address and a code are required")
+		return
+	}
+	session, err := cfg.Upstream.VerifyOTP(r.Context(), strings.TrimSpace(in.Email), strings.TrimSpace(in.OTP))
+	if err != nil {
+		cfg.Log.Error("upstream verifyOTP failed", "err", err)
+		writeError(w, http.StatusUnauthorized, "that code was not accepted; check it or ask for a new one")
+		return
+	}
+	cfg.Log.Info("session issued")
+	writeJSON(w, http.StatusOK, session)
+}
+
 func submit(w http.ResponseWriter, r *http.Request, cfg Config) {
+	token := strings.TrimSpace(r.Header.Get(sessionHeader))
+	if token == "" {
+		writeError(w, http.StatusUnauthorized, "sign in with a code from the city's site before reporting")
+		return
+	}
 	r.Body = http.MaxBytesReader(w, r.Body, maxRequestBytes)
 	if err := r.ParseMultipartForm(4 << 20); err != nil {
 		var tooBig *http.MaxBytesError
@@ -73,8 +128,19 @@ func submit(w http.ResponseWriter, r *http.Request, cfg Config) {
 		return
 	}
 
-	receipt, err := cfg.Upstream.Submit(r.Context(), rep)
-	if err != nil {
+	receipt, err := cfg.Upstream.Submit(r.Context(), rep, token)
+	switch {
+	case errors.Is(err, upstream.ErrSessionExpired):
+		cfg.Log.Info("upstream session expired", "category", rep.Category)
+		writeError(w, http.StatusUnauthorized, "your session with the city's site has expired; ask for a new code and send the report again")
+		return
+	case errors.Is(err, upstream.ErrPhotosNotAttached):
+		// The report is filed and has a real reference. Saying it failed
+		// would be worse than saying the photos did not make it.
+		cfg.Log.Error("upstream photos not attached", "category", rep.Category, "photos", len(rep.Photos), "reference", receipt.Reference, "err", err)
+		writeJSON(w, http.StatusCreated, photosMissing{Receipt: receipt, Warning: "the report was filed, but the photos did not upload; you can add them on the city's own site using the reference"})
+		return
+	case err != nil:
 		// The upstream error may quote the city site's own HTML. Log it,
 		// but tell the citizen something they can act on.
 		cfg.Log.Error("upstream submit failed", "category", rep.Category, "photos", len(rep.Photos), "err", err)
@@ -156,7 +222,7 @@ func cors(allowed []string, next http.Handler) http.Handler {
 		}
 		if r.Method == http.MethodOptions {
 			w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
-			w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, "+sessionHeader)
 			w.Header().Set("Access-Control-Max-Age", "86400")
 			w.WriteHeader(http.StatusNoContent)
 			return
@@ -172,6 +238,17 @@ func slicesContains(list []string, want string) bool {
 		}
 	}
 	return false
+}
+
+// photosMissing is a receipt for a report the city filed without its photos.
+type photosMissing struct {
+	upstream.Receipt
+	Warning string `json:"warning"`
+}
+
+// readJSON decodes a small JSON request body.
+func readJSON(r *http.Request, out any) error {
+	return json.NewDecoder(io.LimitReader(r.Body, 1<<16)).Decode(out)
 }
 
 func writeJSON(w http.ResponseWriter, status int, body any) {

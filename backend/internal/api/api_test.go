@@ -18,13 +18,34 @@ import (
 )
 
 type fakeUpstream struct {
-	got report.Report
-	err error
+	got      report.Report
+	gotToken string
+	gotEmail string
+	err      error
+	authErr  error
+	receipt  upstream.Receipt
 }
 
-func (f *fakeUpstream) Submit(_ context.Context, r report.Report) (upstream.Receipt, error) {
+func (f *fakeUpstream) SendOTP(_ context.Context, email string) error {
+	f.gotEmail = email
+	return f.authErr
+}
+
+func (f *fakeUpstream) VerifyOTP(_ context.Context, email, _ string) (upstream.Session, error) {
+	f.gotEmail = email
+	if f.authErr != nil {
+		return upstream.Session{}, f.authErr
+	}
+	return upstream.Session{Token: "tk-1"}, nil
+}
+
+func (f *fakeUpstream) Submit(_ context.Context, r report.Report, token string) (upstream.Receipt, error) {
 	f.got = r
+	f.gotToken = token
 	if f.err != nil {
+		if f.receipt.Reference != "" {
+			return f.receipt, f.err
+		}
 		return upstream.Receipt{}, f.err
 	}
 	return upstream.Receipt{Reference: "REF-1"}, nil
@@ -81,6 +102,7 @@ func TestSubmitRelaysTheReport(t *testing.T) {
 
 	req := httptest.NewRequest("POST", "/api/reports", body)
 	req.Header.Set("Content-Type", ct)
+	req.Header.Set(sessionHeader, "tk-1")
 	rec := httptest.NewRecorder()
 	newTestHandler(up).ServeHTTP(rec, req)
 
@@ -112,6 +134,7 @@ func TestSubmitRejectsAnInvalidReport(t *testing.T) {
 
 	req := httptest.NewRequest("POST", "/api/reports", body)
 	req.Header.Set("Content-Type", ct)
+	req.Header.Set(sessionHeader, "tk-1")
 	rec := httptest.NewRecorder()
 	newTestHandler(&fakeUpstream{}).ServeHTTP(rec, req)
 
@@ -127,6 +150,7 @@ func TestSubmitHidesUpstreamFailureDetail(t *testing.T) {
 
 	req := httptest.NewRequest("POST", "/api/reports", body)
 	req.Header.Set("Content-Type", ct)
+	req.Header.Set(sessionHeader, "tk-1")
 	rec := httptest.NewRecorder()
 	newTestHandler(up).ServeHTTP(rec, req)
 
@@ -147,6 +171,7 @@ func TestSubmitRejectsTooManyPhotos(t *testing.T) {
 
 	req := httptest.NewRequest("POST", "/api/reports", body)
 	req.Header.Set("Content-Type", ct)
+	req.Header.Set(sessionHeader, "tk-1")
 	rec := httptest.NewRecorder()
 	newTestHandler(&fakeUpstream{}).ServeHTTP(rec, req)
 
@@ -196,10 +221,158 @@ func TestSubmitRejectsANonImageDisguisedAsOne(t *testing.T) {
 
 	req := httptest.NewRequest("POST", "/api/reports", body)
 	req.Header.Set("Content-Type", ct)
+	req.Header.Set(sessionHeader, "tk-1")
 	rec := httptest.NewRecorder()
 	newTestHandler(&fakeUpstream{}).ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusUnprocessableEntity {
 		t.Fatalf("status %d, want 422; body %s", rec.Code, rec.Body)
+	}
+}
+
+func TestSubmitPassesTheSessionTokenOn(t *testing.T) {
+	up := &fakeUpstream{}
+	ct, body := form(t, goodFields(), nil)
+
+	req := httptest.NewRequest("POST", "/api/reports", body)
+	req.Header.Set("Content-Type", ct)
+	req.Header.Set(sessionHeader, "tk-abc")
+	rec := httptest.NewRecorder()
+	newTestHandler(up).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("status %d, body %s", rec.Code, rec.Body)
+	}
+	if up.gotToken != "tk-abc" {
+		t.Errorf("token %q", up.gotToken)
+	}
+}
+
+func TestSubmitRefusesAReportWithNoSession(t *testing.T) {
+	ct, body := form(t, goodFields(), nil)
+
+	req := httptest.NewRequest("POST", "/api/reports", body)
+	req.Header.Set("Content-Type", ct)
+	rec := httptest.NewRecorder()
+	newTestHandler(&fakeUpstream{}).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("status %d, want 401; body %s", rec.Code, rec.Body)
+	}
+}
+
+func TestSubmitTellsTheReporterWhenTheSessionExpired(t *testing.T) {
+	up := &fakeUpstream{err: upstream.ErrSessionExpired}
+	ct, body := form(t, goodFields(), nil)
+
+	req := httptest.NewRequest("POST", "/api/reports", body)
+	req.Header.Set("Content-Type", ct)
+	req.Header.Set(sessionHeader, "stale")
+	rec := httptest.NewRecorder()
+	newTestHandler(up).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("status %d, want 401; body %s", rec.Code, rec.Body)
+	}
+}
+
+// The report is filed. The citizen must be given the reference, not an
+// error, even though the photos did not make it.
+func TestSubmitReturnsTheReferenceWhenOnlyThePhotosFailed(t *testing.T) {
+	up := &fakeUpstream{
+		err:     upstream.ErrPhotosNotAttached,
+		receipt: upstream.Receipt{Reference: "REF-7"},
+	}
+	ct, body := form(t, goodFields(), map[string][]byte{"a.gif": gifBytes})
+
+	req := httptest.NewRequest("POST", "/api/reports", body)
+	req.Header.Set("Content-Type", ct)
+	req.Header.Set(sessionHeader, "tk-1")
+	rec := httptest.NewRecorder()
+	newTestHandler(up).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("status %d, want 201; body %s", rec.Code, rec.Body)
+	}
+	var got struct {
+		Reference string `json:"reference"`
+		Warning   string `json:"warning"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatal(err)
+	}
+	if got.Reference != "REF-7" {
+		t.Errorf("reference %q, want the real one", got.Reference)
+	}
+	if got.Warning == "" {
+		t.Error("want a warning about the photos")
+	}
+}
+
+func TestSendOTPRelaysTheEmail(t *testing.T) {
+	up := &fakeUpstream{}
+	req := httptest.NewRequest("POST", "/api/auth/otp", strings.NewReader(`{"email":"someone@example.org"}`))
+	rec := httptest.NewRecorder()
+	newTestHandler(up).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("status %d, want 204; body %s", rec.Code, rec.Body)
+	}
+	if up.gotEmail != "someone@example.org" {
+		t.Errorf("email %q", up.gotEmail)
+	}
+}
+
+func TestSendOTPRejectsAnEmptyEmail(t *testing.T) {
+	req := httptest.NewRequest("POST", "/api/auth/otp", strings.NewReader(`{"email":"  "}`))
+	rec := httptest.NewRecorder()
+	newTestHandler(&fakeUpstream{}).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status %d, want 400", rec.Code)
+	}
+}
+
+func TestVerifyOTPReturnsTheSession(t *testing.T) {
+	req := httptest.NewRequest("POST", "/api/auth/session", strings.NewReader(`{"email":"someone@example.org","otp":"123456"}`))
+	rec := httptest.NewRecorder()
+	newTestHandler(&fakeUpstream{}).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status %d, body %s", rec.Code, rec.Body)
+	}
+	var got upstream.Session
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatal(err)
+	}
+	if got.Token != "tk-1" {
+		t.Errorf("token %q", got.Token)
+	}
+}
+
+func TestVerifyOTPRefusesABadCode(t *testing.T) {
+	up := &fakeUpstream{authErr: errors.New("Invalid OTP")}
+	req := httptest.NewRequest("POST", "/api/auth/session", strings.NewReader(`{"email":"someone@example.org","otp":"000000"}`))
+	rec := httptest.NewRecorder()
+	newTestHandler(up).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("status %d, want 401", rec.Code)
+	}
+	// The city's own wording must not reach the reporter verbatim.
+	if strings.Contains(rec.Body.String(), "Invalid OTP") {
+		t.Errorf("upstream detail leaked: %s", rec.Body)
+	}
+}
+
+// Preflight has to allow the session header, or the browser never sends it.
+func TestPreflightAllowsTheSessionHeader(t *testing.T) {
+	req := httptest.NewRequest("OPTIONS", "/api/reports", nil)
+	req.Header.Set("Origin", "https://reports.example.org")
+	rec := httptest.NewRecorder()
+	newTestHandler(&fakeUpstream{}).ServeHTTP(rec, req)
+
+	if got := rec.Header().Get("Access-Control-Allow-Headers"); !strings.Contains(got, sessionHeader) {
+		t.Errorf("allow-headers %q, want it to include %s", got, sessionHeader)
 	}
 }

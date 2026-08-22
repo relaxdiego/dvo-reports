@@ -1,0 +1,326 @@
+package upstream
+
+import (
+	"context"
+	"errors"
+	"io"
+	"mime"
+	"mime/multipart"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+
+	"github.com/relaxdiego/dvo-reports/backend/internal/report"
+)
+
+// call is one request the fake city received.
+type call struct {
+	Path   string
+	Query  map[string]string
+	Fields map[string]string
+	Photos []string
+}
+
+// fakeCity stands in for reports.davaocity.gov.ph. reply is consulted per
+// request, in order.
+type fakeCity struct {
+	t       *testing.T
+	replies []string
+	calls   []call
+	srv     *httptest.Server
+}
+
+func newFakeCity(t *testing.T, replies ...string) *fakeCity {
+	t.Helper()
+	f := &fakeCity{t: t, replies: replies}
+	f.srv = httptest.NewServer(http.HandlerFunc(f.serve))
+	t.Cleanup(f.srv.Close)
+	return f
+}
+
+func (f *fakeCity) serve(w http.ResponseWriter, r *http.Request) {
+	c := call{Path: strings.TrimPrefix(r.URL.Path, "/"), Query: map[string]string{}, Fields: map[string]string{}}
+	for k := range r.URL.Query() {
+		c.Query[k] = r.URL.Query().Get(k)
+	}
+	if ct := r.Header.Get("Content-Type"); strings.HasPrefix(ct, "multipart/") {
+		_, params, err := mime.ParseMediaType(ct)
+		if err != nil {
+			f.t.Fatal(err)
+		}
+		mr := multipart.NewReader(r.Body, params["boundary"])
+		for {
+			part, err := mr.NextPart()
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				f.t.Fatal(err)
+			}
+			body, _ := io.ReadAll(part)
+			if part.FileName() != "" {
+				c.Photos = append(c.Photos, part.FileName()+":"+string(body))
+			} else {
+				c.Fields[part.FormName()] = string(body)
+			}
+		}
+	}
+	f.calls = append(f.calls, c)
+
+	reply := "{}"
+	if len(f.calls) <= len(f.replies) {
+		reply = f.replies[len(f.calls)-1]
+	}
+	w.Header().Set("Content-Type", "application/json")
+	io.WriteString(w, reply)
+}
+
+func (f *fakeCity) client() *City { return &City{BaseURL: f.srv.URL, HTTP: f.srv.Client()} }
+
+func goodReport() report.Report {
+	return report.Report{
+		Category:    "pothole",
+		Description: "Deep pothole in the outer lane near the corner.",
+		Address:     "Quimpo Blvd, Davao City",
+		Lat:         7.0731,
+		Lon:         125.6128,
+	}
+}
+
+// A report without photos is one request, and the reference is the city's
+// control number.
+func TestSubmitWithoutPhotosSendsOneRequest(t *testing.T) {
+	city := newFakeCity(t, `{"controlno":"DCR-2026-0001"}`)
+
+	got, err := city.client().Submit(context.Background(), goodReport(), "tk-1")
+	if err != nil {
+		t.Fatalf("want nil, got %v", err)
+	}
+	if got.Reference != "DCR-2026-0001" {
+		t.Errorf("reference %q", got.Reference)
+	}
+	if len(city.calls) != 1 {
+		t.Fatalf("want 1 request, got %d", len(city.calls))
+	}
+	c := city.calls[0]
+	if c.Path != "complainController" {
+		t.Errorf("path %q", c.Path)
+	}
+	if c.Fields["trans"] != "ADD" || c.Fields["xtk"] != "tk-1" || c.Fields["contno"] != "" {
+		t.Errorf("fields %+v", c.Fields)
+	}
+	if c.Fields["complain"] != goodReport().Description {
+		t.Errorf("complain %q", c.Fields["complain"])
+	}
+	if c.Fields["location"] != "Quimpo Blvd, Davao City" {
+		t.Errorf("location %q", c.Fields["location"])
+	}
+	if c.Fields["coordinates"] != "7.0731,125.6128" {
+		t.Errorf("coordinates %q", c.Fields["coordinates"])
+	}
+}
+
+// The city needs two requests when there are photos, and the caller must not
+// have to know that.
+func TestSubmitWithPhotosAttachesOnASecondRequest(t *testing.T) {
+	city := newFakeCity(t, `{"controlno":"DCR-2026-0002"}`, `{"controlno":"DCR-2026-0002"}`)
+	r := goodReport()
+	r.Photos = []report.Photo{{Filename: "a.gif", MediaType: "image/gif", Data: []byte("GIF89a")}}
+
+	got, err := city.client().Submit(context.Background(), r, "tk-1")
+	if err != nil {
+		t.Fatalf("want nil, got %v", err)
+	}
+	if got.Reference != "DCR-2026-0002" {
+		t.Errorf("reference %q", got.Reference)
+	}
+	if len(city.calls) != 2 {
+		t.Fatalf("want 2 requests, got %d", len(city.calls))
+	}
+	if city.calls[0].Fields["trans"] != "ADD" || len(city.calls[0].Photos) != 0 {
+		t.Errorf("first request should be a bare ADD: %+v", city.calls[0])
+	}
+	second := city.calls[1]
+	if second.Fields["trans"] != "ATTACH" || second.Fields["contno"] != "DCR-2026-0002" {
+		t.Errorf("second request %+v", second.Fields)
+	}
+	if len(second.Photos) != 1 || second.Photos[0] != "a.gif:GIF89a" {
+		t.Errorf("photos %v", second.Photos)
+	}
+}
+
+// The report is already filed at this point. Reporting a total failure would
+// tell the citizen a lie.
+func TestSubmitKeepsTheReferenceWhenPhotosFail(t *testing.T) {
+	city := newFakeCity(t, `{"controlno":"DCR-2026-0003"}`, `{"message":"attachment rejected"}`)
+	r := goodReport()
+	r.Photos = []report.Photo{{Filename: "a.gif", MediaType: "image/gif", Data: []byte("GIF89a")}}
+
+	got, err := city.client().Submit(context.Background(), r, "tk-1")
+	if !errors.Is(err, ErrPhotosNotAttached) {
+		t.Fatalf("want ErrPhotosNotAttached, got %v", err)
+	}
+	if got.Reference != "DCR-2026-0003" {
+		t.Errorf("reference %q, want the real one", got.Reference)
+	}
+}
+
+func TestSubmitReportsAnExpiredSession(t *testing.T) {
+	city := newFakeCity(t, `{"isValid":false}`)
+
+	if _, err := city.client().Submit(context.Background(), goodReport(), "stale"); !errors.Is(err, ErrSessionExpired) {
+		t.Fatalf("want ErrSessionExpired, got %v", err)
+	}
+}
+
+func TestSubmitFailsWhenTheCityReturnsNoControlNumber(t *testing.T) {
+	city := newFakeCity(t, `{}`)
+
+	if _, err := city.client().Submit(context.Background(), goodReport(), "tk-1"); err == nil {
+		t.Fatal("want an error, got nil")
+	}
+}
+
+// The city has been seen to answer with HTML. That must be an error, not a
+// silent success.
+func TestSubmitFailsOnANonJSONReply(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		io.WriteString(w, "<html>ORA-06512</html>")
+	}))
+	defer srv.Close()
+	c := &City{BaseURL: srv.URL, HTTP: srv.Client()}
+
+	_, err := c.Submit(context.Background(), goodReport(), "tk-1")
+	if err == nil {
+		t.Fatal("want an error, got nil")
+	}
+	// The detail belongs in the log, so it has to survive in the error.
+	if !strings.Contains(err.Error(), "ORA-06512") {
+		t.Errorf("error lost the upstream detail: %v", err)
+	}
+}
+
+// The control number comes back unquoted from at least one code path on the
+// city's side.
+func TestSubmitAcceptsANumericControlNumber(t *testing.T) {
+	city := newFakeCity(t, `{"controlno":20260001}`)
+
+	got, err := city.client().Submit(context.Background(), goodReport(), "tk-1")
+	if err != nil {
+		t.Fatalf("want nil, got %v", err)
+	}
+	if got.Reference != "20260001" {
+		t.Errorf("reference %q, want 20260001", got.Reference)
+	}
+}
+
+func TestSendOTP(t *testing.T) {
+	city := newFakeCity(t, `{"request":"success","timer":300}`)
+
+	if err := city.client().SendOTP(context.Background(), "someone@example.org"); err != nil {
+		t.Fatalf("want nil, got %v", err)
+	}
+	c := city.calls[0]
+	if c.Path != "verify/" {
+		t.Errorf("path %q", c.Path)
+	}
+	if c.Query["trans"] != "sendOTP" || c.Query["email"] != "someone@example.org" {
+		t.Errorf("query %+v", c.Query)
+	}
+}
+
+func TestSendOTPFailsForAnUnverifiedEmail(t *testing.T) {
+	city := newFakeCity(t, `{"request":"error","details":"Email is not yet validated"}`)
+
+	err := city.client().SendOTP(context.Background(), "someone@example.org")
+	if err == nil {
+		t.Fatal("want an error, got nil")
+	}
+	if !strings.Contains(err.Error(), "not yet validated") {
+		t.Errorf("error lost the reason: %v", err)
+	}
+}
+
+func TestVerifyOTPReturnsTheSession(t *testing.T) {
+	city := newFakeCity(t, `{"data":{"token":"tk-9","tkdetails":{"tkexp":"2026-08-22T10:30:00Z"}}}`)
+
+	got, err := city.client().VerifyOTP(context.Background(), "someone@example.org", "123456")
+	if err != nil {
+		t.Fatalf("want nil, got %v", err)
+	}
+	if got.Token != "tk-9" {
+		t.Errorf("token %q", got.Token)
+	}
+	if got.Expires.IsZero() {
+		t.Error("want an expiry, got zero")
+	}
+	if city.calls[0].Query["otp"] != "123456" {
+		t.Errorf("query %+v", city.calls[0].Query)
+	}
+}
+
+func TestVerifyOTPRejectsABadCode(t *testing.T) {
+	city := newFakeCity(t, `{"request":"error","details":"Invalid OTP"}`)
+
+	if _, err := city.client().VerifyOTP(context.Background(), "someone@example.org", "000000"); err == nil {
+		t.Fatal("want an error, got nil")
+	}
+}
+
+// An unparseable expiry must not throw the session away; the reporter finds
+// out when the city refuses the token.
+func TestVerifyOTPKeepsTheTokenWhenTheExpiryIsUnreadable(t *testing.T) {
+	city := newFakeCity(t, `{"data":{"token":"tk-9","tkdetails":{"tkexp":"whenever"}}}`)
+
+	got, err := city.client().VerifyOTP(context.Background(), "someone@example.org", "123456")
+	if err != nil {
+		t.Fatalf("want nil, got %v", err)
+	}
+	if got.Token != "tk-9" || !got.Expires.IsZero() {
+		t.Errorf("session %+v", got)
+	}
+}
+
+func TestTitleForPrefixesTheCategory(t *testing.T) {
+	r := goodReport()
+	if got := titleFor(r); got != "Pothole: Deep pothole in the outer lane near the corner." {
+		t.Errorf("title %q", got)
+	}
+}
+
+// "other" has no label worth showing a clerk, so it gets no prefix.
+func TestTitleForLeavesOtherUnprefixed(t *testing.T) {
+	r := goodReport()
+	r.Category = "other"
+	if got := titleFor(r); got != "Deep pothole in the outer lane near the corner." {
+		t.Errorf("title %q", got)
+	}
+}
+
+func TestTitleForShortensALongDescription(t *testing.T) {
+	r := goodReport()
+	r.Description = strings.Repeat("word ", 200)
+	got := titleFor(r)
+	if len([]rune(got)) > maxTitleRunes+len("Pothole: ") {
+		t.Errorf("title is %d runes: %q", len([]rune(got)), got)
+	}
+	if !strings.HasPrefix(got, "Pothole: ") {
+		t.Errorf("title %q", got)
+	}
+}
+
+// The city's form refuses an empty location, and a reporter in the field may
+// only have coordinates.
+func TestSubmitFallsBackToCoordinatesForTheLocation(t *testing.T) {
+	city := newFakeCity(t, `{"controlno":"DCR-1"}`)
+	r := goodReport()
+	r.Address = ""
+
+	if _, err := city.client().Submit(context.Background(), r, "tk-1"); err != nil {
+		t.Fatal(err)
+	}
+	if got := city.calls[0].Fields["location"]; got != "7.0731,125.6128" {
+		t.Errorf("location %q", got)
+	}
+}

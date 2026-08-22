@@ -23,9 +23,18 @@ type Receipt struct {
 	TrackURL string `json:"track_url,omitempty"`
 }
 
-// Client submits a report to the city.
+// Client is the city, as far as the rest of the backend is concerned.
+//
+// Filing a report needs a session, and the city only issues one against a
+// one-time code sent to a registered reporter. The session token is passed
+// in and handed back to the browser; nothing here holds on to it.
 type Client interface {
-	Submit(ctx context.Context, r report.Report) (Receipt, error)
+	// SendOTP asks the city to send a one-time code to email.
+	SendOTP(ctx context.Context, email string) error
+	// VerifyOTP exchanges a code for a session.
+	VerifyOTP(ctx context.Context, email, otp string) (Session, error)
+	// Submit files one report using the session token.
+	Submit(ctx context.Context, r report.Report, token string) (Receipt, error)
 }
 
 // Echo is a stand-in client for local development and tests. It accepts
@@ -37,8 +46,17 @@ type Echo struct {
 	Seq int
 }
 
+// SendOTP pretends the city sent a code. The code Echo accepts is any
+// six digits; see VerifyOTP.
+func (e *Echo) SendOTP(_ context.Context, _ string) error { return nil }
+
+// VerifyOTP invents a session that never expires.
+func (e *Echo) VerifyOTP(_ context.Context, _, _ string) (Session, error) {
+	return Session{Token: "echo-token"}, nil
+}
+
 // Submit records nothing and returns a fake receipt.
-func (e *Echo) Submit(_ context.Context, r report.Report) (Receipt, error) {
+func (e *Echo) Submit(_ context.Context, r report.Report, _ string) (Receipt, error) {
 	e.Seq++
 	return Receipt{
 		Reference: fmt.Sprintf("ECHO-%s-%04d", strings.ToUpper(r.Category), e.Seq),
