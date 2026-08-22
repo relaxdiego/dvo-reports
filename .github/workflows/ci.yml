@@ -162,6 +162,12 @@ jobs:
           # Set VITE_API_BASE as a variable on the matching GitHub
           # Environment; see docs/deploy.md.
           VITE_API_BASE: ${{ vars.VITE_API_BASE }}
+          # Which deployment this bundle is for. The same matrix value goes to
+          # `wrangler --branch` below, so a bundle cannot claim to be one
+          # environment while being published as another. Every build that is
+          # not told 'production' carries a bar saying it is not the real
+          # site, so losing this line is loud rather than silent.
+          DEPLOY_ENV: ${{ matrix.target }}
         run: devbox run -- make build-frontend
 
       - name: Publish to Cloudflare Pages

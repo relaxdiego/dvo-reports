@@ -142,6 +142,7 @@ export function App() {
 
   return (
     <main>
+      {__ENVIRONMENT__ !== 'production' && <NotTheRealSite />}
       <Header onDisclaimer={() => setShowDisclaimer(true)} />
       <Tabs tab={tab} onChange={setTab} />
       {tab === 'report' ? (
@@ -640,6 +641,27 @@ function SignIn({ why, onDone }: { why: string; onDone: (token: string | null) =
         </p>
       </form>
     </div>
+  )
+}
+
+/**
+ * A bar saying this build is not the real site.
+ *
+ * Staging runs `upstream.NoSubmit`, which does everything a real submission
+ * does except file the report. Without this the page is production to the
+ * eye, so a report can be written, sent, and lost. The reference number does
+ * say nothing was filed, but only after all that work. This says it first.
+ *
+ * It is never in what production serves: `__ENVIRONMENT__` is a build-time
+ * constant, so the comparison above is `"production" !== "production"` there
+ * and the minifier drops this and the branch that calls it.
+ */
+function NotTheRealSite() {
+  return (
+    <p class="testbanner">
+      <strong>{__ENVIRONMENT__}</strong> — a practice copy of this site. A report sent from here is
+      not filed with the city.
+    </p>
   )
 }
 

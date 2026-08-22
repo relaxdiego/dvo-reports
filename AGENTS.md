@@ -24,7 +24,10 @@ is the system of record. This project stores nothing.
   `upstream.Echo`, for local development, and `upstream.NoSubmit`, which is
   the real client with filing turned off and is what staging runs so that
   practice reports stay out of the city's queue. Both say in the reference
-  itself that nothing was filed. Production runs neither.
+  itself that nothing was filed, and the page says it before that: every
+  frontend build not told it is production carries a bar over the form
+  saying a report sent from it is not filed. See `NotTheRealSite` in
+  `frontend/src/app.tsx`. Production runs neither.
 - **A failed submission leaves no trace but its log line.** Nothing is
   stored, so `upstream submit failed` in `internal/api` is the whole record.
   Keep it carrying the city's own reply and everything about the attempt

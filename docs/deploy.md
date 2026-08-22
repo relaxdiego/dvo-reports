@@ -82,6 +82,12 @@ A manual `workflow_dispatch` run deploys the same environments as a push to
    each a variable `VITE_API_BASE` holding its backend URL. The frontend is
    baked at build time, so changing one needs a new deploy.
 
+   Nothing else needs setting here. The build is also told which environment
+   it is for, by `DEPLOY_ENV` in the deploy job, but that comes from the same
+   matrix value the job gives `wrangler --branch` — it is not a variable to
+   add, and adding one would let the two disagree. Any build not told
+   `production` shows a bar saying a report sent from it is not filed.
+
 4. **Custom domains, after the first deploy to each branch.** A branch alias
    only exists once that branch has deployed at least once, so do this after
    the first push to `main` has deployed both.

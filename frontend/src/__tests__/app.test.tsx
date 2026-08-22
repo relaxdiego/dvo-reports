@@ -92,6 +92,29 @@ async function fileAndRead(): Promise<FormData> {
   return filed[1]?.body as FormData
 }
 
+// The bar is guarded by __ENVIRONMENT__, a build-time constant. These tests
+// run without DEPLOY_ENV set, so they see the same 'development' build a
+// developer gets, and that is the case worth pinning: a build not told it is
+// production says so. The production case is the constant being 'production',
+// which no test can reach without a second build.
+describe('the bar saying this is not the real site', () => {
+  it('says so, and says a report sent from here is not filed', () => {
+    act(() => render(<App />, root))
+
+    const bar = root.querySelector('.testbanner')
+    expect(bar).not.toBeNull()
+    expect(bar?.textContent).toContain('development')
+    expect(bar?.textContent).toContain('not filed with the city')
+  })
+
+  // It has to be read before the report is written, not after.
+  it('sits above everything else on the page', () => {
+    act(() => render(<App />, root))
+
+    expect(root.querySelector('main')?.firstElementChild?.className).toBe('testbanner')
+  })
+})
+
 describe('the two tabs', () => {
   it('opens on the form', () => {
     act(() => render(<App />, root))

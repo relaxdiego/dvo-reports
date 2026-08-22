@@ -628,6 +628,23 @@ h2 {
 }
 
 
+/* Says this build is not the real site. Filled, and the first thing on the
+   page, because it has to be seen before a report is written rather than
+   looked for. Everything else here is a quiet column, so a solid bar is the
+   one thing that cannot be read as part of the form. The negative margins
+   undo main's padding so it reaches the edges of the screen on a phone.
+   Production never serves it; see NotTheRealSite in app.tsx. */
+.testbanner {
+  margin: -1.25rem -1rem 1.25rem;
+  padding: 0.6rem 1rem;
+  background: var(--danger);
+  /* The palette's text-on-a-filled-surface colour. It is the one that keeps
+     its contrast when the dark scheme dims --danger. */
+  color: var(--accent-fg);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
 /* Which build this is, so a bug report can name one. It is for whoever is
    debugging, not for the reporter, so it is dimmer than .hint and everything
    else here: present when looked for, and not competing with the form. */

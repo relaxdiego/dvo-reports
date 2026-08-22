@@ -17,12 +17,23 @@ try {
   // Left as 'unknown'.
 }
 
+// Which deployment this bundle is built for, so one that is not production
+// can say so on the page. The deploy job passes the same matrix value it
+// gives `wrangler --branch`, so the bar on the page and the Cloudflare branch
+// cannot disagree.
+//
+// Unset means a local build, or a checkout with no CI around it. Neither is
+// production, and the default says so rather than staying quiet: a build that
+// does not know what it is must not pass for the real site.
+const environment = process.env.DEPLOY_ENV || 'development'
+
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [preact()],
   define: {
     __BUILD_TIME__: JSON.stringify(buildTime),
     __BUILD_SHA__: JSON.stringify(buildSha),
+    __ENVIRONMENT__: JSON.stringify(environment),
   },
   server: {
     // In development the Go backend runs on 8080, so /api is same-origin
