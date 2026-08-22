@@ -181,6 +181,39 @@ describe('the two tabs', () => {
   })
 })
 
+describe('signing in', () => {
+  /**
+   * The one backend error a reporter can only act on somewhere else. Typing
+   * a host into a phone's address bar is where most people stop, so the
+   * host in the sentence is the link to it.
+   */
+  it('makes the city\u2019s site tappable when the address has no account there', async () => {
+    const refusal =
+      'no city account is registered under that e-mail address; register at reports.davaocity.gov.ph first, then come back'
+    vi.stubGlobal(
+      'fetch',
+      vi.fn<typeof fetch>(async () => new Response(JSON.stringify({ error: refusal }), { status: 404 })),
+    )
+
+    act(() => render(<App />, root))
+    click('My reports')
+    await settle()
+
+    const email = root.querySelector<HTMLInputElement>('#email')!
+    email.value = 'nobody@example.org'
+    act(() => { email.dispatchEvent(new Event('input', { bubbles: true })) })
+    click('Send me a code')
+    await settle()
+
+    const error = root.querySelector('.error')!
+    // The sentence still reads as one sentence, link and all.
+    expect(error.textContent).toContain(refusal)
+    const link = error.querySelector('a')!
+    expect(link.textContent).toBe('reports.davaocity.gov.ph')
+    expect(link.getAttribute('href')).toBe('https://reports.davaocity.gov.ph')
+  })
+})
+
 describe('reloading the list', () => {
   beforeEach(() => localStorage.setItem('dvo-reports.session', JSON.stringify({ token: 'tk-1' })))
 

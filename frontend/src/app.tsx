@@ -16,7 +16,25 @@ import {
 } from './types'
 import './app.css'
 
-const CITY_SITE = 'https://reports.davaocity.gov.ph'
+const CITY_HOST = 'reports.davaocity.gov.ph'
+const CITY_SITE = `https://${CITY_HOST}`
+
+/**
+ * Makes the city's site tappable inside a message the backend wrote.
+ *
+ * The backend's errors are plain sentences, and one of them — the address
+ * with no city account — can only be acted on by going to the city's site
+ * and registering. Asking a reporter on a phone to retype the host into
+ * their address bar is asking most of them to give up, so the host is turned
+ * into the link it is describing. Everything else is left as it arrived.
+ */
+function withCityLink(text: string): ComponentChildren {
+  const parts = text.split(CITY_HOST)
+  if (parts.length === 1) return text
+  return parts.flatMap((part, i) =>
+    i === 0 ? [part] : [<a key={i} href={CITY_SITE}>{CITY_HOST}</a>, part],
+  )
+}
 
 /**
  * An error the reporter can put away. Each one names something they can do
@@ -624,7 +642,7 @@ function SignIn({ why, onDone }: { why: string; onDone: (token: string | null) =
           )}
         </fieldset>
 
-        {error && <ErrorMessage onDismiss={() => setError(null)}>{error}</ErrorMessage>}
+        {error && <ErrorMessage onDismiss={() => setError(null)}>{withCityLink(error)}</ErrorMessage>}
 
         <button class="primary" type="submit" disabled={busy || !email.trim() || (stage === 'code' && !code.trim())}>
           {busy ? 'Waiting…' : stage === 'email' ? 'Send me a code' : 'Sign in'}

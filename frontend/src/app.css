@@ -315,6 +315,13 @@ button[disabled] {
   color: var(--danger);
 }
 
+/* A link inside an error keeps the red of the box around it: the accent blue
+   in the middle of a red sentence reads as a second, unrelated thing. The
+   underline is what says it can be tapped. */
+.error a {
+  color: inherit;
+}
+
 /* The way to put an error away once it has been read and acted on. It sits
    in the corner of the box rather than at the end of the text, which can be
    three lines long on a phone. Its look is the shared one above. */
