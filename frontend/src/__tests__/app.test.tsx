@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { render } from 'preact'
 import { act } from 'preact/test-utils'
 import { App } from '../app'
+import { MAX_PHOTOS } from '../validate'
 import { jpegPhoto } from './fixtures'
 
 /** Lets the fetch, the state updates it causes, and the re-render settle. */
@@ -422,6 +423,30 @@ describe('the photo field', () => {
     const list = root.querySelector('.photolist')!
     const button = root.querySelector('.filebutton')!
     expect(list.compareDocumentPosition(button) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  // A full report has nothing left to add, so the way to add is taken away
+  // rather than left there to be pressed for nothing.
+  it('takes the button away once the report is full', async () => {
+    await attach(...Array.from({ length: MAX_PHOTOS }, () => jpegPhoto()))
+
+    expect(root.querySelectorAll('.photorow')).toHaveLength(MAX_PHOTOS)
+    expect(root.querySelector('.filebutton')).toBeNull()
+    // The control goes too: a keyboard must not land on a picker that can
+    // accept nothing.
+    expect(root.querySelector('#photos')).toBeNull()
+  })
+
+  // A phone's picker cannot be told how many files it may choose, so it will
+  // offer more than a report holds. The extra ones are cut here, and saying
+  // so is the difference between a rule and a photo that vanishes.
+  it('says how many photos it had to leave behind', async () => {
+    await attach(...Array.from({ length: MAX_PHOTOS + 2 }, () => jpegPhoto()))
+
+    expect(root.querySelectorAll('.photorow')).toHaveLength(MAX_PHOTOS)
+    const alert = root.querySelector('[role="alert"]')
+    expect(alert?.textContent).toContain('2 photos were not added')
+    expect(alert?.textContent).toContain(`at most ${MAX_PHOTOS}`)
   })
 
   // The photo already knows where the problem is. Nobody is asked for it

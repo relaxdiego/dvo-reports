@@ -839,6 +839,13 @@ function PhotoField({
 }) {
   const input = useRef<HTMLInputElement>(null)
   const [refused, setRefused] = useState<string[]>([])
+  /*
+    How many photos the last pick had to leave behind. A file input cannot be
+    told how many files the picker may choose, so a phone will happily offer
+    ten. They are cut here instead, and the reporter is told, because a photo
+    that vanishes without a word looks like a bug.
+  */
+  const [overflow, setOverflow] = useState(0)
 
   /*
     A photo is read before it is accepted, and one that does not say where it
@@ -855,6 +862,7 @@ function PhotoField({
     const snaps = await Promise.all(picked.map(readSnapshot))
     const kept = picked.filter((_, i) => carriesPlace(snaps[i]))
     setRefused(picked.filter((_, i) => !carriesPlace(snaps[i])).map((f) => f.name))
+    setOverflow(Math.max(0, photos.length + kept.length - MAX_PHOTOS))
     if (kept.length > 0) onChange([...photos, ...kept].slice(0, MAX_PHOTOS))
   }
 
@@ -881,6 +889,12 @@ function PhotoField({
           your camera and take the picture again.
         </p>
       )}
+      {overflow > 0 && (
+        <p class="error" role="alert">
+          {overflow === 1 ? 'One photo was' : `${overflow} photos were`} not added: a report
+          carries at most {MAX_PHOTOS}.
+        </p>
+      )}
       {photos.length > 0 && (
         <>
           <ul class="photolist">
@@ -900,22 +914,32 @@ function PhotoField({
             name here rather than summarise.
           */}
           <p class="hint">
-            The place and time shown here are sent to the city with your report.
+            The coordinates and times shown above will be sent to the city along with your
+            report.
           </p>
         </>
       )}
-      <input
-        ref={input}
-        id="photos"
-        class="filepicker"
-        type="file"
-        accept="image/*"
-        multiple
-        onChange={add}
-      />
-      <label class="filebutton" for="photos">
-        {photos.length === 0 ? 'Add photos' : 'Add more photos'}
-      </label>
+      {/*
+        Gone once the report is full, control and all. Leaving the input
+        behind would keep a keyboard landing on a picker that can accept
+        nothing.
+      */}
+      {photos.length < MAX_PHOTOS && (
+        <>
+          <input
+            ref={input}
+            id="photos"
+            class="filepicker"
+            type="file"
+            accept="image/*"
+            multiple
+            onChange={add}
+          />
+          <label class="filebutton" for="photos">
+            {photos.length === 0 ? 'Add photos' : 'Add more photos'}
+          </label>
+        </>
+      )}
     </>
   )
 }
