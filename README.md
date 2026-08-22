@@ -10,7 +10,7 @@ Nothing is stored here.
 **This project is not run by the Davao City government.** It is community
 software. The city's site remains the system of record.
 
-- Frontend: <https://report.relaxdiego.com> (Preact + TypeScript, ~8 kB gzipped)
+- Frontend: <https://report.relaxdiego.com> (Preact + TypeScript, ~11 kB gzipped)
   — staging at <https://report-staging.relaxdiego.com>
 - Backend: Go, one plain HTTP handler, no framework, no dependencies
 
@@ -25,10 +25,16 @@ connection is the slowest part of it. Two things fix most of that:
 
 ## Status
 
-Early. The frontend works end to end, but the backend talks to a stand-in
-that accepts everything and invents a reference number. The real client for
-`reports.davaocity.gov.ph` is not written yet — see
-[docs/upstream.md](docs/upstream.md), which is the best place to help.
+Early. Both halves are written: the backend files reports through the city's
+own API, and the frontend has the sign-in step, the form, and a second tab
+listing what you have already reported. None of it has yet been used against
+the city's live site, so every field name is still a guess read off their
+front end — see [docs/upstream.md](docs/upstream.md).
+
+**You need an account on the city's own site first.** The city will not accept
+a report from an anonymous citizen: it sends a one-time code to a registered
+e-mail address, and this app relays the code and nothing else. Registering
+happens on <https://reports.davaocity.gov.ph>, not here.
 
 ## Running it
 
@@ -63,7 +69,8 @@ backend/
 frontend/
   src/image.ts         shrinking photos in the browser
   src/api.ts           talking to the backend
-  src/app.tsx          the form
+  src/session.ts       the city session, kept in this browser only
+  src/app.tsx          the form, and the reports already filed
 docs/
   deploy.md            Cloudflare Pages, staging, and the backend host
   upstream.md          what is still unknown about the city's site

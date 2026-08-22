@@ -7,7 +7,6 @@ function draft(over: Partial<Draft> = {}): Draft {
     category: 'pothole',
     description: 'Deep pothole in the outer lane near the corner.',
     address: 'Quimpo Blvd',
-    contact: '',
     lat: null,
     lon: null,
     photos: [],

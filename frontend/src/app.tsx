@@ -1,20 +1,147 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/hooks'
-import { submitReport, currentPosition } from './api'
+import { ApiError, currentPosition, myReports, reportHistory, sendCode, submitReport, verifyCode } from './api'
+import { forget, liveSession, remember, rememberedEmail } from './session'
 import { validate, MAX_PHOTOS } from './validate'
-import { CATEGORIES, CATEGORY_LABELS, type Draft, type Receipt } from './types'
+import {
+  CATEGORIES,
+  CATEGORY_LABELS,
+  STATUS_MEANING,
+  type Draft,
+  type Filed,
+  type History,
+  type Receipt,
+} from './types'
 import './app.css'
+
+const CITY_SITE = 'https://reports.davaocity.gov.ph'
 
 const emptyDraft: Draft = {
   category: '',
   description: '',
   address: '',
-  contact: '',
   lat: null,
   lon: null,
   photos: [],
 }
 
+type Tab = 'report' | 'past'
+
+/**
+ * Runs something that needs the city's session, asking the reporter for a
+ * code when there is none. Returns null if they closed the sign-in instead.
+ */
+type WithSession = <T>(why: string, fn: (token: string) => Promise<T>) => Promise<T | null>
+
+/** A pending request for a session. resolve carries the token, or null. */
+interface Ask {
+  why: string
+  resolve: (token: string | null) => void
+}
+
 export function App() {
+  const [tab, setTab] = useState<Tab>('report')
+  const [ask, setAsk] = useState<Ask | null>(null)
+
+  // The stored session is the source of truth, not a state variable: it
+  // outlives the page, and reading it here keeps the two from drifting.
+  const requestSession = useCallback((why: string): Promise<string | null> => {
+    const live = liveSession()
+    if (live) return Promise.resolve(live.token)
+    return new Promise((resolve) => setAsk({ why, resolve }))
+  }, [])
+
+  const withSession = useCallback<WithSession>(
+    async (why, fn) => {
+      let token = await requestSession(why)
+      if (token === null) return null
+      try {
+        return await fn(token)
+      } catch (err) {
+        // The city's session can die while a reporter is still typing. Ask
+        // for a new code and do the same thing once more.
+        if (!(err instanceof ApiError) || !err.expired) throw err
+        forget()
+        token = await requestSession('Your session with the city’s site has expired. Ask for a new code.')
+        if (token === null) return null
+        return await fn(token)
+      }
+    },
+    [requestSession],
+  )
+
+  const swipe = useSwipe((dir) => setTab(dir > 0 ? 'past' : 'report'))
+
+  return (
+    <main>
+      <Header />
+      <Tabs tab={tab} onChange={setTab} />
+      <div class="tabbody" {...swipe}>
+        {tab === 'report' ? <ReportTab withSession={withSession} /> : <PastTab withSession={withSession} />}
+      </div>
+      {ask && (
+        <SignIn
+          why={ask.why}
+          onDone={(token) => {
+            ask.resolve(token)
+            setAsk(null)
+          }}
+        />
+      )}
+      <Footer />
+    </main>
+  )
+}
+
+function Tabs({ tab, onChange }: { tab: Tab; onChange: (t: Tab) => void }) {
+  return (
+    <div class="tabs" role="tablist">
+      <button
+        type="button"
+        role="tab"
+        class={tab === 'report' ? 'tab on' : 'tab'}
+        aria-selected={tab === 'report'}
+        onClick={() => onChange('report')}
+      >
+        Report a problem
+      </button>
+      <button
+        type="button"
+        role="tab"
+        class={tab === 'past' ? 'tab on' : 'tab'}
+        aria-selected={tab === 'past'}
+        onClick={() => onChange('past')}
+      >
+        My reports
+      </button>
+    </div>
+  )
+}
+
+/**
+ * Left and right swipes, for moving between the tabs on a phone. A swipe has
+ * to be clearly sideways, so that scrolling the page does not switch tabs.
+ */
+function useSwipe(onSwipe: (dir: -1 | 1) => void) {
+  const from = useRef<{ x: number; y: number } | null>(null)
+  return {
+    onTouchStart: (e: TouchEvent) => {
+      const t = e.touches[0]
+      from.current = { x: t.clientX, y: t.clientY }
+    },
+    onTouchEnd: (e: TouchEvent) => {
+      const start = from.current
+      from.current = null
+      if (!start) return
+      const t = e.changedTouches[0]
+      const dx = t.clientX - start.x
+      const dy = t.clientY - start.y
+      if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 2) return
+      onSwipe(dx < 0 ? 1 : -1)
+    },
+  }
+}
+
+function ReportTab({ withSession }: { withSession: WithSession }) {
   const [draft, setDraft] = useState<Draft>(emptyDraft)
   const [error, setError] = useState<string | null>(null)
   const [sending, setSending] = useState(false)
@@ -39,65 +166,312 @@ export function App() {
     setError(null)
     setSending(true)
     try {
-      setReceipt(await submitReport(draft))
+      const sent = await withSession(
+        'The city only accepts a report from a registered reporter, so it needs a code first.',
+        (token) => submitReport(draft, token),
+      )
+      if (sent) setReceipt(sent)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong.')
+      setError(messageOf(err))
     } finally {
       setSending(false)
     }
   }
 
   return (
-    <main>
-      <Header />
-      <form onSubmit={onSubmit} noValidate>
-        <fieldset disabled={sending}>
-          <legend>What is the problem?</legend>
-          <div class="chips">
-            {CATEGORIES.map((c) => (
-              <button
-                key={c}
-                type="button"
-                class={draft.category === c ? 'chip on' : 'chip'}
-                aria-pressed={draft.category === c}
-                onClick={() => set('category', c)}
-              >
-                {CATEGORY_LABELS[c]}
-              </button>
-            ))}
-          </div>
+    <form onSubmit={onSubmit} noValidate>
+      <fieldset disabled={sending}>
+        <legend>What is the problem?</legend>
+        <div class="chips">
+          {CATEGORIES.map((c) => (
+            <button
+              key={c}
+              type="button"
+              class={draft.category === c ? 'chip on' : 'chip'}
+              aria-pressed={draft.category === c}
+              onClick={() => set('category', c)}
+            >
+              {CATEGORY_LABELS[c]}
+            </button>
+          ))}
+        </div>
 
-          <label for="description">Describe it</label>
-          <textarea
-            id="description"
-            rows={4}
-            placeholder="A deep pothole in the outer lane, about 30 cm across."
-            value={draft.description}
-            onInput={(e) => set('description', (e.target as HTMLTextAreaElement).value)}
-          />
+        <label for="description">Describe it</label>
+        <textarea
+          id="description"
+          rows={4}
+          placeholder="A deep pothole in the outer lane, about 30 cm across."
+          value={draft.description}
+          onInput={(e) => set('description', (e.target as HTMLTextAreaElement).value)}
+        />
 
-          <LocationField draft={draft} set={set} />
-          <PhotoField photos={draft.photos} onChange={(p) => set('photos', p)} />
+        <LocationField draft={draft} set={set} />
+        <PhotoField photos={draft.photos} onChange={(p) => set('photos', p)} />
+      </fieldset>
 
-          <label for="contact">Your email or phone (optional)</label>
+      {error && <p class="error" role="alert">{error}</p>}
+
+      <button class="primary" type="submit" disabled={sending}>
+        {sending ? 'Sending…' : 'Send report'}
+      </button>
+    </form>
+  )
+}
+
+function PastTab({ withSession }: { withSession: WithSession }) {
+  const [reports, setReports] = useState<Filed[] | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [query, setQuery] = useState('')
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const list = await withSession(
+        'Your reports are held by the city, so seeing them needs a code first.',
+        (token) => myReports(token),
+      )
+      if (list) setReports(newestFirst(list))
+    } catch (err) {
+      setError(messageOf(err))
+    } finally {
+      setLoading(false)
+    }
+  }, [withSession])
+
+  useEffect(() => { void load() }, [load])
+
+  const shown = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    if (!q || !reports) return reports ?? []
+    return reports.filter(
+      (r) =>
+        r.reference.toLowerCase().includes(q) ||
+        r.title.toLowerCase().includes(q) ||
+        r.status.toLowerCase().includes(q),
+    )
+  }, [reports, query])
+
+  if (loading) return <p class="hint">Asking the city…</p>
+  if (error) {
+    return (
+      <>
+        <p class="error" role="alert">{error}</p>
+        <button class="secondary" type="button" onClick={() => void load()}>Try again</button>
+      </>
+    )
+  }
+  if (!reports) {
+    return (
+      <>
+        <p class="hint">These come from the city's own records, so this needs a code from them.</p>
+        <button class="primary" type="button" onClick={() => void load()}>Show my reports</button>
+      </>
+    )
+  }
+  if (reports.length === 0) {
+    return <p class="hint">The city has no reports under this account yet.</p>
+  }
+
+  return (
+    <>
+      <label for="search">Search your reports</label>
+      <input
+        id="search"
+        type="search"
+        placeholder="Number, subject, or status"
+        value={query}
+        onInput={(e) => setQuery((e.target as HTMLInputElement).value)}
+      />
+      <ul class="reports">
+        {shown.map((r) => (
+          <FiledReport key={r.reference} report={r} withSession={withSession} />
+        ))}
+      </ul>
+      {shown.length === 0 && <p class="hint">Nothing matches “{query}”.</p>}
+      <button class="secondary" type="button" onClick={() => void load()}>Refresh</button>
+    </>
+  )
+}
+
+function FiledReport({ report, withSession }: { report: Filed; withSession: WithSession }) {
+  const [open, setOpen] = useState(false)
+  const [history, setHistory] = useState<History | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  // The history is a second call to the city, so it is only made for the
+  // report the reporter actually opened, and only once.
+  useEffect(() => {
+    if (!open || history || error) return
+    let dropped = false
+    void (async () => {
+      try {
+        const h = await withSession('Reading this report needs a code from the city’s site.', (token) =>
+          reportHistory(report.reference, token),
+        )
+        if (!dropped && h) setHistory(h)
+      } catch (err) {
+        if (!dropped) setError(messageOf(err))
+      }
+    })()
+    return () => { dropped = true }
+  }, [open, history, error, report.reference, withSession])
+
+  return (
+    <li class="report">
+      <button type="button" class="reporthead" aria-expanded={open} onClick={() => setOpen(!open)}>
+        <span class="status">{statusWord(report.status)}</span>
+        <span class="title">{report.title}</span>
+        <span class="meta">
+          {report.reference} · {whenText(report.filed)}
+        </span>
+      </button>
+      {open && (
+        <div class="reportbody">
+          <p class="hint">{STATUS_MEANING[report.status] ?? ''}</p>
+          <p>{report.description}</p>
+          {report.location && <p class="hint">Where: {report.location}</p>}
+          {report.photos && report.photos.length > 0 && (
+            <ul class="thumbs">
+              {report.photos.map((src) => (
+                <li key={src}>
+                  <a href={src} target="_blank" rel="noreferrer"><img src={src} alt="" loading="lazy" /></a>
+                </li>
+              ))}
+            </ul>
+          )}
+          {error && <p class="error" role="alert">{error}</p>}
+          {!history && !error && <p class="hint">Reading what happened…</p>}
+          {history && <Progress history={history} />}
+        </div>
+      )}
+    </li>
+  )
+}
+
+function Progress({ history }: { history: History }) {
+  return (
+    <>
+      {history.note && <p class="note">The city says: {history.note}</p>}
+      <ol class="steps">
+        {history.steps.map((s, i) => (
+          <li key={`${s.status}-${s.at}-${i}`}>
+            <strong>{statusWord(s.status)}</strong>
+            {s.office ? ` · ${s.office}` : ''}
+            <span class="meta"> {whenText(s.at)}</span>
+          </li>
+        ))}
+      </ol>
+      {history.resolutions?.map((r) => (
+        <p key={r.office} class="hint">
+          {r.office} answered.
+          {r.files?.map((f, i) => (
+            <span key={f}>
+              {' '}
+              <a href={f} target="_blank" rel="noreferrer">File {i + 1}</a>
+            </span>
+          ))}
+        </p>
+      ))}
+    </>
+  )
+}
+
+/**
+ * The e-mail and code steps. The city sends a one-time code to a registered
+ * address; this app relays both and keeps the token in this browser only.
+ */
+function SignIn({ why, onDone }: { why: string; onDone: (token: string | null) => void }) {
+  const [email, setEmail] = useState(rememberedEmail())
+  const [code, setCode] = useState('')
+  const [stage, setStage] = useState<'email' | 'code'>('email')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const ask = async (e: Event) => {
+    e.preventDefault()
+    setBusy(true)
+    setError(null)
+    try {
+      await sendCode(email.trim())
+      setStage('code')
+    } catch (err) {
+      setError(messageOf(err))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const confirm = async (e: Event) => {
+    e.preventDefault()
+    setBusy(true)
+    setError(null)
+    try {
+      const session = await verifyCode(email.trim(), code.trim())
+      remember(session, email.trim())
+      onDone(session.token)
+    } catch (err) {
+      setError(messageOf(err))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div class="sheet" role="dialog" aria-modal="true" aria-label="Sign in with the city">
+      <form class="sheetbody" onSubmit={stage === 'email' ? ask : confirm} noValidate>
+        <h2>The city needs to know who is reporting</h2>
+        <p class="hint">{why}</p>
+        <fieldset disabled={busy}>
+          <label for="email">Your e-mail address</label>
           <input
-            id="contact"
-            type="text"
+            id="email"
+            type="email"
             inputMode="email"
             autoComplete="email"
-            value={draft.contact}
-            onInput={(e) => set('contact', (e.target as HTMLInputElement).value)}
+            placeholder="you@example.com"
+            value={email}
+            disabled={stage === 'code'}
+            onInput={(e) => setEmail((e.target as HTMLInputElement).value)}
           />
+          {stage === 'code' && (
+            <>
+              <label for="code">The six-digit code</label>
+              <input
+                id="code"
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={6}
+                value={code}
+                onInput={(e) => setCode((e.target as HTMLInputElement).value)}
+              />
+              <p class="hint">
+                The city sent a code to the account registered under that address. It runs out after
+                a few minutes.
+              </p>
+            </>
+          )}
         </fieldset>
 
         {error && <p class="error" role="alert">{error}</p>}
 
-        <button class="primary" type="submit" disabled={sending}>
-          {sending ? 'Sending…' : 'Send report'}
+        <button class="primary" type="submit" disabled={busy || !email.trim() || (stage === 'code' && !code.trim())}>
+          {busy ? 'Waiting…' : stage === 'email' ? 'Send me a code' : 'Sign in'}
         </button>
+        {stage === 'code' && (
+          <button class="secondary" type="button" disabled={busy} onClick={() => { setStage('email'); setCode('') }}>
+            Use a different address
+          </button>
+        )}
+        <button class="secondary" type="button" onClick={() => onDone(null)}>Not now</button>
+        <p class="hint">
+          You need an account on <a href={CITY_SITE}>the city's own site</a> first. This app cannot
+          register you, and never sees your password.
+        </p>
       </form>
-      <Footer />
-    </main>
+    </div>
   )
 }
 
@@ -107,7 +481,7 @@ function Header() {
       <h1>Davao City issue report</h1>
       <p class="unofficial">
         Unofficial. This is a community-run front end for{' '}
-        <a href="https://reports.davaocity.gov.ph">reports.davaocity.gov.ph</a>. It is not run
+        <a href={CITY_SITE}>reports.davaocity.gov.ph</a>. It is not run
         by the city government. Your report is passed on to that site and is not stored here.
       </p>
     </header>
@@ -209,14 +583,13 @@ function Thumb({ file }: { file: File }) {
 
 function Sent({ receipt, onAgain }: { receipt: Receipt; onAgain: () => void }) {
   return (
-    <main>
-      <header>
-        <h1>Report sent</h1>
-      </header>
+    <>
+      <h2>Report sent</h2>
       <p class="reference">
         Reference number: <strong>{receipt.reference}</strong>
       </p>
       <p class="hint">Write this down. It is how you follow up with the city.</p>
+      {receipt.warning && <p class="note" role="alert">{receipt.warning}</p>}
       {receipt.track_url && (
         <p>
           <a href={receipt.track_url}>Track this report</a>
@@ -225,8 +598,7 @@ function Sent({ receipt, onAgain }: { receipt: Receipt; onAgain: () => void }) {
       <button class="primary" type="button" onClick={onAgain}>
         Report something else
       </button>
-      <Footer />
-    </main>
+    </>
   )
 }
 
@@ -236,4 +608,36 @@ function Footer() {
       <a href="https://github.com/relaxdiego/dvo-reports">Source code</a>
     </footer>
   )
+}
+
+/** Newest first, the way the city's own tracking page orders them. */
+function newestFirst(list: Filed[]): Filed[] {
+  return [...list].sort((a, b) => {
+    const d = time(b.filed) - time(a.filed)
+    return d !== 0 ? d : b.reference.localeCompare(a.reference)
+  })
+}
+
+function time(s: string): number {
+  const t = Date.parse(s)
+  return Number.isNaN(t) ? 0 : t
+}
+
+/**
+ * The city's timestamps have no documented layout, so one that the browser
+ * cannot read is shown as the city wrote it rather than as "Invalid Date".
+ */
+function whenText(s: string): string {
+  const t = Date.parse(s)
+  if (Number.isNaN(t)) return s
+  return new Date(t).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })
+}
+
+/** The city writes FORRESUBMISSION as one word; a reporter reads two. */
+function statusWord(status: string): string {
+  return status.replace(/^FOR/, 'FOR ')
+}
+
+function messageOf(err: unknown): string {
+  return err instanceof Error ? err.message : 'Something went wrong.'
 }
