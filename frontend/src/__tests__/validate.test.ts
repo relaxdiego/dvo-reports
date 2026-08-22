@@ -2,14 +2,15 @@ import { describe, expect, it } from 'vitest'
 import { validate, MAX_PHOTOS } from '../validate'
 import type { Draft } from '../types'
 
+const photo = (name = 'a.jpg') => new File(['x'], name, { type: 'image/jpeg' })
+
 function draft(over: Partial<Draft> = {}): Draft {
   return {
     category: 'pothole',
     description: 'Deep pothole in the outer lane near the corner.',
-    address: 'Quimpo Blvd',
-    lat: null,
-    lon: null,
-    photos: [],
+    lat: 7.0731,
+    lon: 125.6128,
+    photos: [photo()],
     ...over,
   }
 }
@@ -31,19 +32,25 @@ describe('validate', () => {
     expect(validate(draft({ description: 'x'.repeat(2001) }))).toMatch(/too long/)
   })
 
-  it('accepts coordinates instead of an address', () => {
-    expect(validate(draft({ address: '', lat: 7.0731, lon: 125.6128 }))).toBeNull()
-  })
-
-  it('needs a location of some kind', () => {
-    expect(validate(draft({ address: '' }))).toMatch(/address/)
+  // A report the city can act on shows the problem.
+  it('needs a photo', () => {
+    expect(validate(draft({ photos: [] }))).toMatch(/at least one photo/)
   })
 
   it('caps the number of photos', () => {
-    const photos = Array.from(
-      { length: MAX_PHOTOS + 1 },
-      (_, i) => new File(['x'], `${i}.jpg`, { type: 'image/jpeg' }),
-    )
+    const photos = Array.from({ length: MAX_PHOTOS + 1 }, (_, i) => photo(`${i}.jpg`))
     expect(validate(draft({ photos }))).toMatch(/at most/)
+  })
+
+  // The place comes from the photo when the camera recorded one, and from
+  // the reporter when it did not. Either way it has to end up set.
+  it('needs a place', () => {
+    expect(validate(draft({ lat: null, lon: null }))).toMatch(/on the map/)
+  })
+
+  // A camera that does not record where it was is common, and that reporter
+  // is not turned away: they move the pin instead.
+  it('does not care where the place came from', () => {
+    expect(validate(draft({ lat: 7.1, lon: 125.6 }))).toBeNull()
   })
 })

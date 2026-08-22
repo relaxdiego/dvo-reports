@@ -43,7 +43,6 @@ export async function submitReport(d: Draft, token: string, signal?: AbortSignal
   const body = new FormData()
   body.set('category', d.category)
   body.set('description', d.description.trim())
-  body.set('address', d.address.trim())
   if (d.lat !== null && d.lon !== null) {
     body.set('lat', String(d.lat))
     body.set('lon', String(d.lon))
@@ -114,7 +113,7 @@ export function currentPosition(): Promise<{ lat: number; lon: number }> {
     }
     navigator.geolocation.getCurrentPosition(
       (p) => resolve({ lat: roundCoord(p.coords.latitude), lon: roundCoord(p.coords.longitude) }),
-      () => reject(new Error('Could not get your location. Type the address instead.')),
+      () => reject(new Error('Could not get your location. Move the map to the place instead.')),
       { enableHighAccuracy: true, timeout: 10_000, maximumAge: 60_000 },
     )
   })

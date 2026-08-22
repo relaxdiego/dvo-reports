@@ -30,12 +30,16 @@ type Report struct {
 	Category string
 	// Description is the free-text account of the issue.
 	Description string
-	// Address is a human-readable location. Optional when Lat/Lon are set.
+	// Address is a human-readable location, and is optional. This project's
+	// own front end stopped collecting one when the map became the way a
+	// place is set; the city's form still prefers it when it is there.
 	Address string
-	// Lat and Lon come from the browser's geolocation. Both zero means the
-	// reporter did not share a location.
+	// Lat and Lon are where the problem is. Both zero means no place was
+	// given, which a report cannot be filed without.
 	Lat, Lon float64
-	Photos   []Photo
+	// Photos is what the citizen saw. A report needs at least one: it is
+	// what the city acts on, and what the place is usually read from.
+	Photos []Photo
 }
 
 // Categories are the issue types this client offers. They are a placeholder
@@ -63,8 +67,11 @@ func (r Report) Validate() error {
 	} else if n > 2000 {
 		return fmt.Errorf("description is %d characters, limit is 2000", n)
 	}
-	if strings.TrimSpace(r.Address) == "" && !r.HasLocation() {
-		return fmt.Errorf("need either an address or coordinates")
+	if len(r.Photos) == 0 {
+		return fmt.Errorf("a report needs at least one photo")
+	}
+	if !r.HasLocation() {
+		return fmt.Errorf("need coordinates")
 	}
 	if r.Lat < -90 || r.Lat > 90 || r.Lon < -180 || r.Lon > 180 {
 		return fmt.Errorf("coordinates %g,%g are out of range", r.Lat, r.Lon)

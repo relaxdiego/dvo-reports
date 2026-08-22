@@ -104,6 +104,11 @@ func form(t *testing.T, fields map[string]string, photos map[string][]byte) (str
 // gifBytes is the smallest thing http.DetectContentType calls an image.
 var gifBytes = []byte("GIF89a\x01\x00\x01\x00\x00\x00\x00;")
 
+// onePhoto is what every valid report now carries at least one of.
+func onePhoto() map[string][]byte {
+	return map[string][]byte{"photo.gif": gifBytes}
+}
+
 func goodFields() map[string]string {
 	return map[string]string{
 		"category":    "pothole",
@@ -163,7 +168,7 @@ func TestSubmitRejectsAnInvalidReport(t *testing.T) {
 // The citizen must never see the city site's own error text.
 func TestSubmitHidesUpstreamFailureDetail(t *testing.T) {
 	up := &fakeUpstream{err: errors.New("<html>ORA-06512 at line 4</html>")}
-	ct, body := form(t, goodFields(), nil)
+	ct, body := form(t, goodFields(), onePhoto())
 
 	req := httptest.NewRequest("POST", "/api/reports", body)
 	req.Header.Set("Content-Type", ct)
@@ -249,7 +254,7 @@ func TestSubmitRejectsANonImageDisguisedAsOne(t *testing.T) {
 
 func TestSubmitPassesTheSessionTokenOn(t *testing.T) {
 	up := &fakeUpstream{}
-	ct, body := form(t, goodFields(), nil)
+	ct, body := form(t, goodFields(), onePhoto())
 
 	req := httptest.NewRequest("POST", "/api/reports", body)
 	req.Header.Set("Content-Type", ct)
@@ -266,7 +271,7 @@ func TestSubmitPassesTheSessionTokenOn(t *testing.T) {
 }
 
 func TestSubmitRefusesAReportWithNoSession(t *testing.T) {
-	ct, body := form(t, goodFields(), nil)
+	ct, body := form(t, goodFields(), onePhoto())
 
 	req := httptest.NewRequest("POST", "/api/reports", body)
 	req.Header.Set("Content-Type", ct)
@@ -280,7 +285,7 @@ func TestSubmitRefusesAReportWithNoSession(t *testing.T) {
 
 func TestSubmitTellsTheReporterWhenTheSessionExpired(t *testing.T) {
 	up := &fakeUpstream{err: upstream.ErrSessionExpired}
-	ct, body := form(t, goodFields(), nil)
+	ct, body := form(t, goodFields(), onePhoto())
 
 	req := httptest.NewRequest("POST", "/api/reports", body)
 	req.Header.Set("Content-Type", ct)

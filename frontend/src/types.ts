@@ -23,7 +23,7 @@ export const CATEGORY_LABELS: Record<string, string> = {
 export interface Draft {
   category: string
   description: string
-  address: string
+  /** Where the problem is. Never null in a draft that passes validate(). */
   lat: number | null
   lon: number | null
   photos: File[]

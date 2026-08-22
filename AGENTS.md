@@ -83,7 +83,11 @@ just to trigger a workflow** — the history is public and permanent, and
   one that judges it.
 - `frontend/src/validate.ts` — mirrors the backend rules so the reporter
   learns about a problem before uploading photos. If you change one, change
-  both, and remember the backend's answer is the one that counts.
+  both, and remember the backend's answer is the one that counts. A report
+  needs at least one photo and a pair of coordinates. It does **not** need
+  the photo to carry the coordinates: a camera with its location switched
+  off is ordinary, and that reporter moves the pin themselves rather than
+  being turned away. There is no address field; the map is the place.
 - `frontend/src/image.ts` — shrinking photos before upload. This is the main
   reason the client feels fast. Do not remove it. It also copies the
   original's metadata block onto the resized photo, unread: drawing to a
@@ -104,10 +108,12 @@ just to trigger a workflow** — the history is public and permanent, and
   The emergency line is written twice on purpose: once on the page, in the
   header, where nobody has to go looking for it, and once at the top of this
   notice. Change one and change the other.
-- `frontend/src/map.tsx` — the OpenStreetMap place picker. It is the only
-  code that talks to a third party, and it is loaded with a dynamic
-  `import()` so that Leaflet is fetched only by a reporter who opens the map.
-  Do not import it from anywhere eagerly.
+- `frontend/src/map.tsx` — the OpenStreetMap place picker, and the small map
+  drawn on the form under it. It is the only code that talks to a third
+  party, and it is loaded with a dynamic `import()`. Do not import it from
+  anywhere eagerly: Leaflet is fetched once a reporter has a place to draw
+  or one to choose, which means after a photo is attached, and never on the
+  first page load.
 
 ## Conventions
 

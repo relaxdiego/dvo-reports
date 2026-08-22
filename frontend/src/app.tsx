@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/hooks'
-import { ApiError, currentPosition, myReports, reportHistory, sendCode, submitReport, verifyCode } from './api'
+import { ApiError, myReports, reportHistory, sendCode, submitReport, verifyCode } from './api'
 import { forget, liveSession, remember, rememberedEmail } from './session'
 import { validate, MAX_PHOTOS } from './validate'
 import { osmLink, placeOfPhotos, readSnapshot, type Place, type Snapshot } from './exif'
@@ -21,7 +21,6 @@ const CITY_SITE = 'https://reports.davaocity.gov.ph'
 const emptyDraft: Draft = {
   category: '',
   description: '',
-  address: '',
   lat: null,
   lon: null,
   photos: [],
@@ -659,78 +658,93 @@ function LocationField({
   /** Where the attached photos say the problem is, if they say anything. */
   fromPhotos: Place | null
 }) {
-  const [status, setStatus] = useState<string | null>(null)
-  const [locating, setLocating] = useState(false)
   const [byReporter, setByReporter] = useState(false)
+  const [picking, setPicking] = useState(false)
   const map = useMapChunk()
   const MapPicker = map.module?.MapPicker
+  const MapHere = map.module?.MapHere
 
   // The photos usually already know where the problem is, so the pin follows
-  // them — until the reporter sets a place themselves. After that it is
-  // theirs, and adding or removing a photo does not move it.
+  // them — until the reporter moves it themselves. After that it is theirs,
+  // and adding or removing a photo does not move it.
   useEffect(() => {
     if (byReporter) return
     set('lat', fromPhotos?.lat ?? null)
     set('lon', fromPhotos?.lon ?? null)
   }, [fromPhotos, byReporter, set])
 
-  const locate = async () => {
-    setLocating(true)
-    setStatus(null)
-    try {
-      const { lat, lon } = await currentPosition()
-      setByReporter(true)
-      set('lat', lat)
-      set('lon', lon)
-      setStatus(`Using your location (${lat}, ${lon}).`)
-    } catch (err) {
-      setStatus(err instanceof Error ? err.message : 'Could not get your location.')
-    } finally {
-      setLocating(false)
-    }
-  }
-
-  const openMap = async () => {
-    setStatus(null)
-    await map.open()
-  }
-
   const placed = draft.lat !== null && draft.lon !== null
+  const at = placed ? { lat: draft.lat as number, lon: draft.lon as number } : null
+
+  // Leaflet is fetched once there is a place to draw or one to choose, not
+  // on first load: a reporter who has attached nothing never asks for it.
+  // Both the map on the form and the picker come out of that one chunk, so
+  // whichever is wanted first pays for it.
+  const wanted = placed || picking
+  useEffect(() => {
+    if (!wanted || map.module || map.opening || map.failed) return
+    void map.open()
+  }, [wanted, map.module, map.opening, map.failed, map.open])
+
+  const pick = ({ lat, lon }: { lat: number; lon: number }) => {
+    setByReporter(true)
+    set('lat', lat)
+    set('lon', lon)
+    setPicking(false)
+  }
 
   return (
     <>
-      <label for="address">Where is it?</label>
-      <input
-        id="address"
-        type="text"
-        placeholder="Street, landmark, barangay"
-        autoComplete="street-address"
-        value={draft.address}
-        onInput={(e) => set('address', (e.target as HTMLInputElement).value)}
-      />
-      <button type="button" class="secondary" onClick={locate} disabled={locating}>
-        {locating ? 'Locating…' : 'Use my location'}
-      </button>
-      <button type="button" class="secondary" onClick={openMap} disabled={map.opening}>
-        {map.opening ? 'Opening the map…' : placed ? 'Move the pin on a map' : 'Pick it on a map'}
-      </button>
-      {!byReporter && fromPhotos && <p class="hint">{photoPlaceText(fromPhotos)}</p>}
-      {status && <p class="hint">{status}</p>}
-      {map.failed && (
-        <p class="hint">The map could not be loaded. Type the address instead, or use your location.</p>
+      <label>Where is it?</label>
+
+      {draft.photos.length === 0 && (
+        <p class="hint">
+          Add a photo first. If it recorded where it was taken, the map starts on that spot.
+        </p>
       )}
-      {MapPicker && (
-        <MapPicker
-          at={placed ? { lat: draft.lat as number, lon: draft.lon as number } : null}
-          onPick={({ lat, lon }) => {
-            setByReporter(true)
-            set('lat', lat)
-            set('lon', lon)
-            setStatus(`Using the place you picked on the map (${lat}, ${lon}).`)
-            map.close()
-          }}
-          onClose={map.close}
-        />
+
+      {draft.photos.length > 0 && !placed && (
+        <p class="hint">
+          None of your photos recorded where it was taken, so the place has to be set by hand.
+        </p>
+      )}
+
+      {(draft.photos.length > 0 || placed) && (
+        <button type="button" class="secondary" onClick={() => setPicking(true)} disabled={map.failed}>
+          {placed ? 'Adjust location' : 'Set the location'}
+        </button>
+      )}
+
+      {at && MapHere && <MapHere key={`${at.lat},${at.lon}`} at={at} />}
+      {at && !MapHere && !map.failed && (
+        <p class="hint waiting" role="status">
+          <span class="spinner" aria-hidden="true" />
+          Drawing the map…
+        </p>
+      )}
+      {at && (
+        <p class="hint">
+          {byReporter
+            ? `The place you set: ${at.lat}, ${at.lon}.`
+            : fromPhotos
+              ? photoPlaceText(fromPhotos)
+              : `${at.lat}, ${at.lon}.`}
+        </p>
+      )}
+
+      {map.failed && (
+        <p class="error" role="alert">
+          The map could not be loaded, so the place cannot be set. Check your connection and reload
+          the page.
+        </p>
+      )}
+
+      {picking && MapPicker && <MapPicker at={at} onPick={pick} onClose={() => setPicking(false)} />}
+      {picking && !MapPicker && !map.failed && (
+        <p class="hint waiting" role="status">
+          <span class="spinner" aria-hidden="true" />
+          Opening the map…
+        </p>
       )}
     </>
   )

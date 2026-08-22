@@ -8,6 +8,11 @@
   overflow: hidden;
 }
 
+/* On the form rather than over it, so it takes what it needs and no more. */
+.mapwrap.inline .mapcanvas {
+  height: 15rem;
+}
+
 .mapcanvas {
   /* Tall enough to recognise a street on a phone, short enough that the
      buttons under it stay reachable without scrolling. */

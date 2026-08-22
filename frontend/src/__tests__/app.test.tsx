@@ -37,6 +37,27 @@ function listOf(n: number) {
   }))
 }
 
+/**
+ * Puts files on the picker the way a phone would, and waits for the rows.
+ * A photo is now the first thing a report needs, so most of these tests
+ * start by attaching one.
+ */
+async function attachPhotos(...files: File[]) {
+  // jsdom has no object URLs, and the thumbnails ask for one. Only the two
+  // methods are added: replacing URL itself would swap the constructor for
+  // a plain object, and the dynamic import of the map needs it to work.
+  Object.defineProperty(URL, 'createObjectURL', { value: () => 'blob:x', configurable: true })
+  Object.defineProperty(URL, 'revokeObjectURL', { value: () => {}, configurable: true })
+  if (!root.querySelector('#photos')) act(() => render(<App />, root))
+  const input = root.querySelector<HTMLInputElement>('#photos')!
+  Object.defineProperty(input, 'files', { value: files, configurable: true })
+  act(() => { input.dispatchEvent(new Event('change', { bubbles: true })) })
+  for (let i = 0; i < 20; i++) {
+    await act(async () => { await new Promise((r) => setTimeout(r, 2)) })
+    if (root.querySelectorAll('.photorow').length === files.length) break
+  }
+}
+
 function click(text: string) {
   const button = [...root.querySelectorAll('button')].find((b) => b.textContent?.trim() === text)
   if (!button) throw new Error(`no button reading "${text}"`)
@@ -230,21 +251,7 @@ describe('the photo field', () => {
   })
 
   /** Puts files on the picker the way a phone would. */
-  async function attach(...files: File[]) {
-    // jsdom has no object URLs, and the thumbnails ask for one. Only the two
-    // methods are added: replacing URL itself would swap the constructor for
-    // a plain object, and the dynamic import of the map needs it to work.
-    Object.defineProperty(URL, 'createObjectURL', { value: () => 'blob:x', configurable: true })
-    Object.defineProperty(URL, 'revokeObjectURL', { value: () => {}, configurable: true })
-    act(() => render(<App />, root))
-    const input = root.querySelector<HTMLInputElement>('#photos')!
-    Object.defineProperty(input, 'files', { value: files, configurable: true })
-    act(() => { input.dispatchEvent(new Event('change', { bubbles: true })) })
-    for (let i = 0; i < 20; i++) {
-      await act(async () => { await new Promise((r) => setTimeout(r, 2)) })
-      if (root.querySelectorAll('.photorow').length === files.length) break
-    }
-  }
+  const attach = attachPhotos
 
   // A reporter is sending a photograph of a real place to a government site.
   // What it carries is theirs to see first.
@@ -336,17 +343,18 @@ describe('the photo field', () => {
     expect(form).toContain('Using the place your photo was taken (7.09753, 125.62229)')
     expect(form.indexOf('Photos')).toBeLessThan(form.indexOf('Where is it?'))
 
-    // The pin is really down, not only described: the map button offers to
-    // move it rather than to place one.
-    expect(form).toContain('Move the pin on a map')
+    // The pin is really down, not only described: the button offers to move
+    // it rather than to place one.
+    expect(form).toContain('Adjust location')
 
     const remove = root.querySelector<HTMLButtonElement>('.photorow .remove')!
     act(() => remove.click())
     await settle()
 
+    // With the photo gone there is nothing to file and nowhere to file it.
     const after = root.querySelector('form')!.textContent!
     expect(after).not.toContain('Using the place')
-    expect(after).toContain('Pick it on a map')
+    expect(after).toContain('Add a photo first')
   })
 })
 
@@ -387,31 +395,60 @@ describe('picking the place on a map', () => {
 
   const opened = () => waitFor('the map', '.leaflet-container')
 
-  // Leaflet is tens of kilobytes. A reporter who types an address never pays
-  // for it, so nothing may load it until the button is used.
-  it('does not open a map until it is asked for', () => {
+  // Leaflet is tens of kilobytes. A reporter who has attached nothing has
+  // nowhere to put a pin, so nothing may load it yet.
+  it('does not fetch the map until a photo gives it somewhere to start', () => {
     act(() => render(<App />, root))
 
     expect(root.querySelector('.leaflet-container')).toBeNull()
-    expect(root.textContent).toContain('Pick it on a map')
+    expect(root.textContent).toContain('Add a photo first')
+    expect(root.textContent).not.toContain('Adjust location')
   })
 
-  it('opens the map where the reporter is', async () => {
+  // The point of the whole rearrangement: a geotagged photo means the
+  // reporter never has to say where they are.
+  it('draws the place on the form as soon as a photo carries one', async () => {
+    await attachPhotos(jpegPhoto())
+    await waitFor('the map on the form', '.leaflet-container')
+
+    // On the form, not over it.
+    expect(root.querySelector('[role="dialog"]')).toBeNull()
+    expect(root.querySelector('.mapwrap.inline .leaflet-container')).not.toBeNull()
+    expect(root.textContent).toContain('Adjust location')
+  })
+
+  it('opens the picker on the pin the photo already put down', async () => {
+    await attachPhotos(jpegPhoto())
+    await waitFor('the map on the form', '.leaflet-container')
+    click('Adjust location')
+    await waitFor('the picker', '[role="dialog"]')
+
+    // The photo's own place, not the browser's idea of where the phone is.
+    expect(root.textContent).toContain('The ring is at 7.09753, 125.62229')
+  })
+
+  // A camera with its location switched off is common, and that reporter is
+  // not turned away.
+  it('lets a reporter whose photo has no place set one by hand', async () => {
     geolocation({ latitude: 7.06423, longitude: 125.60778 })
+    await attachPhotos(jpegPhoto({ gps: false }))
+    await settle()
 
-    act(() => render(<App />, root))
-    click('Pick it on a map')
+    expect(root.textContent).toContain('None of your photos recorded where it was taken')
+    expect(root.querySelector('.leaflet-container')).toBeNull()
+
+    click('Set the location')
     await opened()
+    click('Use this place')
+    await waitFor('the map on the form', '.mapwrap.inline .leaflet-container')
 
-    expect(root.querySelector('[role="dialog"]')).not.toBeNull()
-    expect(root.textContent).toContain('The ring is at 7.06423, 125.60778')
+    expect(root.textContent).toContain('The place you set: 7.06423, 125.60778')
   })
 
   it('starts at the middle of the city when the browser refuses', async () => {
     geolocation(null)
-
-    act(() => render(<App />, root))
-    click('Pick it on a map')
+    await attachPhotos(jpegPhoto({ gps: false }))
+    click('Set the location')
     await opened()
 
     expect(root.textContent).toContain('the map starts at the middle of the city')
@@ -426,15 +463,15 @@ describe('picking the place on a map', () => {
     )
     vi.stubGlobal('fetch', fetchMock)
 
-    act(() => render(<App />, root))
-    click('Pick it on a map')
+    await attachPhotos(jpegPhoto({ gps: false }))
+    click('Set the location')
     await opened()
     click('Use this place')
     await settle()
 
-    // The map closes, and the form says where the report will go.
-    expect(root.querySelector('.leaflet-container')).toBeNull()
-    expect(root.textContent).toContain('the place you picked on the map (7.06423, 125.60778)')
+    // The picker closes, and the form draws where the report will go.
+    expect(root.querySelector('[role="dialog"]')).toBeNull()
+    expect(root.textContent).toContain('The place you set: 7.06423, 125.60778')
 
     click('Pothole')
     const description = root.querySelector<HTMLTextAreaElement>('#description')!
@@ -446,8 +483,9 @@ describe('picking the place on a map', () => {
     const body = fetchMock.mock.calls[0][1]?.body as FormData
     expect(body.get('lat')).toBe('7.06423')
     expect(body.get('lon')).toBe('125.60778')
-    // No address was typed, and the map alone is enough to file.
-    expect(body.get('address')).toBe('')
+    // There is no address field any more. The map is the location.
+    expect(body.get('address')).toBeNull()
+    expect(body.getAll('photos')).toHaveLength(1)
   })
 
   it('turns a spinner while it looks for the reporter', async () => {
@@ -458,8 +496,8 @@ describe('picking the place on a map', () => {
       value: { getCurrentPosition: () => {} },
     })
 
-    act(() => render(<App />, root))
-    click('Pick it on a map')
+    await attachPhotos(jpegPhoto({ gps: false }))
+    click('Set the location')
     await waitFor('the map sheet', '[role="dialog"]')
 
     const waiting = root.querySelector('[role="dialog"] [role="status"]')
@@ -472,15 +510,14 @@ describe('picking the place on a map', () => {
 
   it('closes without changing the report when it is cancelled', async () => {
     geolocation({ latitude: 7.06423, longitude: 125.60778 })
-
-    act(() => render(<App />, root))
-    click('Pick it on a map')
+    await attachPhotos(jpegPhoto({ gps: false }))
+    click('Set the location')
     await opened()
     click('Cancel')
     await settle()
 
-    expect(root.querySelector('.leaflet-container')).toBeNull()
-    expect(root.textContent).not.toContain('the place you picked on the map')
+    expect(root.querySelector('[role="dialog"]')).toBeNull()
+    expect(root.textContent).not.toContain('The place you set')
   })
 })
 

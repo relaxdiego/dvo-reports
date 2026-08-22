@@ -153,6 +153,23 @@ export function MapView({
   )
 }
 
+/**
+ * The place the report will be filed under, drawn on the page rather than
+ * over it. It does not move under the finger: adjusting is done in the
+ * picker above, which gets the whole screen, because a small map embedded in
+ * a form is a miserable thing to drag on a phone.
+ *
+ * Leaflet sets itself up once per element, so give this a key that changes
+ * with the place to have it drawn again somewhere else.
+ */
+export function MapHere({ at }: { at: Spot }) {
+  return (
+    <div class="mapwrap inline">
+      <Canvas start={at} mark />
+    </div>
+  )
+}
+
 /** Escape closes a sheet, the way the rest of the browser behaves. */
 function useEscape(onClose: () => void) {
   useEffect(() => {
