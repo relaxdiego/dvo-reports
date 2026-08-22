@@ -56,6 +56,13 @@ textarea {
   resize: vertical;
 }
 
+/* The example is there to show what a useful description looks like, and it
+   has done its job by the time someone taps the box. Leaving it under the
+   cursor only gives them words to read past before they can start. */
+textarea:focus::placeholder {
+  color: transparent;
+}
+
 input:focus-visible,
 textarea:focus-visible,
 button:focus-visible {
