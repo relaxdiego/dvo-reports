@@ -10,6 +10,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync/atomic"
 
 	"github.com/relaxdiego/dvo-reports/backend/internal/report"
 )
@@ -158,4 +159,30 @@ func (e *Echo) Submit(_ context.Context, r report.Report, _ string) (Receipt, er
 	return Receipt{
 		Reference: fmt.Sprintf("ECHO-%s-%04d", strings.ToUpper(r.Category), e.Seq),
 	}, nil
+}
+
+// NoSubmit is the real city client with filing turned off. It is for a
+// deployed test environment.
+//
+// Everything a reporter reads still comes from the city: the one-time code,
+// their own past reports, what became of one. That is deliberate. This
+// package imitates a web form that can change without warning, and a
+// stand-in that answers every call — Echo — would leave City untested
+// wherever it ran, which is the opposite of what a staging environment is
+// for. Submit is the one call that writes to the city's database, and a test
+// report there is work for the people who staff their queue.
+//
+// The reference says what it is, in plain words, because the reporter is
+// shown it. A number that could pass for the city's would be a lie.
+type NoSubmit struct {
+	// Client is the real city client. Every call but Submit is its own.
+	Client
+	// seq numbers the receipts. Atomic: unlike Echo, this one is deployed
+	// and answers more than one request at a time.
+	seq atomic.Int64
+}
+
+// Submit files nothing, and says so in the reference.
+func (n *NoSubmit) Submit(_ context.Context, _ report.Report, _ string) (Receipt, error) {
+	return Receipt{Reference: fmt.Sprintf("NOT-FILED-%04d", n.seq.Add(1))}, nil
 }

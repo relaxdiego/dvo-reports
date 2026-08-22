@@ -20,8 +20,16 @@ is the system of record. This project stores nothing.
   that prints a report body, an address, a photo, or a contact detail. A
   report holds a real person's location and photographs.
 - **Never invent a reference number in production.** If the upstream
-  submission fails, the citizen is told it failed. `upstream.Echo` invents
-  one, and it is for local development only.
+  submission fails, the citizen is told it failed. Two clients invent one:
+  `upstream.Echo`, for local development, and `upstream.NoSubmit`, which is
+  the real client with filing turned off and is what staging runs so that
+  practice reports stay out of the city's queue. Both say in the reference
+  itself that nothing was filed. Production runs neither.
+- **A failed submission leaves no trace but its log line.** Nothing is
+  stored, so `upstream submit failed` in `internal/api` is the whole record.
+  Keep it carrying the city's own reply and everything about the attempt
+  that is not the citizen's own — never the description, the address, the
+  coordinates, or a photograph.
 - **Never present this as official.** The "unofficial" notice in the header
   and in `README.md` stays.
 - **Do not hide upstream errors from the logs, or show them to the citizen.**

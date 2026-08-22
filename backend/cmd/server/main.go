@@ -60,16 +60,20 @@ func main() {
 	}
 }
 
-// pickUpstream returns the real city client unless UPSTREAM=echo asks for
-// the stand-in. The default is the real one on purpose: Echo invents
-// reference numbers, and a citizen who gets one believes a report was filed
-// when it was not.
+// pickUpstream chooses who a report is sent to. The default is the real city
+// client on purpose: the other two invent reference numbers, and a citizen
+// who gets one believes a report was filed when it was not.
 func pickUpstream(log *slog.Logger) upstream.Client {
-	if envOr("UPSTREAM", "city") == "echo" {
-		log.Warn("using the echo upstream: reports are NOT sent to the city and reference numbers are invented")
+	city := &upstream.City{BaseURL: envOr("UPSTREAM_BASE_URL", upstream.DefaultBaseURL)}
+	switch envOr("UPSTREAM", "city") {
+	case "echo":
+		log.Warn("using the echo upstream: nothing reaches the city and reference numbers are invented")
 		return &upstream.Echo{}
+	case "nosubmit":
+		log.Warn("using the nosubmit upstream: reads reach the city, reports are NOT filed and references say so")
+		return &upstream.NoSubmit{Client: city}
 	}
-	return &upstream.City{BaseURL: envOr("UPSTREAM_BASE_URL", upstream.DefaultBaseURL)}
+	return city
 }
 
 func envOr(key, fallback string) string {

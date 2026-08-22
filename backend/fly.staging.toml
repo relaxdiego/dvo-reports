@@ -17,6 +17,12 @@ primary_region = "sin"
   # launch; see the pre-flight checklist.
   ALLOWED_ORIGINS = "https://staging.dvo-reports.pages.dev"
 
+  # Staging reads the city for real — the one-time code, past reports, what
+  # became of one — and files nothing. Their database is not a test
+  # environment, and a practice report there is work for the people who staff
+  # their queue. A submission here comes back as NOT-FILED-nnnn.
+  UPSTREAM = "nosubmit"
+
 [http_service]
   internal_port = 8080
   force_https = true
