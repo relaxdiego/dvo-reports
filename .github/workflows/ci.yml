@@ -57,6 +57,7 @@ jobs:
       - run: devbox run -- make lint
       - run: devbox run -- make test
       - run: devbox run -- make build
+      - run: devbox run -- make size
 
   # Which environments this run deploys to.
   #

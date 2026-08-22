@@ -10,7 +10,7 @@ Nothing is stored here.
 **This project is not run by the Davao City government.** It is community
 software. The city's site remains the system of record.
 
-- Frontend: <https://report.relaxdiego.com> (Preact + TypeScript, ~13 kB gzipped
+- Frontend: <https://report.relaxdiego.com> (Preact + TypeScript, ~18 kB gzipped
   on first load)
   — staging at <https://report-staging.relaxdiego.com>
 - Backend: Go, one plain HTTP handler, no framework, no dependencies

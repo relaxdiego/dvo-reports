@@ -70,6 +70,12 @@ build-backend: ## Build the server binary into backend/bin
 build-frontend: deps ## Build the static site into frontend/dist
 	cd frontend && npm run build
 
+# The first page load is the whole point of this client, and nothing else
+# measures it: Vite's chunkSizeWarningLimit counts raw bytes and only warns.
+.PHONY: size
+size: build-frontend ## Check the first page load against its size budget
+	cd frontend && node scripts/check-size.mjs dist
+
 .PHONY: clean
 clean: ## Remove build output
 	rm -rf backend/bin frontend/dist

@@ -169,10 +169,12 @@ just to trigger a workflow** — the history is public and permanent, and
 - Go: standard library only. Adding a dependency to the backend needs a
   reason in the commit message.
 - Frontend: Preact, no UI framework, no component library. The bundle
-  everybody downloads is about 13 kB gzipped; a change that doubles it needs
-  a reason. Leaflet sits outside that number because it is in the map's own
-  chunk — keep new weight behind a dynamic `import()` the same way, rather
-  than growing the first page load.
+  everybody downloads is about 18 kB gzipped, and `make size` fails above
+  22 kB — CI runs it, so growing the first page load means raising the budget
+  in `frontend/scripts/check-size.mjs` and saying in the commit message what
+  the bytes buy a reporter. Leaflet sits outside that number because it is in
+  the map's own chunk — keep new weight behind a dynamic `import()` the same
+  way, rather than growing the first page load.
 - Photos are sniffed with `http.DetectContentType`, not trusted from the
   upload's `Content-Type` header. This backend hands files to a government
   site.
