@@ -188,3 +188,110 @@ describe('the photo field', () => {
     expect(input?.accept).toBe('image/*')
   })
 })
+
+describe('picking the place on a map', () => {
+  /**
+   * A browser that hands over a location, or refuses to. Only `geolocation`
+   * is replaced: Leaflet reads the rest of `navigator` as it loads, so a
+   * stand-in object would break the map before it started.
+   */
+  function geolocation(coords: { latitude: number; longitude: number } | null) {
+    Object.defineProperty(navigator, 'geolocation', {
+      configurable: true,
+      value: {
+        getCurrentPosition: (ok: PositionCallback, fail: PositionErrorCallback) =>
+          coords ? ok({ coords } as GeolocationPosition) : fail({} as GeolocationPositionError),
+      },
+    })
+  }
+
+  afterEach(() => {
+    // @ts-expect-error jsdom has no geolocation of its own to put back.
+    delete navigator.geolocation
+  })
+
+  /** The map arrives by dynamic import, so it needs longer than one tick. */
+  async function opened() {
+    for (let i = 0; i < 40; i++) {
+      await act(async () => { await new Promise((r) => setTimeout(r, 1)) })
+      if (root.querySelector('.leaflet-container')) return
+    }
+    throw new Error(`the map never appeared; the page says: ${root.textContent}`)
+  }
+
+  // Leaflet is tens of kilobytes. A reporter who types an address never pays
+  // for it, so nothing may load it until the button is used.
+  it('does not open a map until it is asked for', () => {
+    act(() => render(<App />, root))
+
+    expect(root.querySelector('.leaflet-container')).toBeNull()
+    expect(root.textContent).toContain('Pick it on a map')
+  })
+
+  it('opens the map where the reporter is', async () => {
+    geolocation({ latitude: 7.06423, longitude: 125.60778 })
+
+    act(() => render(<App />, root))
+    click('Pick it on a map')
+    await opened()
+
+    expect(root.querySelector('[role="dialog"]')).not.toBeNull()
+    expect(root.textContent).toContain('The ring is at 7.06423, 125.60778')
+  })
+
+  it('starts at the middle of the city when the browser refuses', async () => {
+    geolocation(null)
+
+    act(() => render(<App />, root))
+    click('Pick it on a map')
+    await opened()
+
+    expect(root.textContent).toContain('the map starts at the middle of the city')
+    expect(root.textContent).toContain('The ring is at 7.0731, 125.6128')
+  })
+
+  it('sends the place the reporter picked', async () => {
+    localStorage.setItem('dvo-reports.session', JSON.stringify({ token: 'tk-1' }))
+    geolocation({ latitude: 7.06423, longitude: 125.60778 })
+    const fetchMock = vi.fn<typeof fetch>(async () =>
+      new Response(JSON.stringify({ reference: 'DCR-9' }), { status: 201 }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    act(() => render(<App />, root))
+    click('Pick it on a map')
+    await opened()
+    click('Use this place')
+    await settle()
+
+    // The map closes, and the form says where the report will go.
+    expect(root.querySelector('.leaflet-container')).toBeNull()
+    expect(root.textContent).toContain('the place you picked on the map (7.06423, 125.60778)')
+
+    click('Pothole')
+    const description = root.querySelector<HTMLTextAreaElement>('#description')!
+    description.value = 'A deep pothole in the outer lane.'
+    act(() => { description.dispatchEvent(new Event('input', { bubbles: true })) })
+    act(() => { root.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })) })
+    await settle()
+
+    const body = fetchMock.mock.calls[0][1]?.body as FormData
+    expect(body.get('lat')).toBe('7.06423')
+    expect(body.get('lon')).toBe('125.60778')
+    // No address was typed, and the map alone is enough to file.
+    expect(body.get('address')).toBe('')
+  })
+
+  it('closes without changing the report when it is cancelled', async () => {
+    geolocation({ latitude: 7.06423, longitude: 125.60778 })
+
+    act(() => render(<App />, root))
+    click('Pick it on a map')
+    await opened()
+    click('Cancel')
+    await settle()
+
+    expect(root.querySelector('.leaflet-container')).toBeNull()
+    expect(root.textContent).not.toContain('the place you picked on the map')
+  })
+})

@@ -1,0 +1,58 @@
+/* Only the map picker uses these, and they load with it. */
+
+.mapwrap {
+  position: relative;
+  margin-top: 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.mapcanvas {
+  /* Tall enough to recognise a street on a phone, short enough that the
+     buttons under it stay reachable without scrolling. */
+  height: 55vh;
+  max-height: 26rem;
+  background: var(--line);
+}
+
+/* The place the report will carry: dead centre, and never under a finger. */
+.mappin {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 22px;
+  height: 22px;
+  margin: -11px 0 0 -11px;
+  border: 3px solid var(--accent);
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px rgb(255 255 255 / 70%);
+  pointer-events: none;
+  z-index: 600;
+}
+
+.mappin::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 4px;
+  height: 4px;
+  margin: -2px 0 0 -2px;
+  background: var(--accent);
+  border-radius: 50%;
+}
+
+/* Leaflet ships its own light colours. Keep its furniture readable when the
+   reporter's phone is in dark mode. */
+@media (prefers-color-scheme: dark) {
+  .leaflet-control-zoom a,
+  .leaflet-control-attribution {
+    background: var(--bg);
+    color: var(--fg);
+  }
+
+  .leaflet-control-attribution a {
+    color: var(--accent);
+  }
+}

@@ -113,14 +113,18 @@ export function currentPosition(): Promise<{ lat: number; lon: number }> {
       return
     }
     navigator.geolocation.getCurrentPosition(
-      (p) => resolve({ lat: round(p.coords.latitude), lon: round(p.coords.longitude) }),
+      (p) => resolve({ lat: roundCoord(p.coords.latitude), lon: roundCoord(p.coords.longitude) }),
       () => reject(new Error('Could not get your location. Type the address instead.')),
       { enableHighAccuracy: true, timeout: 10_000, maximumAge: 60_000 },
     )
   })
 }
 
-/** ~1 m of precision, and no more of the reporter's location than that. */
-function round(n: number): number {
+/**
+ * ~1 m of precision, and no more of the reporter's location than that. The
+ * map picker rounds the same way, so a place carries the same detail however
+ * it was chosen.
+ */
+export function roundCoord(n: number): number {
   return Math.round(n * 1e5) / 1e5
 }

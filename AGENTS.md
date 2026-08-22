@@ -79,13 +79,20 @@ just to trigger a workflow** — the history is public and permanent, and
   both, and remember the backend's answer is the one that counts.
 - `frontend/src/image.ts` — shrinking photos before upload. This is the main
   reason the client feels fast. Do not remove it.
+- `frontend/src/map.tsx` — the OpenStreetMap place picker. It is the only
+  code that talks to a third party, and it is loaded with a dynamic
+  `import()` so that Leaflet is fetched only by a reporter who opens the map.
+  Do not import it from anywhere eagerly.
 
 ## Conventions
 
 - Go: standard library only. Adding a dependency to the backend needs a
   reason in the commit message.
-- Frontend: Preact, no UI framework, no component library. The bundle is
-  about 8 kB gzipped; a change that doubles it needs a reason.
+- Frontend: Preact, no UI framework, no component library. The bundle
+  everybody downloads is about 13 kB gzipped; a change that doubles it needs
+  a reason. Leaflet sits outside that number because it is in the map
+  picker's own chunk — keep new weight behind a dynamic `import()` the same
+  way, rather than growing the first page load.
 - Photos are sniffed with `http.DetectContentType`, not trusted from the
   upload's `Content-Type` header. This backend hands files to a government
   site.

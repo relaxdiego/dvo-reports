@@ -10,7 +10,8 @@ Nothing is stored here.
 **This project is not run by the Davao City government.** It is community
 software. The city's site remains the system of record.
 
-- Frontend: <https://report.relaxdiego.com> (Preact + TypeScript, ~11 kB gzipped)
+- Frontend: <https://report.relaxdiego.com> (Preact + TypeScript, ~13 kB gzipped
+  on first load)
   — staging at <https://report-staging.relaxdiego.com>
 - Backend: Go, one plain HTTP handler, no framework, no dependencies
 
@@ -71,6 +72,7 @@ frontend/
   src/image.ts         shrinking photos in the browser
   src/api.ts           talking to the backend
   src/session.ts       the city session, kept in this browser only
+  src/map.tsx          picking the place on an OpenStreetMap map
   src/app.tsx          the form, and the reports already filed
 docs/
   deploy.md            Cloudflare Pages, staging, and the backend host
@@ -91,6 +93,15 @@ keeps none of it: the request is read into memory, passed to the city's site,
 and dropped. Logs record the category, the number of photos, and the
 resulting reference number — never the report itself. See
 [docs/upstream.md](docs/upstream.md).
+
+**The map is the one exception, and it is your choice.** If you open the map
+to point at a place, your browser asks
+[OpenStreetMap](https://www.openstreetmap.org/copyright) for the squares of
+map around that spot. Those requests go straight from your phone to their
+servers, so they reveal roughly where you are looking. The app says so before
+you open it, and nothing else about your report is ever sent there. Typing an
+address, or using the phone's own location, contacts nobody but this site's
+own backend.
 
 ## Contributing
 

@@ -603,6 +603,13 @@ function Header() {
   )
 }
 
+/**
+ * The map is a few tens of kilobytes of Leaflet, which most reports do not
+ * need: an address and the phone's own location are often enough. So it is
+ * fetched the moment a reporter asks for it, and never before.
+ */
+type Picker = typeof import('./map').MapPicker
+
 function LocationField({
   draft,
   set,
@@ -612,6 +619,8 @@ function LocationField({
 }) {
   const [status, setStatus] = useState<string | null>(null)
   const [locating, setLocating] = useState(false)
+  const [opening, setOpening] = useState(false)
+  const [MapPicker, setMapPicker] = useState<Picker | null>(null)
 
   const locate = async () => {
     setLocating(true)
@@ -628,6 +637,21 @@ function LocationField({
     }
   }
 
+  const openMap = async () => {
+    setOpening(true)
+    setStatus(null)
+    try {
+      const { MapPicker: loaded } = await import('./map')
+      setMapPicker(() => loaded)
+    } catch {
+      setStatus('The map could not be loaded. Type the address instead, or use your location.')
+    } finally {
+      setOpening(false)
+    }
+  }
+
+  const placed = draft.lat !== null && draft.lon !== null
+
   return (
     <>
       <label for="address">Where is it?</label>
@@ -642,7 +666,22 @@ function LocationField({
       <button type="button" class="secondary" onClick={locate} disabled={locating}>
         {locating ? 'Locating…' : 'Use my location'}
       </button>
+      <button type="button" class="secondary" onClick={openMap} disabled={opening}>
+        {opening ? 'Opening the map…' : placed ? 'Move the pin on a map' : 'Pick it on a map'}
+      </button>
       {status && <p class="hint">{status}</p>}
+      {MapPicker && (
+        <MapPicker
+          at={placed ? { lat: draft.lat as number, lon: draft.lon as number } : null}
+          onPick={({ lat, lon }) => {
+            set('lat', lat)
+            set('lon', lon)
+            setStatus(`Using the place you picked on the map (${lat}, ${lon}).`)
+            setMapPicker(null)
+          }}
+          onClose={() => setMapPicker(null)}
+        />
+      )}
     </>
   )
 }
