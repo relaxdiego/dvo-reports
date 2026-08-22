@@ -534,6 +534,28 @@ describe("the city's terms", () => {
 
 // This site's own terms. Separate from the city's on purpose: a reporter
 // should be able to tell whose promise is whose.
+// The line on the page and the one in the notice have to agree, and the
+// one on the page has to be there without anybody asking for it.
+describe('the emergency line on the page', () => {
+  it('is on the form itself, before any pop-up is opened', () => {
+    act(() => render(<App />, root))
+
+    expect(root.querySelector('[role="dialog"]')).toBeNull()
+    const line = root.querySelector('header .emergencyline')!
+    expect(line.textContent).toContain('In an emergency')
+    expect(line.textContent).toContain('call 911')
+  })
+
+  // On a phone, the number should be one press away, not something to
+  // memorise and retype.
+  it('dials rather than describes', () => {
+    act(() => render(<App />, root))
+
+    const call = root.querySelector('header .emergencyline a')!
+    expect(call.getAttribute('href')).toBe('tel:911')
+  })
+})
+
 describe("this site's own notice", () => {
   function openSite() {
     act(() => render(<App />, root))

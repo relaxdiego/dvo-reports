@@ -506,3 +506,16 @@ h2 {
 .emergency strong {
   color: var(--danger);
 }
+
+/* Always on the page, because the person it is for is the least likely to
+   open a pop-up looking for it. Plain rather than boxed: a red panel over
+   every routine report is alarm that is always on, and alarm that is always
+   on stops being read. The boxed version, inside the notice, is .emergency. */
+.emergencyline {
+  margin: 0 0 0.75rem;
+  font-weight: 600;
+}
+
+.emergencyline a {
+  color: var(--danger);
+}

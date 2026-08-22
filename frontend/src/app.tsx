@@ -590,6 +590,15 @@ function Header() {
   return (
     <header>
       <h1>Davao City issue report</h1>
+      {/*
+        On the page itself, not only inside the notice below. Whoever needs
+        this is the last person who would open an optional pop-up to find
+        it. A tel: link opens the dialer with the number in it; both iOS and
+        Android still make the caller press to connect.
+      */}
+      <p class="emergencyline">
+        In an emergency, <strong><a href="tel:911">call 911</a></strong>.
+      </p>
       <p class="unofficial">
         Unofficial. This is a community-run front end for{' '}
         <a href={CITY_SITE}>reports.davaocity.gov.ph</a>. It is not run

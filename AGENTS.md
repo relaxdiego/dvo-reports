@@ -100,6 +100,10 @@ just to trigger a workflow** — the history is public and permanent, and
   city's. Keep the two apart, so a reporter can tell whose promise is whose,
   and keep this one true rather than short — if it stops matching what the
   code does, the code is not the thing that is wrong.
+
+  The emergency line is written twice on purpose: once on the page, in the
+  header, where nobody has to go looking for it, and once at the top of this
+  notice. Change one and change the other.
 - `frontend/src/map.tsx` — the OpenStreetMap place picker. It is the only
   code that talks to a third party, and it is loaded with a dynamic
   `import()` so that Leaflet is fetched only by a reporter who opens the map.
