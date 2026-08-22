@@ -46,9 +46,12 @@ describes work, open an issue and let the comment reference it.
 
 ## Driving GitHub from an agent session
 
-An agent working here normally holds a token scoped to this repository with
-write access to code, issues, workflows, deployments, and environments. So
-re-running a workflow is yours to do:
+What you can do on GitHub depends on the token your session holds, and that
+is set up outside this repository — it is not the same on every machine.
+Check with `gh auth status`, and otherwise find out by trying rather than
+guessing. A maintainer's session normally has write access to code, issues,
+workflows, deployments, and environments, so re-running a workflow is yours
+to do:
 
 ```sh
 gh run list --limit 5
