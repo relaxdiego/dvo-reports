@@ -178,13 +178,16 @@ function useEscape(onClose: () => void) {
 }
 
 /**
- * The pin dropped on a place that is settled. A balloon with a point, which
- * is what every map application has taught people a pin looks like, so it
- * needs no explaining. `currentColor` hands the colour to map.css.
+ * The pin dropped on a place that is settled. A balloon with a point and a
+ * darker circle in its head, which is what Google Maps drops and therefore
+ * what a reporter already reads without being told. `currentColor` hands the
+ * body colour to map.css; the circle carries its own, because it only means
+ * anything against the body.
  */
 const PIN = `
   <svg width="26" height="35" viewBox="0 0 26 35" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
     <path fill="currentColor" d="M13 34C13 34 24.5 18.6 24.5 11.6A11.5 11.5 0 1 0 1.5 11.6C1.5 18.6 13 34 13 34Z"/>
+    <circle cx="13" cy="11.6" r="4.2" fill="#a52714"/>
   </svg>`
 
 /**
