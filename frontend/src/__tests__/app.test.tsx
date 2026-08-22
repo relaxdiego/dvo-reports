@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { render } from 'preact'
 import { act } from 'preact/test-utils'
 import { App } from '../app'
+import { jpegPhoto } from './fixtures'
 
 /** Lets the fetch, the state updates it causes, and the re-render settle. */
 async function settle() {
@@ -214,6 +215,52 @@ describe('the photo field', () => {
     expect(input?.hasAttribute('capture')).toBe(false)
     expect(input?.multiple).toBe(true)
     expect(input?.accept).toBe('image/*')
+  })
+
+  /** Puts files on the picker the way a phone would. */
+  async function attach(...files: File[]) {
+    // jsdom has no object URLs, and the thumbnails ask for one.
+    vi.stubGlobal('URL', { ...URL, createObjectURL: () => 'blob:x', revokeObjectURL: () => {} })
+    act(() => render(<App />, root))
+    const input = root.querySelector<HTMLInputElement>('#photos')!
+    Object.defineProperty(input, 'files', { value: files, configurable: true })
+    act(() => { input.dispatchEvent(new Event('change', { bubbles: true })) })
+    for (let i = 0; i < 20; i++) {
+      await act(async () => { await new Promise((r) => setTimeout(r, 2)) })
+      if (root.querySelectorAll('.photorow').length === files.length) break
+    }
+  }
+
+  // A reporter is sending a photograph of a real place to a government site.
+  // What it carries is theirs to see first.
+  it('gives each photo a row showing where and when it was taken', async () => {
+    await attach(jpegPhoto({ offset: '+08:00' }), jpegPhoto({ gps: false }))
+
+    const rows = root.querySelectorAll('.photorow')
+    expect(rows).toHaveLength(2)
+
+    const link = rows[0].querySelector('a')
+    expect(link?.textContent).toBe('7.09753, 125.62229')
+    expect(link?.getAttribute('href')).toContain('openstreetmap.org')
+    expect(link?.getAttribute('href')).toContain('mlat=7.09753')
+    expect(link?.getAttribute('target')).toBe('_blank')
+    // The time sits under the coordinates, in the same row.
+    expect(rows[0].textContent).toContain('2025')
+
+    // A photo with no place says so rather than showing nothing.
+    expect(rows[1].querySelector('a')).toBeNull()
+    expect(rows[1].textContent).toContain('No place recorded')
+  })
+
+  it('takes a photo out of the list when its row is removed', async () => {
+    await attach(jpegPhoto(), jpegPhoto())
+    expect(root.querySelectorAll('.photorow')).toHaveLength(2)
+
+    const remove = root.querySelector<HTMLButtonElement>('.photorow .remove')!
+    act(() => remove.click())
+    await settle()
+
+    expect(root.querySelectorAll('.photorow')).toHaveLength(1)
   })
 })
 

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/hooks'
 import { ApiError, currentPosition, myReports, reportHistory, sendCode, submitReport, verifyCode } from './api'
 import { forget, liveSession, remember, rememberedEmail } from './session'
 import { validate, MAX_PHOTOS } from './validate'
+import { osmLink, readSnapshot, type Snapshot } from './exif'
 import {
   CATEGORIES,
   CATEGORY_LABELS,
@@ -692,24 +693,85 @@ function PhotoField({ photos, onChange }: { photos: File[]; onChange: (p: File[]
       />
       <p class="hint">Take a new photo, or pick ones already on your phone.</p>
       {photos.length > 0 && (
-        <ul class="thumbs">
-          {photos.map((f, i) => (
-            <li key={`${f.name}-${i}`}>
-              <Thumb file={f} />
-              <button
-                type="button"
-                class="remove"
-                aria-label={`Remove ${f.name}`}
-                onClick={() => onChange(photos.filter((_, j) => j !== i))}
-              >
-                ×
-              </button>
-            </li>
-          ))}
-        </ul>
+        <>
+          <ul class="photolist">
+            {photos.map((f, i) => (
+              <PhotoRow
+                key={`${f.name}-${i}`}
+                file={f}
+                onRemove={() => onChange(photos.filter((_, j) => j !== i))}
+              />
+            ))}
+          </ul>
+          {/*
+            Accurate rather than reassuring: the identifiers are sent too, and
+            a reporter who is told "everything else is removed" should be able
+            to believe it. The list is in backend/internal/photo.
+          */}
+          <p class="hint">
+            The place and time shown here are sent to the city with your report, along with two
+            identifiers your phone writes onto a photo. Everything else the camera recorded — its
+            model, its settings — is removed first.
+          </p>
+        </>
       )}
     </>
   )
+}
+
+/**
+ * One photo, and what it says about itself. A reporter is sending a
+ * photograph of a real place to a government site, so they get to see the
+ * place and the time it carries before they send it, rather than after.
+ */
+function PhotoRow({ file, onRemove }: { file: File; onRemove: () => void }) {
+  const [snap, setSnap] = useState<Snapshot | null>(null)
+  const [read, setRead] = useState(false)
+
+  useEffect(() => {
+    let dropped = false
+    void readSnapshot(file).then((s) => {
+      if (dropped) return
+      setSnap(s)
+      setRead(true)
+    })
+    return () => { dropped = true }
+  }, [file])
+
+  const placed = snap && snap.lat !== null && snap.lon !== null
+
+  return (
+    <li class="photorow">
+      <Thumb file={file} />
+      <div class="photofacts">
+        <span class="photoname">{file.name}</span>
+        {!read && <span class="meta">Reading the photo…</span>}
+        {read && placed && (
+          <a href={osmLink(snap.lat as number, snap.lon as number)} target="_blank" rel="noreferrer">
+            {snap.lat}, {snap.lon}
+          </a>
+        )}
+        {read && !placed && <span class="meta">No place recorded.</span>}
+        {read && (
+          <span class="meta">{snap?.taken ? takenText(snap.taken) : 'No date recorded.'}</span>
+        )}
+      </div>
+      <button type="button" class="remove" aria-label={`Remove ${file.name}`} onClick={onRemove}>
+        ×
+      </button>
+    </li>
+  )
+}
+
+/** The camera's own clock, written the way the reporter's phone writes dates. */
+function takenText(at: Date): string {
+  return at.toLocaleString(undefined, {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
 }
 
 function Thumb({ file }: { file: File }) {
