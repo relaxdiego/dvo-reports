@@ -9,3 +9,6 @@ frontend/dist/
 
 # backend
 backend/bin/
+
+# claude code session scratch
+.claude/
