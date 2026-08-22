@@ -243,5 +243,10 @@ the form paints over that sheet. Then it opens the disclaimer and fails if the
 page behind shows through, if anything inside it scrolls on its own, or if
 `Close` sits on the first screen instead of after the last of the terms. It is
 not in CI, which has no browser. Run it after touching a sheet, a map, or
-anything layered over anything else, and read the screenshots it leaves
-in /tmp.
+anything layered over anything else, and read the screenshots it names on
+its last line.
+
+Each run serves the site on a port the OS picks and writes its screenshots to
+a directory of its own, so several sessions can run it at once on one machine
+without driving each other's build or overwriting each other's shots. Nothing
+is cleaned up afterwards: the directories are yours to read and to delete.

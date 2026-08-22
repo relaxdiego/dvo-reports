@@ -45,12 +45,7 @@ test-frontend: deps ## Run the frontend tests
 # that sits over another. jsdom renders nothing and will not catch it.
 .PHONY: test-browser
 test-browser: build-frontend ## Check the sheets over the form in a real browser
-	cd frontend && npx vite preview --port 4174 & \
-	  sleep 4; \
-	  npx vite-node frontend/scripts/make-fixture.ts /tmp/dvo-geo.jpg; \
-	  node frontend/scripts/check-place-sheet.mjs http://localhost:4174/ /tmp/dvo-geo.jpg /tmp && \
-	  node frontend/scripts/check-disclaimer.mjs http://localhost:4174/ /tmp; \
-	  status=$$?; kill %1; exit $$status
+	cd frontend && node scripts/browser-checks.mjs
 
 .PHONY: lint
 lint: deps ## Vet the Go code and type check the frontend
