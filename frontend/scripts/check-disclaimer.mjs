@@ -10,10 +10,11 @@
  *   node scripts/check-disclaimer.mjs <url> <shot-dir>
  */
 import puppeteer from 'puppeteer-core'
+import { chromium } from './chromium.mjs'
 
 const [url, shots] = process.argv.slice(2)
 const browser = await puppeteer.launch({
-  executablePath: process.env.CHROMIUM ?? 'chromium',
+  executablePath: chromium(),
   args: ['--no-sandbox', '--disable-dev-shm-usage'],
 })
 

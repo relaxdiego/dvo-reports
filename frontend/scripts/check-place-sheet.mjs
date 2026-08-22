@@ -9,25 +9,8 @@
  *
  *   node scripts/check-place-sheet.mjs <url> <photo> <shot-dir>
  */
-import { execFileSync } from 'node:child_process'
 import puppeteer from 'puppeteer-core'
-
-/**
- * Puppeteer wants the path of a binary, not a name to look up: given a bare
- * "chromium" it reports that no browser was found there, however well the
- * shell could have found one. So the lookup happens here.
- */
-function chromium() {
-  if (process.env.CHROMIUM) return process.env.CHROMIUM
-  for (const name of ['chromium', 'chromium-browser', 'google-chrome']) {
-    try {
-      return execFileSync('sh', ['-c', `command -v ${name}`], { encoding: 'utf8' }).trim()
-    } catch {
-      // Not this one.
-    }
-  }
-  throw new Error('no chromium on PATH; install one or set CHROMIUM to its path')
-}
+import { chromium } from './chromium.mjs'
 
 const [url, photo, shots] = process.argv.slice(2)
 const browser = await puppeteer.launch({
