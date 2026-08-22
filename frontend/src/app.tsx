@@ -106,19 +106,15 @@ export function App() {
     }
   }, [withSession])
 
-  const swipe = useSwipe((dir) => setTab(dir > 0 ? 'past' : 'report'))
-
   return (
     <main>
       <Header />
       <Tabs tab={tab} onChange={setTab} />
-      <div class="tabbody" {...swipe}>
-        {tab === 'report' ? (
-          <ReportTab withSession={withSession} />
-        ) : (
-          <PastTab past={past} onLoad={loadPast} withSession={withSession} />
-        )}
-      </div>
+      {tab === 'report' ? (
+        <ReportTab withSession={withSession} />
+      ) : (
+        <PastTab past={past} onLoad={loadPast} withSession={withSession} />
+      )}
       {ask && (
         <SignIn
           why={ask.why}
@@ -156,30 +152,6 @@ function Tabs({ tab, onChange }: { tab: Tab; onChange: (t: Tab) => void }) {
       </button>
     </div>
   )
-}
-
-/**
- * Left and right swipes, for moving between the tabs on a phone. A swipe has
- * to be clearly sideways, so that scrolling the page does not switch tabs.
- */
-function useSwipe(onSwipe: (dir: -1 | 1) => void) {
-  const from = useRef<{ x: number; y: number } | null>(null)
-  return {
-    onTouchStart: (e: TouchEvent) => {
-      const t = e.touches[0]
-      from.current = { x: t.clientX, y: t.clientY }
-    },
-    onTouchEnd: (e: TouchEvent) => {
-      const start = from.current
-      from.current = null
-      if (!start) return
-      const t = e.changedTouches[0]
-      const dx = t.clientX - start.x
-      const dy = t.clientY - start.y
-      if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 2) return
-      onSwipe(dx < 0 ? 1 : -1)
-    },
-  }
 }
 
 function ReportTab({ withSession }: { withSession: WithSession }) {

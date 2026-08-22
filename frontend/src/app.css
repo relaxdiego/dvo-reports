@@ -206,11 +206,6 @@ h2 {
   border-bottom-color: var(--accent);
 }
 
-/* A swipe across this area moves between the tabs. */
-.tabbody {
-  touch-action: pan-y;
-}
-
 .reports {
   list-style: none;
   padding: 0;
