@@ -16,19 +16,33 @@ repository one site and one custom domain, so a staging site would have meant
 a second repository.
 
 `.github/workflows/ci.yml` runs the checks first, then picks the deploy
-target from what triggered it:
+targets from what triggered it. The Cloudflare branch and the Fly app are
+both named after the environment.
 
-| Trigger        | Cloudflare branch | Lands on                          |
-| -------------- | ----------------- | --------------------------------- |
-| Push to `main` | `staging`         | `report-staging.relaxdiego.com`   |
-| Tag `v*`       | `production`      | `report.relaxdiego.com`           |
+**Before launch** — where the project is now — a push to `main` deploys
+both, so the real site is always whatever is on `main`:
 
-So `main` is always live on staging, and production only moves when you tag a
-release:
+| Trigger        | Environments             |
+| -------------- | ------------------------ |
+| Push to `main` | `staging`, `production`  |
+| Tag `v*`       | `production`             |
+
+**After launch**, set `LAUNCHED: 'true'` in the `targets` job of
+`.github/workflows/ci.yml`. A push to `main` then reaches staging only, and
+production moves when you tag a release:
+
+| Trigger        | Environments |
+| -------------- | ------------ |
+| Push to `main` | `staging`    |
+| Tag `v*`       | `production` |
 
 ```sh
 git tag -a v0.2.0 -m 'v0.2.0' && git push origin v0.2.0
 ```
+
+That flag is the only thing to change on launch day. Flip it before the site
+is announced, not after: from then on a commit reaches citizens only through
+a tag you chose to push.
 
 Nothing is published unless `make lint`, `make test`, and `make build` pass
 first: the deploy job needs the check job, which is why both live in one
@@ -45,8 +59,8 @@ devbox run -- make lint && devbox run -- make test
 devbox run -- make dev
 ```
 
-A manual `workflow_dispatch` run deploys staging, the same as a push to
-`main`.
+A manual `workflow_dispatch` run deploys the same environments as a push to
+`main` does.
 
 ### One-time setup
 
@@ -70,7 +84,7 @@ A manual `workflow_dispatch` run deploys staging, the same as a push to
 
 4. **Custom domains, after the first deploy to each branch.** A branch alias
    only exists once that branch has deployed at least once, so do this after
-   a push to `main` (staging) and after the first `v*` tag (production).
+   the first push to `main` has deployed both.
 
    `report.relaxdiego.com` is the project's production domain: add it under
    *Custom domains* in the Pages project and let Cloudflare create the record.
@@ -85,8 +99,12 @@ A manual `workflow_dispatch` run deploys staging, the same as a push to
    alias is served the *production* branch instead. That failure is silent —
    staging would quietly show production.
 
-Consider requiring a reviewer on the `production` environment. It is the only
-thing standing between a tag and every citizen who uses the site.
+The `production` environment requires a reviewer, so every deploy to it
+waits for an approval on the run. That is deliberate: it is the only thing
+standing between a commit and every citizen who uses the site. Before launch
+it also means the production half of a push to `main` sits and waits until
+you approve it — the staging half does not wait with it, and neither holds up
+the next commit's deploy.
 
 ## Backend
 
@@ -97,8 +115,8 @@ Two Fly apps, one per environment, built from `backend/Dockerfile`:
 | Staging     | `dvo-reports-api-staging`  | `backend/fly.staging.toml`   |
 | Production  | `dvo-reports-api`          | `backend/fly.production.toml`|
 
-CI deploys them: a push to `main` deploys staging, a `v*` tag deploys
-production. A pull request deploys nothing.
+CI deploys them, to the same environments as the frontend and in the same
+run. A pull request deploys nothing.
 
 Both apps scale to zero. The first request after an idle period waits for the
 machine to start, well under a second, and the city's own API is slower than
@@ -129,7 +147,7 @@ repository.
    org token for both. Environment-scoped is the safer of the two: a staging
    deploy then cannot touch production.
 
-3. **Push to `main`.** CI builds the image and deploys staging. The app
+3. **Push to `main`.** CI builds the image and deploys it. The staging app
    answers at `https://dvo-reports-api-staging.fly.dev/healthz`.
 
 4. **Set `VITE_API_BASE`** on the matching GitHub Environment to the backend
