@@ -12,9 +12,8 @@ primary_region = "sin"
 
 [env]
   # Exact matches only. This is the Pages project's production alias, which
-  # exists once production has been deployed by hand. It becomes
-  # https://report.relaxdiego.com when the custom domains go up, which is
-  # deliberately deferred; see docs/deploy.md and the pre-flight checklist.
+  # exists once production has been deployed by hand. It stays so until a
+  # custom domain is chosen, which changes this line with it.
   ALLOWED_ORIGINS = "https://dvo-reports.pages.dev"
 
 [http_service]

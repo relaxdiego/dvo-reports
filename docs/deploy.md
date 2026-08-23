@@ -7,13 +7,12 @@ Two pieces, deployed separately, in two environments.
 | Production  | `dvo-reports.pages.dev`           | `dvo-reports-api.fly.dev`                |
 | Staging     | `staging.dvo-reports.pages.dev`   | `dvo-reports-api-staging.fly.dev`        |
 
-**These are the platforms' own URLs, and that is on purpose.** The custom
-domains — `report.relaxdiego.com` and `report-staging.relaxdiego.com` — are
-held back until the site has been used by the people it is for: a public name
-is easier to give out than to take back. Setting them up is written out under
-"One-time setup" below, and tracked as an open issue. `ALLOWED_ORIGINS` in
-`backend/fly.*.toml` names the URLs above, so it moves in the same step as the
-domains and not before.
+**These are the platforms' own URLs, and that is on purpose.** There is no
+custom domain, and the name is not decided: one gets chosen once the site has
+been used by the people it is for, since a public name is easier to give out
+than to take back. Setting one up is written out under "One-time setup" below,
+and tracked as an open issue. `ALLOWED_ORIGINS` in `backend/fly.*.toml` names
+the URLs above, so it moves in the same step as the domains and not before.
 
 ## Frontend
 
@@ -125,17 +124,18 @@ it cannot reach citizens.
    add, and adding one would let the two disagree. Any build not told
    `production` shows a bar saying a report sent from it is not filed.
 
-4. **Custom domains — not done, and deliberately deferred.** Everything in
-   this step is still ahead of the project; the site runs on the Pages URLs
-   until then. A branch alias only exists once that branch has deployed at
-   least once, so this comes after both branches have deployed.
+4. **Custom domains — not done, not decided, and deliberately deferred.**
+   Everything in this step is still ahead of the project, including picking
+   the names; the site runs on the Pages URLs until then. A branch alias only
+   exists once that branch has deployed at least once, so this comes after
+   both branches have deployed.
 
-   `report.relaxdiego.com` is the project's production domain: add it under
+   The production name is the project's production domain: add it under
    *Custom domains* in the Pages project and let Cloudflare create the record.
 
-   `report-staging.relaxdiego.com` points at a branch, which takes an extra
-   step. Add it as a custom domain the same way, then open DNS for the zone,
-   find the `CNAME` record named `report-staging`, and change its target from
+   The staging name points at a branch, which takes an extra step. Add it as a
+   custom domain the same way, then open DNS for its zone, find the `CNAME`
+   record Cloudflare created, and change its target from
    `dvo-reports.pages.dev` to `staging.dvo-reports.pages.dev`.
 
    **The record must stay proxied** (orange cloud). Cloudflare's docs are

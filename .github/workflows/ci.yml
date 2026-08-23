@@ -7,8 +7,8 @@ name: ci
 # every target, told apart by the --branch given to wrangler, and the branch
 # is named after the environment:
 #
-#   staging     -> report-staging.relaxdiego.com
-#   production  -> report.relaxdiego.com
+#   staging     -> staging.dvo-reports.pages.dev
+#   production  -> dvo-reports.pages.dev
 #
 # The backend is a container on Fly, one app per environment, named in
 # backend/fly.<environment>.toml.

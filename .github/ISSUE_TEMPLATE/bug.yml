@@ -35,8 +35,8 @@ body:
     attributes:
       label: Where
       options:
-        - Production (report.relaxdiego.com)
-        - Staging (report-staging.relaxdiego.com)
+        - Production (dvo-reports.pages.dev)
+        - Staging (staging.dvo-reports.pages.dev)
         - A local checkout
         - Not sure
     validations:

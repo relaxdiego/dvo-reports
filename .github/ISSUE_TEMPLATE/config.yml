@@ -4,7 +4,7 @@ contact_links:
     url: https://reports.davaocity.gov.ph
     about: >-
       This tracker is for the software only. To report a real problem to the
-      city, use the reporting site itself, or https://report.relaxdiego.com.
+      city, use the reporting site itself, or https://dvo-reports.pages.dev.
   - name: Something that looks like a security problem
     url: https://github.com/relaxdiego/dvo-reports/security/advisories/new
     about: >-

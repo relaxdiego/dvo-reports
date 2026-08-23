@@ -12,9 +12,8 @@ primary_region = "sin"
 
 [env]
   # Exact matches only, so every origin the browser app is served from has to
-  # be listed. While the custom domains are not set up, that is the Cloudflare
-  # Pages branch alias. It becomes https://report-staging.relaxdiego.com at
-  # launch; see the pre-flight checklist.
+  # be listed. That is the Cloudflare Pages branch alias, and stays so until a
+  # custom domain is chosen, which changes this line with it.
   ALLOWED_ORIGINS = "https://staging.dvo-reports.pages.dev"
 
   # Staging reads the city for real — the one-time code, past reports, what
