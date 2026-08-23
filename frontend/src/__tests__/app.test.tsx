@@ -343,6 +343,46 @@ describe('opening one report', () => {
     expect(waiting?.textContent).toContain('Reading what happened')
     expect(waiting?.querySelector('.spinner')).not.toBeNull()
   })
+
+  // ENCODED says nothing to the person who filed the report. The sentence
+  // that explains it belongs on the line it explains, not alone at the top
+  // of the card.
+  it('says what each of the city\u2019s status words means, on its own line', async () => {
+    localStorage.setItem('dvo-reports.session', JSON.stringify({ token: 'tk-1' }))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn<typeof fetch>(async (input) => {
+        if (String(input).endsWith('/api/reports')) {
+          return new Response(JSON.stringify({ reports: listOf(1) }), { status: 200 })
+        }
+        return new Response(
+          JSON.stringify({
+            reference: 'DCR-1',
+            city_reference: '20260501080000',
+            steps: [
+              { status: 'ENCODED', at: '2026-05-01 08:00:00' },
+              { status: 'RECEIVED', office: 'City Engineer', at: '2026-05-02 08:00:00' },
+            ],
+          }),
+          { status: 200 },
+        )
+      }),
+    )
+
+    act(() => render(<App />, root))
+    click('My reports')
+    await settle()
+    act(() => root.querySelector<HTMLButtonElement>('.reporthead')!.click())
+    await settle()
+
+    const steps = [...root.querySelectorAll('.steps li')]
+    expect(steps[0].textContent).toContain('ENCODED')
+    expect(steps[0].querySelector('.hint')!.textContent).toContain('Added to the city')
+    expect(steps[1].querySelector('.hint')!.textContent).toContain('Sent to the office')
+    // The second number the city keeps is not shown: the card already
+    // carries the one the reporter was given.
+    expect(root.textContent).not.toContain('20260501080000')
+  })
 })
 
 describe('choosing what the problem is', () => {

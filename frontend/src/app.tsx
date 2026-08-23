@@ -533,7 +533,6 @@ function FiledReport({ report, withSession }: { report: Filed; withSession: With
       </button>
       {open && (
         <div class="reportbody">
-          <p class="hint">{STATUS_MEANING[report.status] ?? ''}</p>
           <p>{report.description}</p>
           {report.location && <p class="hint">Where: {report.location}</p>}
           {report.photos && report.photos.length > 0 && (
@@ -559,19 +558,25 @@ function FiledReport({ report, withSession }: { report: Filed; withSession: With
   )
 }
 
+/**
+ * What the city has done to the report, one line per status change.
+ *
+ * Each status carries its own meaning, on the line under the word it
+ * explains. The word alone is the city's, and ENCODED or FORREMARKS says
+ * nothing to the person who filed the report; the sentence used to sit at
+ * the top of the card, on its own, far from any of the words it was about.
+ */
 function Progress({ history }: { history: History }) {
   return (
     <>
       {history.note && <p class="note">The city says: {history.note}</p>}
-      {history.city_reference && (
-        <p class="hint">The city also files this one as reference {history.city_reference}.</p>
-      )}
       <ol class="steps">
         {history.steps.map((s, i) => (
           <li key={`${s.status}-${s.at}-${i}`}>
             <strong>{statusWord(s.status)}</strong>
             {s.office ? ` · ${s.office}` : ''}
             <span class="meta"> {whenText(s.at)}</span>
+            {STATUS_MEANING[s.status] && <span class="hint">{STATUS_MEANING[s.status]}</span>}
           </li>
         ))}
       </ol>

@@ -467,6 +467,16 @@ h2 {
   font-size: 0.9rem;
 }
 
+.steps li + li {
+  margin-top: 0.5rem;
+}
+
+/* What the city's status word means, under the word itself. */
+.steps .hint {
+  display: block;
+  margin: 0.1rem 0 0;
+}
+
 .note {
   margin: 0.75rem 0 0;
   padding: 0.7rem 0.9rem;
