@@ -1517,10 +1517,69 @@ function takenText(at: Date): string {
   })
 }
 
+/**
+ * One photograph, as big as the screen will draw it, over the page.
+ *
+ * A thumbnail is three and a half rems of a picture cropped square, which is
+ * enough to tell one photo from another and nothing else. What the reporter
+ * is about to hand to a government site is the whole frame: a face at the
+ * edge of it, a number plate, the inside of somebody's yard behind the
+ * pothole. They get to look at that before they send it, on the phone they
+ * took it with, rather than finding out afterwards.
+ *
+ * It is drawn from the file already in the page, so opening it costs nothing
+ * and asks nobody for anything: the same object URL the thumbnail is using.
+ *
+ * Tapping anywhere closes it, which is what every photo viewer on a phone
+ * does, and the cross says so for anyone who does not already know. Escape
+ * closes it too, the way the map sheet behaves.
+ */
+function Lightbox({ src, alt, onClose }: { src: string; alt: string; onClose: () => void }) {
+  useEffect(() => {
+    const key = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    document.addEventListener('keydown', key)
+    return () => document.removeEventListener('keydown', key)
+  }, [onClose])
+
+  return (
+    <div class="lightbox" role="dialog" aria-modal="true" aria-label={alt} onClick={onClose}>
+      <img src={src} alt={alt} />
+      <button type="button" class="x" aria-label="Close" onClick={onClose}>
+        <span aria-hidden="true">×</span>
+      </button>
+    </div>
+  )
+}
+
+/**
+ * A photo the reporter chose, small. Tapping it opens the picture above.
+ *
+ * The same square is used in two places, and both want this: the row of a
+ * photo that is going with the report, and the message listing the ones that
+ * were turned away. In the second it answers a question the thumbnail cannot
+ * — a reporter who picked four and got a refusal for two needs to see which
+ * two, and at this size several photos of the same street are one picture.
+ */
 function Thumb({ file, alt = '' }: { file: File; alt?: string }) {
   const url = useMemo(() => URL.createObjectURL(file), [file])
   useEffect(() => () => URL.revokeObjectURL(url), [url])
-  return <img src={url} alt={alt} />
+  const [open, setOpen] = useState(false)
+
+  return (
+    <>
+      <button
+        type="button"
+        class="thumbtap"
+        aria-label={`Show ${file.name} larger`}
+        onClick={() => setOpen(true)}
+      >
+        <img src={url} alt={alt} />
+      </button>
+      {open && <Lightbox src={url} alt={file.name} onClose={() => setOpen(false)} />}
+    </>
+  )
 }
 
 function Sent({ receipt, onAgain }: { receipt: Receipt; onAgain: () => void }) {

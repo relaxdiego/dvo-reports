@@ -759,6 +759,58 @@ describe('the photo field', () => {
     expect(root.querySelector('.filebutton')?.textContent).toBe('Add more photos')
   })
 
+  // A thumbnail is a square crop of a photograph. What the city gets is the
+  // whole frame, and the reporter gets to look at that before pressing Send.
+  it('opens the photo over the page when its thumbnail is tapped', async () => {
+    await attach(jpegPhoto())
+
+    const thumb = root.querySelector<HTMLButtonElement>('.photorow .thumbtap')!
+    // A phone calls them all image.jpg, so the name is no use on the screen —
+    // but it is all a screen reader has to tell one thumbnail from another.
+    expect(thumb.getAttribute('aria-label')).toBe('Show photo.jpg larger')
+
+    act(() => thumb.click())
+    await settle()
+
+    const box = root.querySelector('.lightbox')!
+    expect(box).not.toBeNull()
+    // The same file the thumbnail is drawing, not a second copy of it.
+    expect(box.querySelector('img')?.getAttribute('src')).toBe('blob:x')
+    // The form is still underneath, not replaced. A half-written report
+    // survives a look at a photo.
+    expect(root.querySelector('#description')).not.toBeNull()
+
+    act(() => root.querySelector<HTMLButtonElement>('.lightbox .x')!.click())
+    await settle()
+    expect(root.querySelector('.lightbox')).toBeNull()
+  })
+
+  // What a photo opened on a phone does everywhere else.
+  it('puts the photo away when the picture itself is tapped', async () => {
+    await attach(jpegPhoto())
+
+    act(() => root.querySelector<HTMLButtonElement>('.photorow .thumbtap')!.click())
+    await settle()
+
+    const image = root.querySelector<HTMLImageElement>('.lightbox img')!
+    act(() => { image.dispatchEvent(new MouseEvent('click', { bubbles: true })) })
+    await settle()
+
+    expect(root.querySelector('.lightbox')).toBeNull()
+  })
+
+  // The refused photos are where "which one?" is asked hardest: several
+  // pictures of the same street are one picture at this size.
+  it('opens a refused photo over the page too', async () => {
+    await attach(jpegPhoto({ gps: false }))
+
+    const thumb = root.querySelector<HTMLButtonElement>('[role="alert"] .thumbtap')!
+    act(() => thumb.click())
+    await settle()
+
+    expect(root.querySelector('.lightbox img')?.getAttribute('alt')).toBe('photo.jpg')
+  })
+
   // The way to add another sits under what is already attached, so a reporter
   // adding a third photo does not have to look back past the first two.
   it('keeps the button under the photos it adds to', async () => {

@@ -271,12 +271,37 @@ button[disabled] {
   position: relative;
 }
 
-.thumbs img {
+/* Named down to the picture inside the thumbnail, never any img in the list:
+   the photograph a thumbnail opens is drawn inside the same li, and a rule
+   reaching it would size the opened picture back down to a thumbnail. The
+   two shapes here are the two kinds of thumbnail — a past report's photo,
+   which is a link to the city's copy, and one of the reporter's own. */
+.thumbs a > img,
+.thumbs .thumbtap img {
   width: 5rem;
   height: 5rem;
   object-fit: cover;
   border-radius: var(--radius);
   border: 1px solid var(--line);
+}
+
+/* Every thumbnail is a button: tapping it opens the picture over the page.
+   The button has no look of its own — the square is the photograph, and the
+   rules around it still reach the img inside. `display: block` because the
+   line box under an inline image would leave the button taller than the
+   picture it holds, and the row it sits in is measured to the pixel. */
+.thumbtap {
+  display: block;
+  flex: none;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  border-radius: var(--radius);
+  cursor: zoom-in;
+}
+
+.thumbtap img {
+  display: block;
 }
 
 /* One photo per row: what it looks like, what it says about itself, and a
@@ -299,10 +324,9 @@ button[disabled] {
   border-radius: var(--radius);
 }
 
-.photorow img {
+.photorow .thumbtap img {
   width: 3.5rem;
   height: 3.5rem;
-  flex: none;
   object-fit: cover;
   border-radius: calc(var(--radius) - 4px);
 }
@@ -396,7 +420,7 @@ button[disabled] {
 /* The refused photos, at the size of the ones that got in, so the two read
    as the same kind of thing. The message above them is already long, and
    the larger square everywhere else costs it another line. */
-.error .thumbs img {
+.error .thumbs .thumbtap img {
   width: 3.5rem;
   height: 3.5rem;
 }
@@ -605,6 +629,48 @@ h2 {
 .sheetbody ol {
   margin: 0;
   padding-inline-start: 1.4rem;
+}
+
+/* A photograph opened over the page, from any of the thumbnails.
+
+   Dark all round rather than the page's own background: what is being looked
+   at is a photograph, and a white surround steals from it in both themes.
+   The z-index is the sheet's, and for the same reason — Leaflet numbers its
+   own layers up to 1000, so the map drawn on the form would otherwise paint
+   straight through this. */
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgb(0 0 0 / 85%);
+}
+
+/* Whole, never cropped. Seeing all of what is about to be sent is the point
+   of opening it, and the thumbnail already showed the cropped middle. */
+.lightbox img {
+  max-width: 100%;
+  max-height: 100%;
+}
+
+/* The way out, over the top corner of the picture. It carries its own colours
+   instead of inheriting them: it sits on a photograph, which can be any
+   colour at all, so a cross that took the page's would vanish against half
+   of them. */
+.lightbox .x {
+  position: absolute;
+  top: 0.5rem;
+  inset-inline-end: 0.5rem;
+  color: #fff;
+  background: rgb(0 0 0 / 55%);
+}
+
+.lightbox .x:hover,
+.lightbox .x:focus-visible {
+  background: rgb(0 0 0 / 80%);
 }
 
 /* The disclaimer, which covers the page rather than rising from the bottom
