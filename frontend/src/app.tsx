@@ -493,6 +493,44 @@ function Loading({ step }: { step: string }) {
   )
 }
 
+/**
+ * Takes the three things somebody quotes when they ask about a report — its
+ * title, its reference, and the day it was filed — and puts them on the
+ * clipboard, so they can be pasted into a message to the city or to a
+ * neighbour without being copied out by hand from a phone screen.
+ *
+ * The reference is prefixed with "Reference #" because it is pasted away
+ * from this page, where a bare number says nothing about what it is.
+ */
+function CopyReport({ report }: { report: Filed }) {
+  const [said, setSaid] = useState('')
+
+  const copy = async () => {
+    const text = `${report.title}\nReference #${report.reference}\n${whenText(report.filed)}`
+    try {
+      await navigator.clipboard.writeText(text)
+      setSaid('Copied')
+    } catch {
+      // A browser can refuse the clipboard, and then nothing at all has
+      // happened: say so rather than leaving the button looking pressed.
+      setSaid('Copy failed')
+    }
+    setTimeout(() => setSaid(''), 2000)
+  }
+
+  return (
+    <button
+      type="button"
+      class="copy"
+      aria-live="polite"
+      title="Copy the title, reference and date"
+      onClick={() => void copy()}
+    >
+      {said || 'Copy'}
+    </button>
+  )
+}
+
 function FiledReport({ report, withSession }: { report: Filed; withSession: WithSession }) {
   const [open, setOpen] = useState(false)
   const [history, setHistory] = useState<History | null>(null)
@@ -524,13 +562,16 @@ function FiledReport({ report, withSession }: { report: Filed; withSession: With
 
   return (
     <li class="report">
-      <button type="button" class="reporthead" aria-expanded={open} onClick={() => setOpen(!open)}>
-        <span class="status">{statusWord(report.status)}</span>
-        <span class="title">{report.title}</span>
-        <span class="meta">
-          {report.reference} · {whenText(report.filed)}
-        </span>
-      </button>
+      <div class="reporttop">
+        <button type="button" class="reporthead" aria-expanded={open} onClick={() => setOpen(!open)}>
+          <span class="status">{statusWord(report.status)}</span>
+          <span class="title">{report.title}</span>
+          <span class="meta">
+            {report.reference} · {whenText(report.filed)}
+          </span>
+        </button>
+        <CopyReport report={report} />
+      </div>
       {open && (
         <div class="reportbody">
           <p>{report.description}</p>

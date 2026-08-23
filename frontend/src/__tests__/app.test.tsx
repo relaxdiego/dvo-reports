@@ -344,6 +344,32 @@ describe('opening one report', () => {
     expect(waiting?.querySelector('.spinner')).not.toBeNull()
   })
 
+  // The three things somebody quotes when they write to the city about a
+  // report. Copying them off a phone screen by hand is what this replaces,
+  // so all three have to be there, and the number has to say what it is.
+  it('copies the title, the reference and the date', async () => {
+    localStorage.setItem('dvo-reports.session', JSON.stringify({ token: 'tk-1' }))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(JSON.stringify({ reports: listOf(1) }), { status: 200 })),
+    )
+    const writeText = vi.fn(async (_text: string) => {})
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })
+
+    act(() => render(<App />, root))
+    click('My reports')
+    await settle()
+    const button = root.querySelector<HTMLButtonElement>('.copy')!
+    act(() => button.click())
+    await settle()
+
+    const copied = writeText.mock.calls[0][0]
+    expect(copied).toContain('Report number 1')
+    expect(copied).toContain('Reference #DCR-1')
+    expect(copied).toContain('2026')
+    expect(button.textContent).toBe('Copied')
+  })
+
   // ENCODED says nothing to the person who filed the report. The sentence
   // that explains it belongs on the line it explains, not alone at the top
   // of the card.

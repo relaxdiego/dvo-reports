@@ -427,11 +427,22 @@ h2 {
   margin-bottom: 0.6rem;
 }
 
+/* The head of a card: the part that opens it, and the button that copies
+   what it says. They sit on one row so the copy button keeps the top right
+   corner however far the title wraps — and so it is a button of its own,
+   which a button cannot hold. */
+.reporttop {
+  display: flex;
+  align-items: flex-start;
+}
+
 .reporthead {
   font: inherit;
   display: grid;
   gap: 0.15rem;
-  width: 100%;
+  flex: 1;
+  /* Lets a long title wrap instead of pushing the copy button off the row. */
+  min-width: 0;
   text-align: left;
   padding: 0.8rem 0.9rem;
   background: transparent;
@@ -454,6 +465,25 @@ h2 {
 .meta {
   font-size: 0.8rem;
   color: var(--muted);
+}
+
+/* Quiet until it is wanted: the card is for reading, and this is for the
+   one moment somebody is writing to the city about it. It says "Copied"
+   where it said "Copy", which is the only sign a clipboard gives. */
+.copy {
+  font: inherit;
+  font-size: 0.8rem;
+  flex: none;
+  padding: 0.8rem 0.9rem 0.8rem 0.5rem;
+  background: transparent;
+  color: var(--muted);
+  border: 0;
+  cursor: pointer;
+}
+
+.copy:hover,
+.copy:focus-visible {
+  color: var(--fg);
 }
 
 .reportbody {
