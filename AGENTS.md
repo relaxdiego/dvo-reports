@@ -332,14 +332,24 @@ sheet opened above it, and every test passed.
 make test-browser     # needs chromium on PATH
 ```
 
-It drives two things a real browser has to be asked about. It taps the place
-on a photo's row, which opens a map over the form, and fails if anything from
-the form paints over that sheet. Then it opens the disclaimer and fails if the
-page behind shows through, if anything inside it scrolls on its own, or if
-`Close` sits on the first screen instead of after the last of the terms. It is
-not in CI, which has no browser. Run it after touching a sheet, a map, or
-anything layered over anything else, and read the screenshots it names on
-its last line.
+It drives three things a real browser has to be asked about. It taps the
+place on a photo's row, which opens a map over the form, and fails if anything
+from the form paints over that sheet. It taps a photo's thumbnail — the one on
+its row, and one in the message listing photos that were turned away — and
+fails if the form paints over the picture that opens, or if the picture is
+drawn barely larger than the square it came from. Then it opens the disclaimer
+and fails if the page behind shows through, if anything inside it scrolls on
+its own, or if `Close` sits on the first screen instead of after the last of
+the terms. It is not in CI, which has no browser. Run it after touching a
+sheet, a map, or anything layered over anything else, and read the screenshots
+it names on its last line.
+
+The fixture photo has metadata and no pixels — that is the point of it, since
+the metadata reader is tested against those exact bytes. A browser draws it as
+a broken image with no size of its own, so `check-lightbox.mjs` paints a real
+picture of a known size into every img on the page before it measures
+anything. Nothing about how large a photograph is drawn can be read off the
+fixture.
 
 Each run serves the site on a port the OS picks and writes its screenshots to
 a directory of its own, so several sessions can run it at once on one machine

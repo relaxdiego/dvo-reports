@@ -29,6 +29,7 @@ import { join } from 'node:path'
 
 const shots = mkdtempSync(join(tmpdir(), 'dvo-browser-'))
 const photo = join(shots, 'photo.jpg')
+const placeless = join(shots, 'no-place.jpg')
 
 // Piped, not inherited: whatever happens to the server, it never holds this
 // process's stdout, so nothing reading our output can be left waiting on it.
@@ -90,11 +91,12 @@ function run(command, args) {
 let ok = false
 try {
   const url = await serving()
-  if (!(await run('npx', ['vite-node', 'scripts/make-fixture.ts', photo]))) {
-    throw new Error('could not write the fixture photo')
+  if (!(await run('npx', ['vite-node', 'scripts/make-fixture.ts', photo, placeless]))) {
+    throw new Error('could not write the fixture photos')
   }
   ok =
     (await run('node', ['scripts/check-place-sheet.mjs', url, photo, shots])) &&
+    (await run('node', ['scripts/check-lightbox.mjs', url, photo, placeless, shots])) &&
     (await run('node', ['scripts/check-disclaimer.mjs', url, shots]))
 } finally {
   stop()
