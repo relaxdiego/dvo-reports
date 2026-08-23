@@ -100,8 +100,7 @@ func TestAzureSendsLongitudeFirst(t *testing.T) {
 }
 
 // The key belongs in a header. In a query string it ends up in every access
-// log and proxy between here and Azure — which is how the city's own key
-// came to be readable in the first place.
+// log and proxy between here and Azure.
 func TestAzureKeepsTheKeyOutOfTheURL(t *testing.T) {
 	srv, got := fakeAzure(t, azureDavao, 200)
 

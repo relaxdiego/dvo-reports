@@ -13,9 +13,8 @@
 //   - Nominatim, otherwise. OpenStreetMap's, free and needing no account,
 //     which is what a developer gets without signing up for anything.
 //
-// The city's own key is readable in their public JavaScript. It is not used
-// here and must never be: it bills their account, and this repository is
-// public.
+// The city's own key is not used here and must never be: it bills their
+// account, and this repository is public.
 //
 // Whichever is used, the lookup lives in the backend rather than the page.
 // Nominatim's terms want a User-Agent naming the caller, which a browser

@@ -219,7 +219,7 @@ repository.
 The city's own form fills its location box by reverse geocoding the pin with
 Azure Maps, and files that text. This backend does the same so a report reads
 the same, using **this project's own Azure Maps key** — never the city's,
-which is readable in their public JavaScript and bills their account.
+which bills their account.
 
 Azure's Philippine coverage stops at the named roads. A pin on an unnamed
 lane comes back as `Davao, Philippines 8000` — the right city, and nothing
