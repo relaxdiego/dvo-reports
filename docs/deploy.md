@@ -47,10 +47,11 @@ remember on launch day and no flag to flip.
 
 **There is no release tag.** The footer of the page carries the build time
 and the commit sha, which says what is live more precisely than a version
-would, and cannot be moved to another commit afterwards. It is a link to its
-own commit. Read it off the site — the run's summary names the environment and
-the deployment URL, not the stamp, so the site is the only place the two can
-be compared.
+would, and cannot be moved to another commit afterwards. Read it off the site,
+or off `/healthz` for the backend — see "Which build is running" below. The
+run's summary is not one of the places: it names the environment and the
+deployment URL and never the stamp, so a run cannot tell you whether the
+bundle it published actually replaced the old one.
 
 To redeploy production without a new commit — after a `fly secrets set`, or a
 publish that half-failed — start the same run again on the same ref. Nothing
