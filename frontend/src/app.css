@@ -500,6 +500,19 @@ h2 {
   margin-top: 0;
 }
 
+/* The two lists of steps in the home screen sheet. A browser's own indent
+   for a numbered list is a good part of a phone's width, and the steps read
+   as one block under the phone they belong to. */
+.sheetbody h3 {
+  font-size: 1rem;
+  margin: 1.25rem 0 0.25rem;
+}
+
+.sheetbody ol {
+  margin: 0;
+  padding-inline-start: 1.4rem;
+}
+
 /* The disclaimer, which covers the page rather than rising from the bottom
    of it. There is no backdrop to tap past and nothing scrolls on its own
    inside: the way out is the Close button at the end, so reaching it means

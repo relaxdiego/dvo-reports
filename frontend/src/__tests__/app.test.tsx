@@ -1030,3 +1030,95 @@ describe('the welcome sheet', () => {
     expect(root.querySelector('[role="dialog"]')).toBeNull()
   })
 })
+
+/**
+ * The offer to put this on a home screen, which is made on the Sent screen
+ * and nowhere else. See addtohome.tsx for why there.
+ */
+describe('the offer to add this to a home screen', () => {
+  /**
+   * jsdom has no matchMedia, so every one of these has to say what kind of
+   * browser this is. `standalone` is the site already opened from the icon.
+   */
+  function browser({ phone, standalone = false }: { phone: boolean; standalone?: boolean }) {
+    vi.stubGlobal('matchMedia', (query: string) =>
+      query.includes('display-mode') ? { matches: standalone } : { matches: phone },
+    )
+  }
+
+  async function sendAReport() {
+    localStorage.setItem('dvo-reports.session', JSON.stringify({ token: 'tk-1' }))
+    await attachPhotos(jpegPhoto())
+    await settle()
+    await fileAndRead()
+  }
+
+  it('is made once a report is sent', async () => {
+    browser({ phone: true })
+    await sendAReport()
+
+    expect(root.textContent).toContain('Report sent')
+    expect(root.textContent).toContain('Add it to your home screen')
+  })
+
+  // It must not be in the way of writing one.
+  it('is not made while the report is still being written', async () => {
+    browser({ phone: true })
+    act(() => render(<App />, root))
+    await attachPhotos(jpegPhoto())
+    await settle()
+
+    expect(root.textContent).not.toContain('Add it to your home screen')
+  })
+
+  // Every step names something only a phone has.
+  it('is not made on a browser with a mouse', async () => {
+    browser({ phone: false })
+    await sendAReport()
+
+    expect(root.textContent).toContain('Report sent')
+    expect(root.textContent).not.toContain('Add it to your home screen')
+  })
+
+  // Whoever took the offer has stopped needing it.
+  it('is not made inside the home screen app itself', async () => {
+    browser({ phone: true, standalone: true })
+    await sendAReport()
+
+    expect(root.textContent).toContain('Report sent')
+    expect(root.textContent).not.toContain('Add it to your home screen')
+  })
+
+  it('opens a sheet carrying the steps for both kinds of phone', async () => {
+    browser({ phone: true })
+    await sendAReport()
+    click('Add it to your home screen')
+
+    const sheet = root.querySelector('[role="dialog"]')
+    expect(sheet).not.toBeNull()
+    expect(sheet?.textContent).toContain('Add to Home Screen')
+    expect(sheet?.textContent).toContain('Add to Home screen')
+    expect(sheet?.querySelectorAll('ol')).toHaveLength(2)
+  })
+
+  // The icon has no address bar under it to say whose site this is.
+  it('says in the sheet that the icon is not an app from the city', async () => {
+    browser({ phone: true })
+    await sendAReport()
+    click('Add it to your home screen')
+
+    const sheet = root.querySelector('[role="dialog"]')
+    expect(sheet?.textContent).toContain('unofficial')
+    expect(sheet?.textContent).toContain('not an app from the city government')
+  })
+
+  it('closes again', async () => {
+    browser({ phone: true })
+    await sendAReport()
+    click('Add it to your home screen')
+    click('Close')
+
+    expect(root.querySelector('[role="dialog"]')).toBeNull()
+    expect(root.textContent).toContain('Report sent')
+  })
+})

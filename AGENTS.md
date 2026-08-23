@@ -213,9 +213,16 @@ at build time; name the environment you deployed to alongside them.
 
   **The card carries the word "unofficial" in the picture itself.** A link
   shared in a group chat is read by people who never open the page, so the
-  preview has to say what the header says. `site.webmanifest` names the icons
-  and nothing else on purpose — no `display`, no `start_url` — so the tile is
-  a tile and the browser does not start offering to install this as an app.
+  preview has to say what the header says.
+
+  `site.webmanifest` asks for `display: standalone`, so the icon opens
+  without an address bar. That is what makes it worth adding, and it costs
+  something: on an iPhone a standalone web app keeps its own storage, so the
+  city's session does not travel from Safari and the reporter signs in once
+  more. The sheet says so before they add it. It also means no address bar
+  is left to say whose site this is, which is why the header's unofficial
+  notice is on every screen, the sheet repeats it, and the icon itself is
+  never drawn as a seal.
 
   `og:image` in `frontend/index.html` has to be an absolute URL — a scraper is
   not on this site when it resolves one — and it names the production host
@@ -224,6 +231,19 @@ at build time; name the environment you deployed to alongside them.
   than a build-time variable that can be forgotten and left showing nothing.
   Keep the comments in that file to one line each: it is the one HTML a
   citizen downloads, and Vite ships every byte of it.
+- `frontend/src/addtohome.tsx` — the sheet telling a reporter how to put the
+  site on their home screen. It is offered from the `Sent` screen and from
+  nowhere else: that is after the reference number, where the offer is
+  earned and where it cannot be in the way of writing a report. It does not
+  belong in the header, which already carries the emergency line and the
+  unofficial notice — a third thing beside them weakens the two that have to
+  survive being skimmed.
+
+  It shows the steps for both kinds of phone rather than reading the user
+  agent, because a wrong guess gives somebody instructions for a phone they
+  are not holding. There is no remembered refusal to store: whoever adds the
+  site stops being asked, since `offerHomeScreen` hides the offer once the
+  page is opened from the icon.
 
 ## Conventions
 

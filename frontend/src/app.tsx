@@ -6,6 +6,7 @@ import { validate, descriptionLength, MAX_DESCRIPTION, MAX_PHOTOS } from './vali
 import { osmLink, placeOfPhotos, readSnapshot, type Place, type Snapshot } from './exif'
 import { Disclaimer } from './disclaimer'
 import { Welcome } from './welcome'
+import { AddToHome, offerHomeScreen } from './addtohome'
 import {
   CATEGORIES,
   CATEGORY_LABELS,
@@ -1240,6 +1241,9 @@ function Thumb({ file }: { file: File }) {
 }
 
 function Sent({ receipt, onAgain }: { receipt: Receipt; onAgain: () => void }) {
+  // The only place the home screen offer is made. See addtohome.tsx for why
+  // it is here and not in the header.
+  const [showAddToHome, setShowAddToHome] = useState(false)
   return (
     <>
       <h2>Report sent</h2>
@@ -1256,6 +1260,21 @@ function Sent({ receipt, onAgain }: { receipt: Receipt; onAgain: () => void }) {
       <button class="primary" type="button" onClick={onAgain}>
         Report something else
       </button>
+      {/*
+        Under the button, not above it. Everything above this point is the
+        reference number and what to do with it, and none of that should be
+        pushed down the screen by an offer nobody came here for.
+      */}
+      {offerHomeScreen() && (
+        <p class="hint">
+          Like this app?{' '}
+          <button type="button" class="linky" onClick={() => setShowAddToHome(true)}>
+            Add it to your home screen
+          </button>
+          .
+        </p>
+      )}
+      {showAddToHome && <AddToHome onClose={() => setShowAddToHome(false)} />}
     </>
   )
 }
