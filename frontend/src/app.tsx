@@ -1206,15 +1206,19 @@ function PhotoField({
         something untrue about their own file.
 
         The filename is gone. A phone names them all image.jpg, so it picked
-        nothing out; the count is what tells a reporter whether the photo
-        they wanted got in.
+        nothing out, and the pictures below say which ones far better.
+
+        Several at once is the ordinary case, not the exception: a phone
+        offers the whole library and a reporter picks four. So the message
+        says "these photos" and shows every one of them, rather than
+        counting them at the reporter. The count is in front of them.
       */}
       {refused.length > 0 && (
         <ErrorMessage onDismiss={() => setRefused([])}>
           <strong>
             {refused.length === 1
               ? 'This photo has no location, so it was not added.'
-              : `${refused.length} photos have no location, so they were not added.`}
+              : 'These photos have no location, so they were not added.'}
           </strong>
           {/*
             Under the verdict, because "which one?" is the question the
@@ -1233,15 +1237,19 @@ function PhotoField({
             ))}
           </ul>
           <p>
-            Did you take it just now, after tapping Add photos? A photo taken that way never has a
-            location, and no setting on your phone changes that.
+            Did you take {refused.length === 1 ? 'it' : 'them'} just now, after tapping Add photos?
+            A photo taken that way never has a location, and no setting on your phone changes
+            that.
           </p>
           <p>What works:</p>
           <ol class="steps">
             <li>Open your camera app.</li>
-            <li>Take the photo there, with location switched on.</li>
+            <li>
+              Take the {refused.length === 1 ? 'photo' : 'photos'} there, with location switched
+              on.
+            </li>
             <li>Come back here and tap Add photos.</li>
-            <li>Pick the photo you just took.</li>
+            <li>Pick the {refused.length === 1 ? 'photo' : 'photos'} you just took.</li>
           </ol>
           <p>Screenshots, and photos other people sent you, also have no location.</p>
         </ErrorMessage>

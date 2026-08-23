@@ -578,6 +578,24 @@ describe('the photo field', () => {
     const shown = refused?.querySelectorAll('.thumbs img')
     expect(shown).toHaveLength(1)
     expect(shown?.[0].getAttribute('alt')).toBe('photo.jpg')
+    // One photo, so the message is about one photo throughout.
+    expect(refused?.textContent).toContain('This photo has no location')
+    expect(refused?.textContent).toContain('Pick the photo you just took')
+  })
+
+  // Picking several at once is ordinary — the phone offers the whole library.
+  // Every one that is turned away is shown, and the message reads as being
+  // about all of them rather than about one.
+  it('shows every photo it turns away, and says so in the plural', async () => {
+    await attach(jpegPhoto({ gps: false }), jpegPhoto({ gps: false }), jpegPhoto({ gps: false }))
+
+    expect(root.querySelectorAll('.photorow')).toHaveLength(0)
+    const refused = root.querySelector('[role="alert"]')
+    expect(refused?.querySelectorAll('.thumbs img')).toHaveLength(3)
+    expect(refused?.textContent).toContain('These photos have no location, so they were not added')
+    expect(refused?.textContent).toContain('Did you take them just now')
+    expect(refused?.textContent).toContain('Take the photos there')
+    expect(refused?.textContent).toContain('Pick the photos you just took')
   })
 
   it('keeps the photos that do carry a place and refuses the rest', async () => {
