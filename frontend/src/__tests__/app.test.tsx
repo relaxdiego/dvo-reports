@@ -435,6 +435,84 @@ describe('opening one report', () => {
     expect(steps[0].querySelector('.hint')!.textContent).toContain('Added to the city')
     expect(steps[1].querySelector('.hint')!.textContent).toContain('Sent to the office')
   })
+
+  // The same as the photos on the form: a thumbnail is a square crop, and the
+  // photograph the city holds is the whole frame. Opening a new tab would
+  // lose the list, which is several taps and a code to get back to.
+  it('opens a past report\u2019s photo over the page when it is tapped', async () => {
+    localStorage.setItem('dvo-reports.session', JSON.stringify({ token: 'tk-1' }))
+    const withPhotos = listOf(1).map((r) => ({
+      ...r,
+      photos: ['https://city.example/a.jpg', 'https://city.example/b.jpg'],
+    }))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn<typeof fetch>(async (input) => {
+        if (String(input).endsWith('/api/reports')) {
+          return new Response(JSON.stringify({ reports: withPhotos }), { status: 200 })
+        }
+        return new Response(JSON.stringify({ reference: '1', steps: [] }), { status: 200 })
+      }),
+    )
+
+    act(() => render(<App />, root))
+    click('My reports')
+    await settle()
+    act(() => root.querySelector<HTMLButtonElement>('.reporthead')!.click())
+    await settle()
+
+    const links = root.querySelectorAll<HTMLAnchorElement>('.reportbody .thumbs a')
+    expect(links).toHaveLength(2)
+    // The city sends no name with a photograph, so the number is the only
+    // thing a screen reader can tell one from another by.
+    expect(links[1].getAttribute('aria-label')).toBe('Show photo 2 larger')
+
+    act(() => {
+      links[1].dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, button: 0 }))
+    })
+    await settle()
+
+    const big = root.querySelector<HTMLImageElement>('.lightbox img')!
+    expect(big.getAttribute('src')).toBe('https://city.example/b.jpg')
+    // The list is still underneath, not replaced.
+    expect(root.querySelector('.reporthead')).not.toBeNull()
+
+    act(() => root.querySelector<HTMLButtonElement>('.lightbox .x')!.click())
+    await settle()
+    expect(root.querySelector('.lightbox')).toBeNull()
+  })
+
+  // It is still a link. Someone who asks for a new tab gets one.
+  it('leaves a ctrl-click on a past report\u2019s photo to the browser', async () => {
+    localStorage.setItem('dvo-reports.session', JSON.stringify({ token: 'tk-1' }))
+    const withPhotos = listOf(1).map((r) => ({ ...r, photos: ['https://city.example/a.jpg'] }))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn<typeof fetch>(async (input) => {
+        if (String(input).endsWith('/api/reports')) {
+          return new Response(JSON.stringify({ reports: withPhotos }), { status: 200 })
+        }
+        return new Response(JSON.stringify({ reference: '1', steps: [] }), { status: 200 })
+      }),
+    )
+
+    act(() => render(<App />, root))
+    click('My reports')
+    await settle()
+    act(() => root.querySelector<HTMLButtonElement>('.reporthead')!.click())
+    await settle()
+
+    const link = root.querySelector<HTMLAnchorElement>('.reportbody .thumbs a')!
+    expect(link.getAttribute('href')).toBe('https://city.example/a.jpg')
+    expect(link.getAttribute('target')).toBe('_blank')
+
+    const e = new MouseEvent('click', { bubbles: true, cancelable: true, button: 0, ctrlKey: true })
+    act(() => { link.dispatchEvent(e) })
+    await settle()
+
+    expect(e.defaultPrevented).toBe(false)
+    expect(root.querySelector('.lightbox')).toBeNull()
+  })
 })
 
 describe('choosing what the problem is', () => {

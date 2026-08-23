@@ -676,9 +676,9 @@ function FiledReport({ report, withSession }: { report: Filed; withSession: With
           {report.location && <p class="hint">Where: {report.location}</p>}
           {report.photos && report.photos.length > 0 && (
             <ul class="thumbs">
-              {report.photos.map((src) => (
+              {report.photos.map((src, i) => (
                 <li key={src}>
-                  <a href={src} target="_blank" rel="noreferrer"><img src={src} alt="" loading="lazy" /></a>
+                  <ReportPhoto src={src} nth={i + 1} />
                 </li>
               ))}
             </ul>
@@ -1550,6 +1550,45 @@ function Lightbox({ src, alt, onClose }: { src: string; alt: string; onClose: ()
         <span aria-hidden="true">×</span>
       </button>
     </div>
+  )
+}
+
+/**
+ * A photograph on a past report, which lives on the city's site rather than on
+ * this phone. Tapping it opens the same picture over the page.
+ *
+ * It stays a real link, the way the coordinates on a photo's row do: a plain
+ * tap opens it here, so the list of reports is not left behind in another tab,
+ * and a middle click, a long press or a ctrl-click still gives the reporter
+ * the new tab they asked for. The picture that opens is the one already
+ * downloaded for the thumbnail, so a tap asks the city for nothing.
+ *
+ * The number is all there is to tell one of these apart by. A photograph of a
+ * pothole has no name here — the city does not send one — and the alt text
+ * stays empty because there is nothing truthful to put in it.
+ */
+function ReportPhoto({ src, nth }: { src: string; nth: number }) {
+  const [open, setOpen] = useState(false)
+
+  const onOpen = (e: MouseEvent) => {
+    if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return
+    e.preventDefault()
+    setOpen(true)
+  }
+
+  return (
+    <>
+      <a
+        href={src}
+        target="_blank"
+        rel="noreferrer"
+        aria-label={`Show photo ${nth} larger`}
+        onClick={onOpen}
+      >
+        <img src={src} alt="" loading="lazy" />
+      </a>
+      {open && <Lightbox src={src} alt={`Photo ${nth}`} onClose={() => setOpen(false)} />}
+    </>
   )
 }
 

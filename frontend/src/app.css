@@ -276,6 +276,13 @@ button[disabled] {
    reaching it would size the opened picture back down to a thumbnail. The
    two shapes here are the two kinds of thumbnail — a past report's photo,
    which is a link to the city's copy, and one of the reporter's own. */
+/* Both kinds of thumbnail open the picture, so both say so under the
+   pointer. */
+.thumbs a,
+.thumbtap {
+  cursor: zoom-in;
+}
+
 .thumbs a > img,
 .thumbs .thumbtap img {
   width: 5rem;
@@ -297,7 +304,6 @@ button[disabled] {
   border: 0;
   background: transparent;
   border-radius: var(--radius);
-  cursor: zoom-in;
 }
 
 .thumbtap img {
