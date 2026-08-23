@@ -238,9 +238,14 @@ function Tabs({ tab, onChange }: { tab: Tab; onChange: (t: Tab) => void }) {
 }
 
 /**
- * The running character count under the description box, the way the city's
- * own form shows it. A reporter who learns about the limit only when the
- * form refuses their finished text has already wasted the writing.
+ * The running character count, on the label's own line and at the end of it.
+ * A reporter who learns about the limit only when the form refuses their
+ * finished text has already wasted the writing.
+ *
+ * The city's form puts it under the box. Here it sits beside "Describe it"
+ * instead, because a line of its own between the box and the photos below
+ * spent a whole row on a number that is only looked at near the limit. The
+ * label's line is already there and had nothing at its end.
  *
  * The box has no `maxlength`. Stopping the keystroke is what the city does,
  * but it also truncates a pasted description without saying so, and this
@@ -354,7 +359,10 @@ function ReportTab({
             })}
           </div>
 
-          <label for="description">Describe it</label>
+          <div class="fieldhead">
+            <label for="description">Describe it</label>
+            <DescriptionCount text={draft.description} />
+          </div>
           <textarea
             id="description"
             rows={4}
@@ -363,7 +371,6 @@ function ReportTab({
             aria-describedby="description-count"
             onInput={(e) => set('description', (e.target as HTMLTextAreaElement).value)}
           />
-          <DescriptionCount text={draft.description} />
 
           <PhotoField photos={draft.photos} facts={facts} onChange={(p) => set('photos', p)} />
           <LocationField draft={draft} set={set} fromPhotos={fromPhotos} />
@@ -870,6 +877,19 @@ function SignIn({ onDone }: { onDone: (token: string | null) => void }) {
  * eye, so a report can be written, sent, and lost. The reference number does
  * say nothing was filed, but only after all that work. This says it first.
  *
+ * It says the environment's name and nothing else. The bar is for whoever is
+ * testing, not for a citizen: they already know what a staging build does,
+ * and one word tells them which of the two builds on their phone they have
+ * opened. Naming it in one line also keeps it from pushing the form down a
+ * whole sentence's worth on a phone.
+ *
+ * Be clear about what that gives up. This bar used to say a report sent from
+ * here is not filed, and now it does not. The promise is still kept after
+ * the fact — `upstream.NoSubmit` answers `NOT-FILED-nnnn` and `upstream.Echo`
+ * answers `ECHO-…`, so the reference the reporter is shown says it — but it
+ * is no longer said before the report is written. If this build is ever put
+ * in front of citizens rather than testers, put the sentence back.
+ *
  * It is never in what production serves: `__ENVIRONMENT__` is a build-time
  * constant, so the comparison above is `"production" !== "production"` there
  * and the minifier drops this and the branch that calls it.
@@ -877,8 +897,7 @@ function SignIn({ onDone }: { onDone: (token: string | null) => void }) {
 function NotTheRealSite() {
   return (
     <p class="testbanner">
-      <strong>{__ENVIRONMENT__[0].toUpperCase() + __ENVIRONMENT__.slice(1)}</strong> — Reports sent
-      from here are not filed with the city.
+      {__ENVIRONMENT__[0].toUpperCase() + __ENVIRONMENT__.slice(1)}
     </p>
   )
 }

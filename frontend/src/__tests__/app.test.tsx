@@ -105,13 +105,12 @@ async function fileAndRead(): Promise<FormData> {
 // production says so. The production case is the constant being 'production',
 // which no test can reach without a second build.
 describe('the bar saying this is not the real site', () => {
-  it('says so, and says a report sent from here is not filed', () => {
+  it('names the environment, and nothing else', () => {
     act(() => render(<App />, root))
 
     const bar = root.querySelector('.testbanner')
     expect(bar).not.toBeNull()
-    expect(bar?.textContent).toContain('Development')
-    expect(bar?.textContent).toContain('not filed with the city')
+    expect(bar?.textContent?.trim()).toBe('Development')
   })
 
   // It has to be read before the report is written, not after.

@@ -122,7 +122,7 @@ it cannot reach citizens.
    it is for, by `DEPLOY_ENV` in the deploy job, but that comes from the same
    matrix value the job gives `wrangler --branch` — it is not a variable to
    add, and adding one would let the two disagree. Any build not told
-   `production` shows a bar saying a report sent from it is not filed.
+   `production` shows a bar naming the environment it was built for.
 
 4. **Custom domains — not done, not decided, and deliberately deferred.**
    Everything in this step is still ahead of the project, including picking

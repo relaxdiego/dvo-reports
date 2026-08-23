@@ -1,10 +1,23 @@
-/** The issue types the backend accepts. Fetched at load; this is the fallback. */
+/**
+ * The issue types the backend accepts, in the order their chips are drawn.
+ *
+ * The order is by how much room the label takes, shortest first, so the six
+ * chips wrap into as few rows as a phone allows and the section above the
+ * description stays short. It is not by how often the thing is reported:
+ * every chip is on the screen at once, so nothing is further away for being
+ * later in the list. "Drainage / flooding" is the longest and sits last of
+ * the five real ones; "other" stays at the end, where a list of named things
+ * puts the one that names nothing.
+ *
+ * Keep it in step with `report.Categories` in
+ * `backend/internal/report/report.go`, which is the copy that is trusted.
+ */
 export const CATEGORIES = [
   'garbage',
-  'drainage',
   'obstruction',
   'streetlight',
   'illegal-parking',
+  'drainage',
   'other',
 ] as const
 
@@ -21,11 +34,11 @@ export type Category = (typeof CATEGORIES)[number]
  */
 export const CATEGORY_LABELS: Record<string, string> = {
   garbage: 'Garbage',
-  drainage: 'Drainage / flooding',
   obstruction: 'Road hazard',
   streetlight: 'Street light',
   'illegal-parking': 'Illegal parking',
-  other: 'Something else',
+  drainage: 'Drainage / flooding',
+  other: 'Other',
 }
 
 export interface Draft {

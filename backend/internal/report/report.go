@@ -79,9 +79,9 @@ type Report struct {
 // The five are the issues Davao residents raise most that also suit this
 // form, which wants a photograph and a pin. That rules out complaints with
 // nothing to photograph (noise) and ones the city does not own (water and
-// power cuts, which are DCWD's and Davao Light's). They are ordered by how
-// often the thing is reported, so the common ones sit in the first row of
-// chips.
+// power cuts, which are DCWD's and Davao Light's). The order is the chip
+// order and is set in CATEGORIES in frontend/src/types.ts, which says why;
+// keep this list in step with it.
 //
 // "obstruction" is the whole of what makes a road unsafe — a pothole, debris,
 // an open manhole, a fallen tree — and had a "pothole" chip beside it until
@@ -92,10 +92,10 @@ type Report struct {
 // report. Prefer "other" over a sixth chip.
 var Categories = []string{
 	"garbage",
-	"drainage",
 	"obstruction",
 	"streetlight",
 	"illegal-parking",
+	"drainage",
 	"other",
 }
 
