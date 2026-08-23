@@ -826,8 +826,8 @@ function SignIn({ onDone }: { onDone: (token: string | null) => void }) {
 function NotTheRealSite() {
   return (
     <p class="testbanner">
-      <strong>{__ENVIRONMENT__}</strong> — a practice copy of this site. A report sent from here is
-      not filed with the city.
+      <strong>{__ENVIRONMENT__[0].toUpperCase() + __ENVIRONMENT__.slice(1)}</strong> — Reports sent
+      from here are not filed with the city.
     </p>
   )
 }

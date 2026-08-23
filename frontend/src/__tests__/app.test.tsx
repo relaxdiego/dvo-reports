@@ -109,7 +109,7 @@ describe('the bar saying this is not the real site', () => {
 
     const bar = root.querySelector('.testbanner')
     expect(bar).not.toBeNull()
-    expect(bar?.textContent).toContain('development')
+    expect(bar?.textContent).toContain('Development')
     expect(bar?.textContent).toContain('not filed with the city')
   })
 
