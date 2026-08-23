@@ -369,6 +369,7 @@ function PastTab({
 }) {
   const [query, setQuery] = useState('')
   const [showing, setShowing] = useState(PAGE)
+  const box = useRef<HTMLInputElement>(null)
 
   // Only the first time the tab is opened. After that the list is reloaded
   // when the reporter asks for it, or when the page is loaded again.
@@ -425,6 +426,7 @@ function PastTab({
     <>
       <div class="listtop">
         <input
+          ref={box}
           id="search"
           type="search"
           aria-label="Search your reports"
@@ -432,7 +434,7 @@ function PastTab({
           value={query}
           onInput={(e) => setQuery((e.target as HTMLInputElement).value)}
         />
-        <Refresh onClick={() => void onLoad()} />
+        <Enter onClick={() => box.current?.blur()} />
       </div>
       <ul class="reports">
         {matching.slice(0, showing).map((r) => (
@@ -471,10 +473,30 @@ function useEndOfList(onReach: () => void, armed: boolean) {
   return node
 }
 
+/**
+ * Reloading the list, at the foot of it. It is as wide as the page because
+ * it is the only thing to press there: a small square in a corner is a
+ * target to hunt for on a phone, and a thumb has already reached the bottom
+ * of the list by the time it is wanted.
+ */
 function Refresh({ onClick }: { onClick: () => void }) {
   return (
-    <button class="iconbutton" type="button" onClick={onClick} aria-label="Refresh" title="Refresh">
-      <span aria-hidden="true">⟳</span>
+    <button class="secondary wide" type="button" onClick={onClick}>
+      Refresh list
+    </button>
+  )
+}
+
+/**
+ * Beside the search box. The list is filtered as the letters are typed, so
+ * there is nothing for this to submit — it puts the phone's keyboard away,
+ * which is what stands between the reporter and the results they have just
+ * asked for.
+ */
+function Enter({ onClick }: { onClick: () => void }) {
+  return (
+    <button class="iconbutton" type="button" onClick={onClick} aria-label="Done searching" title="Done">
+      <span aria-hidden="true">↵</span>
     </button>
   )
 }

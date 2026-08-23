@@ -282,10 +282,12 @@ describe('reloading the list', () => {
     act(() => render(<App />, root))
     click('My reports')
     await settle()
-    const refresh = root.querySelectorAll('button[aria-label="Refresh"]')
-    // One above the list and one below it.
-    expect(refresh).toHaveLength(2)
-    act(() => (refresh[0] as HTMLButtonElement).click())
+    const refresh = [...root.querySelectorAll('button')].filter(
+      (b) => b.textContent === 'Refresh list',
+    )
+    // One, at the foot of the list.
+    expect(refresh).toHaveLength(1)
+    act(() => refresh[0].click())
     await settle()
 
     expect(fetchMock).toHaveBeenCalledTimes(2)

@@ -599,7 +599,7 @@ h2 {
   border-bottom: 1px solid var(--line);
 }
 
-/* The search box and a refresh button, side by side. */
+/* The search box and its enter key, side by side. */
 .listtop {
   display: flex;
   gap: 0.5rem;
