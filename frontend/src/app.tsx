@@ -354,7 +354,7 @@ function ReportTab({
         See the note in the header before changing this wording.
       */}
       <p class="terms">
-        Sending a report means you agree to the city's terms — see the{' '}
+        Sending a report means you agree to the city's terms and to this site's own — see the{' '}
         <button type="button" class="linky" onClick={onDisclaimer}>
           disclaimer
         </button>
@@ -885,9 +885,10 @@ function Header({ onDisclaimer }: { onDisclaimer: () => void }) {
       {/*
         Short enough to be read rather than skipped past. Two things have to
         survive being skimmed: that nobody official is behind this, and that
-        sending binds the reporter to the city's terms — on the city's own
-        site that is a button they press, so it cannot live only behind a
-        link nobody opens. The rest is the disclaimer page.
+        sending binds the reporter to the city's terms and to this site's own —
+        on the city's own site that is a button they press, so it cannot live
+        only behind a link nobody opens, and this site's own disclaimer of
+        liability is worth nothing if nobody is pointed at it as they act. The rest is the disclaimer page.
 
         The terms half is written twice, like the emergency line: once here,
         and once beside the send button, because this header is scrolled off
@@ -913,7 +914,7 @@ function Header({ onDisclaimer }: { onDisclaimer: () => void }) {
         <p class="unofficial">
           Unofficial site, not run by or connected to the city government. Volunteers built it to
           send your report to <a href={CITY_SITE}>reports.davaocity.gov.ph</a>. Use at your own
-          risk. Sending a report means you agree to the city's terms — see the{' '}
+          risk. Sending a report means you agree to the city's terms and to this site's own — see the{' '}
           <button type="button" class="linky" onClick={onDisclaimer}>
             disclaimer
           </button>
