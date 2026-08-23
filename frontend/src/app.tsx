@@ -190,12 +190,19 @@ export function App() {
       )}
       {/*
         The sha is the whole record of what is live: there is no version
-        tag, so this is what a reader compares against the source. Linking
-        it means they can go and read that exact commit rather than take
-        the site's word for it.
+        tag, so this is what a reader checks the site against. It links to
+        the tree at that commit and not to the commit itself — the commit
+        page is a diff of one change, and somebody asking what this site
+        does with their photograph wants the whole of the code that is
+        running, not the last thing that moved in it.
+
+        The words are there because a bare sha is a door only a programmer
+        can see. Anyone can read this code, so anyone should be able to
+        find it.
       */}
       <footer class="build">
-        {__BUILD_TIME__} <a href={`${SOURCE}/commit/${__BUILD_SHA__}`}>{__BUILD_SHA__}</a>
+        {__BUILD_TIME__}{' '}
+        <a href={`${SOURCE}/tree/${__BUILD_SHA__}`}>{__BUILD_SHA__} · read the code</a>
       </footer>
     </main>
   )
