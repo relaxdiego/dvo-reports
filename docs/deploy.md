@@ -44,6 +44,30 @@ To redeploy production without a new commit — after a `fly secrets set`, or a
 publish that half-failed — start the same run again on the same ref. Nothing
 has to be tagged or bumped.
 
+### Which build is running
+
+Both halves say so, so that anyone can check the running code against the
+published code rather than trust it.
+
+The page's footer carries the build time and the short commit sha, and the
+sha links to the tree at that commit. The backend answers with its own:
+
+```sh
+curl https://dvo-reports-api-staging.fly.dev/healthz
+# ok 8c63670
+```
+
+The sha reaches the binary through `--build-arg BUILD_SHA=...` on the
+`flyctl deploy` line, which the Dockerfile passes to the linker with
+`-ldflags -X main.buildSHA`. There is no `.git` in the `backend/` build
+context, so the toolchain cannot find it on its own. A `docker build` with no
+argument, or a `go build` on a laptop, says `ok unknown` — which is honest,
+and is what `make build` produces.
+
+Both halves are deployed from one ref in one run, so the two shas normally
+match. They can drift if one job fails and the other does not; comparing them
+is the point of publishing both.
+
 Nothing is published unless `make lint`, `make test`, and `make build` pass
 first: the deploy job needs the check job, which is why both live in one
 workflow file. GitHub cannot express that dependency across two.

@@ -13,9 +13,15 @@ COPY go.mod ./
 RUN go mod download
 
 COPY . .
+# The commit being built. CI passes it; a plain `docker build` leaves the
+# binary saying "unknown", which is honest. There is no .git in this build
+# context for the toolchain to read it from.
+ARG BUILD_SHA=unknown
 # CGO off so the binary needs no libc at runtime. -s -w drop the debug
 # symbols; a stack trace from production is not something we can read anyway.
-RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /bin/server ./cmd/server
+RUN CGO_ENABLED=0 go build -trimpath \
+      -ldflags="-s -w -X main.buildSHA=${BUILD_SHA}" \
+      -o /bin/server ./cmd/server
 
 FROM gcr.io/distroless/static-debian12:nonroot
 # TLS roots, so the outbound call to the city's HTTPS API can be verified.

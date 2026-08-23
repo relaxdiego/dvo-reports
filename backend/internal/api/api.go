@@ -43,14 +43,26 @@ type Config struct {
 	// path reaches somebody. Optional, and set in production only: staging
 	// files nothing, so it has nothing to report. See alert.
 	AlertURL string
+	// BuildSHA names the commit this binary was built from, and is answered
+	// by /healthz. Optional; empty means the build did not say.
+	BuildSHA string
 }
 
 // New returns the backend's HTTP routes.
 func New(cfg Config) http.Handler {
 	mux := http.NewServeMux()
+	// Answers with the commit it was built from as well as with its health.
+	// The page's footer names the frontend's build; this is how the other
+	// half can be checked against the published code too, and how the two
+	// can be seen to match. Fly polls this every 30s and reads only the
+	// status, so the extra word costs nothing.
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "text/plain")
-		io.WriteString(w, "ok\n")
+		sha := cfg.BuildSHA
+		if sha == "" {
+			sha = "unknown"
+		}
+		io.WriteString(w, "ok "+sha+"\n")
 	})
 	mux.HandleFunc("GET /api/categories", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]any{"categories": report.Categories})

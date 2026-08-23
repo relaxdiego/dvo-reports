@@ -21,6 +21,15 @@ import (
 	"github.com/relaxdiego/dvo-reports/backend/internal/upstream"
 )
 
+// buildSHA names the commit this binary was built from. The Dockerfile
+// sets it with -ldflags -X; a `go build` on a laptop leaves it alone.
+//
+// It is here so that the code running can be checked against the code
+// published, the way the page's footer already lets the frontend be. The
+// build context is backend/ with no .git in it, so there is no VCS stamp
+// for the toolchain to find and it has to be passed in.
+var buildSHA = "unknown"
+
 func main() {
 	log := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 
@@ -33,6 +42,7 @@ func main() {
 			Log:            log,
 			Places:         pickGeocoder(log),
 			AlertURL:       os.Getenv("ALERT_URL"),
+			BuildSHA:       buildSHA,
 		}),
 		ReadHeaderTimeout: 5 * time.Second,
 		// Generous: a report carries photos over a phone connection.

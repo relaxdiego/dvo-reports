@@ -81,8 +81,9 @@ export function SiteNotice() {
         </p>
         <p>
           <strong>Anyone can check:</strong> The code that runs this site is open for anyone to
-          read, on <a href={SOURCE}>its page on GitHub</a>. If something here is broken, you can
-          say so there.
+          read, on <a href={SOURCE}>its page on GitHub</a>. The line at the bottom of this page
+          names the exact version you are using and opens the code for it. If something here is
+          broken, you can say so there.
         </p>
       </div>
 

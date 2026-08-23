@@ -131,7 +131,9 @@ jobs:
               "backend was skipped. See docs/deploy.md." >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
-          flyctl deploy --config "fly.${{ matrix.target }}.toml" --remote-only
+          flyctl deploy --config "fly.${{ matrix.target }}.toml" --remote-only \
+            --build-arg "BUILD_SHA=$(git rev-parse --short HEAD)"
+
 
   deploy:
     needs: targets

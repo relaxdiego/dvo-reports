@@ -314,6 +314,37 @@ func TestHealthz(t *testing.T) {
 	}
 }
 
+// Anyone can read the code this site runs on, and the page's footer names
+// the frontend's build. This is the other half: the backend says which
+// commit it was built from, so the running code can be checked against the
+// published code rather than taken on trust.
+func TestHealthzNamesTheBuild(t *testing.T) {
+	h := New(Config{
+		Upstream: &fakeUpstream{},
+		Log:      slog.New(slog.NewTextHandler(io.Discard, nil)),
+		BuildSHA: "abc1234",
+	})
+	req := httptest.NewRequest("GET", "/healthz", nil)
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+
+	if got, want := rec.Body.String(), "ok abc1234\n"; got != want {
+		t.Errorf("body %q, want %q", got, want)
+	}
+}
+
+// A build that was not told its commit must say so rather than claim a
+// blank one. A laptop build is the ordinary case.
+func TestHealthzSaysUnknownWhenTheBuildDidNotSay(t *testing.T) {
+	req := httptest.NewRequest("GET", "/healthz", nil)
+	rec := httptest.NewRecorder()
+	newTestHandler(&fakeUpstream{}).ServeHTTP(rec, req)
+
+	if got, want := rec.Body.String(), "ok unknown\n"; got != want {
+		t.Errorf("body %q, want %q", got, want)
+	}
+}
+
 // A file that is not an image must be refused, whatever the client labels
 // it. This backend relays uploads to a government site.
 func TestSubmitRejectsANonImageDisguisedAsOne(t *testing.T) {
