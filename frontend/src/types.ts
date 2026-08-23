@@ -59,7 +59,6 @@ export interface Draft {
 
 export interface Receipt {
   reference: string
-  track_url?: string
   /** Set when the report was filed but its photos did not upload. */
   warning?: string
 }

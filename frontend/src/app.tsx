@@ -1479,11 +1479,14 @@ function Sent({ receipt, onAgain }: { receipt: Receipt; onAgain: () => void }) {
       </p>
       <p class="hint">Write this down. It is how you follow up with the city.</p>
       {receipt.warning && <p class="note" role="alert">{receipt.warning}</p>}
-      {receipt.track_url && (
-        <p>
-          <a href={receipt.track_url}>Track this report</a>
-        </p>
-      )}
+      {/*
+        No link to the report on the city's site. There is no page to link
+        to: following a report is another call that needs the reporter's own
+        session, and the city draws the answer in a modal. This screen used
+        to offer one behind a `track_url` the backend has never set — see
+        "No tracking URL" in docs/upstream.md. The past reports tab is where
+        a reporter follows this up.
+      */}
       <button class="primary" type="button" onClick={onAgain}>
         Report something else
       </button>
