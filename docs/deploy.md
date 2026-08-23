@@ -19,30 +19,30 @@ a second repository.
 targets from what triggered it. The Cloudflare branch and the Fly app are
 both named after the environment.
 
-**Before launch** — where the project is now — a push to `main` deploys
-both, so the real site is always whatever is on `main`:
+| Trigger                        | Environments |
+| ------------------------------ | ------------ |
+| Push to `main`                 | `staging`    |
+| Manual run, `staging` chosen   | `staging`    |
+| Manual run, `production` chosen| `production` |
 
-| Trigger        | Environments             |
-| -------------- | ------------------------ |
-| Push to `main` | `staging`, `production`  |
-| Tag `v*`       | `production`             |
-
-**After launch**, set `LAUNCHED: 'true'` in the `targets` job of
-`.github/workflows/ci.yml`. A push to `main` then reaches staging only, and
-production moves when you tag a release:
-
-| Trigger        | Environments |
-| -------------- | ------------ |
-| Push to `main` | `staging`    |
-| Tag `v*`       | `production` |
+A run deploys one environment, never two. Staging follows `main` on its own.
+Production is not reached by merging anything: you start the run and name it,
 
 ```sh
-git tag -a v0.2.0 -m 'v0.2.0' && git push origin v0.2.0
+gh workflow run ci.yml -f environment=production
 ```
 
-That flag is the only thing to change on launch day. Flip it before the site
-is announced, not after: from then on a commit reaches citizens only through
-a tag you chose to push.
+and the run then waits at the `production` Environment's reviewer gate, so
+two deliberate acts stand between a commit and a citizen.
+
+**There is no release tag.** The footer of the page carries the build time
+and the commit sha, which says what is live more precisely than a version
+would, and cannot be moved to another commit afterwards. Read it off the
+site, or off the run's summary.
+
+To redeploy production without a new commit — after a `fly secrets set`, or a
+publish that half-failed — start the same run again on the same ref. Nothing
+has to be tagged or bumped.
 
 Nothing is published unless `make lint`, `make test`, and `make build` pass
 first: the deploy job needs the check job, which is why both live in one
@@ -59,8 +59,8 @@ devbox run -- make lint && devbox run -- make test
 devbox run -- make dev
 ```
 
-A manual `workflow_dispatch` run deploys the same environments as a push to
-`main` does.
+A manual run defaults to `staging`, so dispatching one without thinking about
+it cannot reach citizens.
 
 ### One-time setup
 

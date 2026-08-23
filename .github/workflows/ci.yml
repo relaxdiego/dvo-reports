@@ -23,9 +23,16 @@ name: ci
 on:
   push:
     branches: [main]
-    tags: ['v*']
   pull_request:
   workflow_dispatch:
+    inputs:
+      environment:
+        description: Which environment to deploy
+        type: choice
+        options:
+          - staging
+          - production
+        default: staging
 
 permissions:
   contents: read
@@ -59,33 +66,29 @@ jobs:
       - run: devbox run -- make build
       - run: devbox run -- make size
 
-  # Which environments this run deploys to.
+  # Which environments this run deploys to. One, always.
   #
-  # Until the site is launched, the live one is meant to be whatever is on
-  # main: nobody is using report.relaxdiego.com yet, so there is nothing for
-  # a bad commit there to spoil, and waiting for a tag to see the real thing
-  # only slows the work down.
+  # A push to main deploys staging. Production is never reached by merging:
+  # somebody runs this workflow by hand and names it, and the production
+  # Environment then holds the run at its reviewer gate. Two deliberate acts,
+  # and no release ceremony in between.
   #
-  # On launch day, set LAUNCHED to true. Production then moves only when a
-  # v* tag is pushed, which is the arrangement docs/deploy.md describes.
+  # There is no version tag, on purpose. The footer of the page carries the
+  # build time and the commit sha, so what is live is already named by
+  # something nobody can move afterwards.
   targets:
     needs: check
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
-    env:
-      LAUNCHED: 'false'
     outputs:
       list: ${{ steps.pick.outputs.list }}
     steps:
       - id: pick
+        env:
+          # Empty on a push; the chosen environment on a manual run.
+          CHOSEN: ${{ inputs.environment }}
         run: |
-          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
-            list='["production"]'
-          elif [[ "$LAUNCHED" == 'true' ]]; then
-            list='["staging"]'
-          else
-            list='["staging", "production"]'
-          fi
+          list="[\"${CHOSEN:-staging}\"]"
           echo "list=$list" >> "$GITHUB_OUTPUT"
           echo "Deploying to: $list" >> "$GITHUB_STEP_SUMMARY"
 
@@ -93,8 +96,9 @@ jobs:
     needs: targets
     runs-on: ubuntu-latest
     strategy:
-      # Production may sit at its approval gate for a while. Staging is not
-      # made to wait with it, and neither is cancelled if the other fails.
+      # One target per run, so this only ever runs once. It stays a matrix
+      # because the target's name is what picks the fly config and the
+      # Environment.
       fail-fast: false
       matrix:
         target: ${{ fromJSON(needs.targets.outputs.list) }}
