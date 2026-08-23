@@ -808,15 +808,14 @@ function SignIn({ onDone }: { onDone: (token: string | null) => void }) {
           form — see REGISTER_URL in welcome.tsx for why.
         */}
         <p>
-          You must be a registered user of the city's site. If you are not registered yet, register
-          at{' '}
+          You need an account on the city's site. If you do not have one, register at{' '}
           <a href={CITY_SITE} target="_blank" rel="noreferrer">
             {CITY_HOST}
           </a>{' '}
           first, then come back here. This app never sees your password.
         </p>
         <fieldset disabled={busy}>
-          <label for="email">Your registered e-mail address</label>
+          <label for="email">The e-mail address on your city account</label>
           <input
             id="email"
             type="email"
@@ -829,8 +828,8 @@ function SignIn({ onDone }: { onDone: (token: string | null) => void }) {
           />
           {stage === 'email' && (
             <p class="hint">
-              The city sends the code by text message to the phone number registered with the
-              address above. Have that phone with you.
+              The city sends the code by text message to the phone number on that account. Have
+              that phone with you.
             </p>
           )}
           {stage === 'code' && (

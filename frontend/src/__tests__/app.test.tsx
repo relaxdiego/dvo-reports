@@ -195,7 +195,7 @@ describe('signing in', () => {
    */
   it('makes the city\u2019s site tappable when the address has no account there', async () => {
     const refusal =
-      'no city account is registered under that e-mail address; register at reports.davaocity.gov.ph first, then come back'
+      'the city has no account under that e-mail address; register at reports.davaocity.gov.ph first, then come back'
     vi.stubGlobal(
       'fetch',
       vi.fn<typeof fetch>(async () => new Response(JSON.stringify({ error: refusal }), { status: 404 })),

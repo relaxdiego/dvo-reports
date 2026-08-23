@@ -103,8 +103,8 @@ const sessionHeader = "X-City-Session"
 // account under the address they typed. Trying again can never work, so the
 // sentence says the one thing that does. It does not say to check their
 // e-mail: the account is found by address, but the code arrives by text
-// message to the phone registered against it.
-const emailNotRegisteredMessage = "no city account is registered under that e-mail address; register at reports.davaocity.gov.ph first, then come back"
+// message to the phone number on that account.
+const emailNotRegisteredMessage = "the city has no account under that e-mail address; register at reports.davaocity.gov.ph first, then come back"
 
 // sendOTP asks the city to send a one-time code. The e-mail address is
 // relayed and not kept, and never reaches the log.
