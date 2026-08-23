@@ -2,10 +2,18 @@
 
 Two pieces, deployed separately, in two environments.
 
-| Environment | Frontend                    | Backend                            |
-| ----------- | --------------------------- | ---------------------------------- |
-| Production  | `report.relaxdiego.com`     | `api.report.relaxdiego.com`        |
-| Staging     | `report-staging.relaxdiego.com` | `api.report-staging.relaxdiego.com` |
+| Environment | Frontend                          | Backend                                  |
+| ----------- | --------------------------------- | ---------------------------------------- |
+| Production  | `dvo-reports.pages.dev`           | `dvo-reports-api.fly.dev`                |
+| Staging     | `staging.dvo-reports.pages.dev`   | `dvo-reports-api-staging.fly.dev`        |
+
+**These are the platforms' own URLs, and that is on purpose.** The custom
+domains — `report.relaxdiego.com` and `report-staging.relaxdiego.com` — are
+held back until the site has been used by the people it is for: a public name
+is easier to give out than to take back. Setting them up is written out under
+"One-time setup" below, and tracked as an open issue. `ALLOWED_ORIGINS` in
+`backend/fly.*.toml` names the URLs above, so it moves in the same step as the
+domains and not before.
 
 ## Frontend
 
@@ -33,12 +41,16 @@ gh workflow run ci.yml -f environment=production
 ```
 
 and the run then waits at the `production` Environment's reviewer gate, so
-two deliberate acts stand between a commit and a citizen.
+two deliberate acts stand between a commit and a citizen. A push to `main`
+deploys staging and only staging, before launch and after: there is nothing to
+remember on launch day and no flag to flip.
 
 **There is no release tag.** The footer of the page carries the build time
 and the commit sha, which says what is live more precisely than a version
-would, and cannot be moved to another commit afterwards. Read it off the
-site, or off the run's summary.
+would, and cannot be moved to another commit afterwards. It is a link to its
+own commit. Read it off the site — the run's summary names the environment and
+the deployment URL, not the stamp, so the site is the only place the two can
+be compared.
 
 To redeploy production without a new commit — after a `fly secrets set`, or a
 publish that half-failed — start the same run again on the same ref. Nothing
@@ -112,9 +124,10 @@ it cannot reach citizens.
    add, and adding one would let the two disagree. Any build not told
    `production` shows a bar saying a report sent from it is not filed.
 
-4. **Custom domains, after the first deploy to each branch.** A branch alias
-   only exists once that branch has deployed at least once, so do this after
-   the first push to `main` has deployed both.
+4. **Custom domains — not done, and deliberately deferred.** Everything in
+   this step is still ahead of the project; the site runs on the Pages URLs
+   until then. A branch alias only exists once that branch has deployed at
+   least once, so this comes after both branches have deployed.
 
    `report.relaxdiego.com` is the project's production domain: add it under
    *Custom domains* in the Pages project and let Cloudflare create the record.
@@ -129,12 +142,15 @@ it cannot reach citizens.
    alias is served the *production* branch instead. That failure is silent —
    staging would quietly show production.
 
+   **Change `ALLOWED_ORIGINS` in the same step.** Both `backend/fly.*.toml`
+   name the Pages URLs today. The browser sends the new origin the moment a
+   domain answers, and an origin that is not on the list fails every
+   submission with a CORS error, so the two have to move together.
+
 The `production` environment requires a reviewer, so every deploy to it
 waits for an approval on the run. That is deliberate: it is the only thing
-standing between a commit and every citizen who uses the site. Before launch
-it also means the production half of a push to `main` sits and waits until
-you approve it — the staging half does not wait with it, and neither holds up
-the next commit's deploy.
+standing between a commit and every citizen who uses the site. A push to
+`main` never queues at that gate, because a push only ever deploys staging.
 
 ## Backend
 

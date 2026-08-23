@@ -1,10 +1,16 @@
 # The upstream site
 
 `reports.davaocity.gov.ph` has no documented API. Everything this project
-sends it was worked out by reading its own front end, so every field name and
-response shape here is a guess that the city's site currently agrees with.
-When the city changes its form, `internal/upstream` breaks and nothing else
-does. That is the point of keeping it in one package.
+sends it was worked out by reading its own front end, so nothing here is
+promised by the city and all of it can change without warning. When the city
+changes its form, `internal/upstream` breaks and nothing else does. That is
+the point of keeping it in one package.
+
+Some of it has since been checked against the live site, and the difference
+matters when something breaks: a confirmed fact is one to trust and look past,
+a guess is the first place to look. Anything **confirmed against the live
+site** says so where it is written down. Everything else is still read off
+their front end.
 
 The API root is in `upstream.DefaultBaseURL`. It is an Azure Functions app,
 named in the city site's `js/main2.js`.
@@ -32,6 +38,28 @@ A report needs a signed-in reporter. There is no anonymous path.
 
 The token is **not** a bearer token. The city wants it as a form field on
 POSTs and a query parameter on GETs.
+
+### What the form's own limits are
+
+**Confirmed against the live site**, by reading `report.html`, the partial the
+city loads into `#reportModalContainer`:
+
+- **The description is capped at 1000.** `<textarea name="complain"
+  maxlength="1000">`, with a counter under it saying the same. This project
+  caps it at 1000 too, in `report.MaxDescription` and `MAX_DESCRIPTION` in
+  `frontend/src/validate.ts`.
+- **It is counted in UTF-16 code units**, because that is what the city's own
+  counter reads (`this.value.length`). Not bytes, and not runes. Counting
+  bytes was stricter than the city and turned away reports their form would
+  have taken, which matters: accented characters are ordinary in Filipino and
+  Cebuano.
+- **The title field has no `maxlength` at all.** `maxTitleRunes` in
+  `internal/upstream` is this project's own caution, not the city's rule. Do
+  not raise it on the strength of a missing attribute — what their API does
+  with a long title is untested, and a citizen's real report is the wrong
+  place to find out.
+- `maxlength` is enforced by the browser only. What the API behind
+  `complainController` does with 1001 characters has never been tried.
 
 ## Two requests, one submission
 
@@ -147,5 +175,8 @@ lose the value.
   e-mail address, or the token.
 - **Never invent a reference.** If the upstream submission fails, the citizen
   must be told it failed. A fake receipt means someone believes their problem
-  was reported when it was not. `upstream.Echo` invents references and is for
-  local development only; the server picks it only when `UPSTREAM=echo`.
+  was reported when it was not. Two clients answer without filing, and both
+  say so in the reference itself: `upstream.Echo`, for local development,
+  picked only when `UPSTREAM=echo`; and `upstream.NoSubmit`, the real city
+  client with filing turned off, picked by `UPSTREAM=nosubmit` and what
+  staging runs. Production runs neither.

@@ -22,9 +22,11 @@ import (
 // (js/main2.js). It is not documented and can change without warning.
 const DefaultBaseURL = "https://dcrfunctions2.azurewebsites.net/api/"
 
-// maxTitleRunes caps the title built from the description. The city's form
-// has a maxlength on the field, but the number is not readable from the
-// scripts, so this is a guess on the safe side.
+// maxTitleRunes caps the title built from the description. The city's own
+// title input carries no maxlength at all — checked against report.html — so
+// this is caution of our own, not their rule. Do not raise it on the strength
+// of a missing attribute: what their API does with a long title is untested,
+// and a citizen's real report is the wrong place to find out.
 const maxTitleRunes = 100
 
 // ErrSessionExpired means the city rejected the token. The reporter has to

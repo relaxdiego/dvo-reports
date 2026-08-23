@@ -53,5 +53,14 @@ are not up for negotiation. Read it before a first change.
 
 ## The most useful thing you can do
 
-Work out how `reports.davaocity.gov.ph` actually accepts a report. Everything
-else is waiting on that. See [docs/upstream.md](docs/upstream.md).
+Tell us when `reports.davaocity.gov.ph` changes. This project imitates a web
+form that nobody documents, so the city can break it without warning and
+without meaning to. If a report fails, or the site starts behaving oddly, open
+an **Upstream finding** issue and say what you saw. See
+[docs/upstream.md](docs/upstream.md) for what is already known.
+
+## Licensing your contribution
+
+This project is [Apache-2.0](LICENSE). By opening a pull request you offer your
+contribution under that same licence, as Apache-2.0 section 5 sets out. There
+is nothing else to sign.

@@ -19,7 +19,7 @@ import { readFileSync } from 'node:fs'
 import { gzipSync } from 'node:zlib'
 import { join } from 'node:path'
 
-// Room for ordinary work above today's 18.4 kB, while a doubling fails loudly.
+// Room for ordinary work above today's 20.7 kB, while a doubling fails loudly.
 // Raising this is a decision, not a formality: read the table this prints and
 // say in the commit message what the extra bytes buy a reporter.
 const BUDGET = 22_000

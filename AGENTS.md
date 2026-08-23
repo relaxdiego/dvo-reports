@@ -32,13 +32,15 @@ is the system of record. This project stores nothing.
   stored, so `upstream submit failed` in `internal/api` is the whole record.
   Keep it carrying the city's own reply and everything about the attempt
   that is not the citizen's own — never the description, the address, the
-  coordinates, or a photograph. The same handler posts a line to `ALERT_URL`,
-  which is a third party: that one carries no part of the report at all, not
-  even the city's reply, because the city quotes the title back. See `alert`
-  in `internal/api`. The same handler posts a line to `ALERT_URL`,
-  which is a third party: that one carries no part of the report at all, not
-  even the city's reply, because the city quotes the title back. See `alert`
-  in `internal/api`.
+  coordinates, or a photograph. Note what that reply can contain: the city
+  quotes the title back, and the title is the first 100 characters of the
+  description, so this one line can carry a little of the citizen's own words.
+  That is a deliberate trade and it is disclosed — `README.md` and
+  `sitenotice.tsx` both say so. If you narrow what is logged here, widen the
+  notice to match, and never the other way round. The same handler posts a
+  line to `ALERT_URL`, which is a third party: that one carries no part of the
+  report at all, not even the city's reply, for exactly that reason. See
+  `alert` in `internal/api`.
 - **Never present this as official.** The "unofficial" notice in the header
   and in `README.md` stays.
 - **Do not hide upstream errors from the logs, or show them to the citizen.**
@@ -133,9 +135,12 @@ at build time; name the environment you deployed to alongside them.
 
   It lives in the backend, not the browser: Nominatim wants a User-Agent
   naming the caller, a page cannot set one, and a key must never be shipped
-  to a browser. A citizen's location never leaves their device for a third
-  party as a result. A lookup that fails is not an error — the report goes
-  with its coordinates, as it did before this existed.
+  to a browser. Be exact about what that buys: the coordinates still reach
+  Microsoft, and Nominatim on a miss, but they arrive from this backend, so
+  neither service ever sees the citizen's device or network address. The
+  notice in `sitenotice.tsx` names both services; keep it naming them. A
+  lookup that fails is not an error — the report goes with its coordinates,
+  as it did before this existed.
 - `backend/internal/photo` — **the only place photo metadata is decided.** It
   also answers whether a photograph says where it was taken, which is what
   `report.Validate` refuses a report on. It keeps a named few fields and
@@ -282,7 +287,7 @@ at build time; name the environment you deployed to alongside them.
 - Go: standard library only. Adding a dependency to the backend needs a
   reason in the commit message.
 - Frontend: Preact, no UI framework, no component library. The bundle
-  everybody downloads is about 18 kB gzipped, and `make size` fails above
+  everybody downloads is about 20.7 kB gzipped, and `make size` fails above
   22 kB — CI runs it, so growing the first page load means raising the budget
   in `frontend/scripts/check-size.mjs` and saying in the commit message what
   the bytes buy a reporter. Leaflet sits outside that number because it is in
