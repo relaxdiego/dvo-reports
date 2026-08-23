@@ -1540,10 +1540,19 @@ type Pic = { src: string; alt: string }
  * next one is three taps on a phone, and comparing two photographs of the
  * same pothole is exactly what somebody about to press Send is doing. The
  * arrow keys do the same for anyone holding a keyboard, who has no swipe.
+ *
+ * The whole group is laid out in one row and the row is moved, rather than
+ * one picture being swapped for another. That is what lets the photographs
+ * follow the finger: the reporter sees the next one coming while they are
+ * still dragging, so a swipe that is not going to be far enough shows itself
+ * as one, and a tap never looks like a swipe that failed. Letting go settles
+ * the row the rest of the way. Nothing here is fetched to do it — every
+ * picture in the group is already on the page.
  */
 function Lightbox({ group, at, onClose }: { group: Pic[]; at: number; onClose: () => void }) {
   const [i, setI] = useState(at)
-  const pic = group[i]
+  /** How far the finger has taken the row from where it is resting, in pixels. */
+  const [drag, setDrag] = useState(0)
 
   /* It stops at each end rather than wrapping round, so a reporter who has
      reached the last photograph finds that out by the picture not moving,
@@ -1576,11 +1585,23 @@ function Lightbox({ group, at, onClose }: { group: Pic[]; at: number; onClose: (
   const onTouchStart = (e: TouchEvent) => {
     const t = e.touches
     from.current = t.length === 1 ? { x: t[0].clientX, y: t[0].clientY } : null
+    if (!from.current) setDrag(0)
+  }
+
+  const onTouchMove = (e: TouchEvent) => {
+    const start = from.current
+    if (!start || e.touches.length !== 1) return
+    const dx = e.touches[0].clientX - start.x
+    // Past either end there is nothing to bring on, so the row gives way only
+    // a little and springs back. That is the end of the group, felt.
+    const end = dx > 0 ? i === 0 : i === group.length - 1
+    setDrag(end ? dx / 4 : dx)
   }
 
   const onTouchEnd = (e: TouchEvent) => {
     const start = from.current
     from.current = null
+    setDrag(0)
     if (!start) return
     const t = e.changedTouches[0]
     const dx = t.clientX - start.x
@@ -1605,12 +1626,24 @@ function Lightbox({ group, at, onClose }: { group: Pic[]; at: number; onClose: (
       class="lightbox"
       role="dialog"
       aria-modal="true"
-      aria-label={pic.alt}
+      aria-label={group[i].alt}
       onClick={onTap}
       onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
     >
-      <img src={pic.src} alt={pic.alt} />
+      {/* While the finger is down the row goes exactly where it is put, with
+          no easing in the way; letting go hands it back to the transition. */}
+      <div
+        class="track"
+        style={`transform:translateX(calc(${i * -100}% + ${drag}px))${drag ? ';transition:none' : ''}`}
+      >
+        {group.map((p) => (
+          <div class="slide" key={p.src}>
+            <img src={p.src} alt={p.alt} />
+          </div>
+        ))}
+      </div>
       <button type="button" class="x" aria-label="Close" onClick={onClose}>
         <span aria-hidden="true">×</span>
       </button>

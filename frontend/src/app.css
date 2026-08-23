@@ -653,8 +653,49 @@ h2 {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 1rem;
   background: rgb(0 0 0 / 85%);
+  /* The photographs beside this one are laid out off to the side, and there
+     is nothing here to scroll to them with. */
+  overflow: hidden;
+  /* A sideways drag belongs to the row, not to the browser: without this some
+     of them read it as a page swipe and go back. A pinch is still the
+     browser's, because zooming into a photograph is half the point of opening
+     it large. */
+  touch-action: pinch-zoom;
+}
+
+/* The whole group in one row, moved a screen at a time. Moving the row is
+   what lets a photograph follow the finger — swapping one picture for another
+   can only happen after the swipe is over, which is too late to be feedback.
+
+   The settle is just over a fifth of a second: long enough to be seen as the
+   row moving rather than the picture jumping, short enough that a reporter
+   going through five photographs is never waiting for it. */
+.lightbox .track {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  transition: transform 220ms ease-out;
+}
+
+/* A whole screen sliding is a lot of movement for anyone who asked for less
+   of it. The row still moves; it arrives at once. */
+@media (prefers-reduced-motion: reduce) {
+  .lightbox .track {
+    transition: none;
+  }
+}
+
+/* One screen each, with the photograph centred in it.
+   The margin round a photograph belongs here rather than on the lightbox: a
+   screen's width has to be exactly a screen, or the photograph waiting at the
+   side shows a sliver of itself in the margin of the one being looked at. */
+.lightbox .slide {
+  flex: 0 0 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
 }
 
 /* Whole, never cropped. Seeing all of what is about to be sent is the point

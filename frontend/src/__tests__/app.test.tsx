@@ -76,17 +76,26 @@ async function attachPhotos(...files: File[]) {
  * two coordinates, so the points go on a plain event.
  */
 function swipe(el: Element, dx: number, dy = 0, fingers = 1) {
-  const at = (x: number, y: number) => ({ clientX: x, clientY: y })
-  const down = Object.assign(new Event('touchstart', { bubbles: true }), {
-    touches: fingers === 1 ? [at(200, 400)] : [at(180, 400), at(220, 400)],
-  })
+  hold(el, dx, dy, fingers)
   const up = Object.assign(new Event('touchend', { bubbles: true }), {
     touches: [],
-    changedTouches: [at(200 + dx, 400 + dy)],
+    changedTouches: [{ clientX: 200 + dx, clientY: 400 + dy }],
+  })
+  act(() => { el.dispatchEvent(up) })
+}
+
+/** The same, but the finger stays down, the way it is partway through one. */
+function hold(el: Element, dx: number, dy = 0, fingers = 1) {
+  const at = (x: number, y: number) => ({ clientX: x, clientY: y })
+  const points = (x: number, y: number) =>
+    fingers === 1 ? [at(x, y)] : [at(x - 20, y), at(x + 20, y)]
+  const down = Object.assign(new Event('touchstart', { bubbles: true }), { touches: points(200, 400) })
+  const move = Object.assign(new Event('touchmove', { bubbles: true }), {
+    touches: points(200 + dx, 400 + dy),
   })
   act(() => {
     el.dispatchEvent(down)
-    el.dispatchEvent(up)
+    el.dispatchEvent(move)
   })
 }
 
@@ -95,9 +104,19 @@ function counted() {
   return root.querySelector('.lightbox .count')?.textContent ?? null
 }
 
-/** The picture on the screen right now. */
+/** Where the row of photographs is resting, and what is left in the style. */
+function track() {
+  return root.querySelector<HTMLElement>('.lightbox .track')!.getAttribute('style') ?? ''
+}
+
+/**
+ * The picture on the screen: the one the row has been moved to. Every
+ * photograph of the group is in the page now, laid out in a row, so the first
+ * img is no longer the one being looked at.
+ */
 function shown() {
-  return root.querySelector<HTMLImageElement>('.lightbox img')!.getAttribute('src')
+  const percent = Number(track().match(/calc\((-?\d+)%/)![1])
+  return root.querySelectorAll('.lightbox img')[percent / -100].getAttribute('src')
 }
 
 function click(text: string) {
@@ -529,8 +548,9 @@ describe('opening one report', () => {
     })
     await settle()
 
-    const big = root.querySelector<HTMLImageElement>('.lightbox img')!
-    expect(big.getAttribute('src')).toBe('https://city.example/b.jpg')
+    // Every photograph of the group is in the page, laid out in a row; the
+    // one being looked at is the one the row has been moved to.
+    expect(shown()).toBe('https://city.example/b.jpg')
     // The list is still underneath, not replaced.
     expect(root.querySelector('.reporthead')).not.toBeNull()
 
@@ -591,6 +611,44 @@ describe('opening one report', () => {
     await settle()
 
     expect(shown()).toBe('https://city.example/a.jpg')
+  })
+
+  // The point of the animation. A swipe that gives back nothing until the
+  // finger is lifted looks like a page that did not notice the finger.
+  it('takes the row of photos with the finger before it is let go', async () => {
+    await openPhotos(['https://city.example/a.jpg', 'https://city.example/b.jpg'])
+    const box = root.querySelector('.lightbox')!
+
+    // At rest on the first of them, and eased.
+    expect(track()).toContain('calc(0% + 0px)')
+    expect(track()).not.toContain('transition: none')
+
+    hold(box, -80)
+    // Exactly where the finger put it: easing partway through a drag would
+    // put the picture behind the thumb dragging it.
+    expect(track()).toContain('calc(0% + -80px)')
+    expect(track()).toContain('transition: none')
+
+    // Letting go settles it the rest of the way, with the easing back on.
+    swipe(box, -80)
+    await settle()
+    expect(track()).toContain('calc(-100% + 0px)')
+    expect(track()).not.toContain('transition: none')
+  })
+
+  // Dragging into nothing has to feel like nothing is there, or the reporter
+  // keeps trying. It gives way a little and springs back.
+  it('barely moves the row when it is dragged past the end', async () => {
+    await openPhotos(['https://city.example/a.jpg', 'https://city.example/b.jpg'])
+    const box = root.querySelector('.lightbox')!
+
+    hold(box, 120)
+    expect(track()).toContain('calc(0% + 30px)')
+
+    swipe(box, 120)
+    await settle()
+    expect(shown()).toBe('https://city.example/a.jpg')
+    expect(track()).toContain('calc(0% + 0px)')
   })
 
   // Nobody swipes a keyboard.

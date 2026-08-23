@@ -346,17 +346,28 @@ sheet opened above it, and every test passed.
 make test-browser     # needs chromium on PATH
 ```
 
-It drives three things a real browser has to be asked about. It taps the
+It drives four things a real browser has to be asked about. It taps the
 place on a photo's row, which opens a map over the form, and fails if anything
 from the form paints over that sheet. It taps a photo's thumbnail — the one on
 its row, and one in the message listing photos that were turned away — and
 fails if the form paints over the picture that opens, or if the picture is
-drawn barely larger than the square it came from. Then it opens the disclaimer
-and fails if the page behind shows through, if anything inside it scrolls on
-its own, or if `Close` sits on the first screen instead of after the last of
-the terms. It is not in CI, which has no browser. Run it after touching a
-sheet, a map, or anything layered over anything else, and read the screenshots
-it names on its last line.
+drawn barely larger than the square it came from. With two photos attached it
+drags a real finger across the open one, and fails if the photograph waiting
+at the side shows before it is asked for, if the row does not move under a
+finger that is still down, or if the swipe closes the picture rather than
+moving along the group. Then it opens the disclaimer and fails if the page
+behind shows through, if anything inside it scrolls on its own, or if `Close`
+sits on the first screen instead of after the last of the terms. It is not in
+CI, which has no browser. Run it after touching a sheet, a map, or anything
+layered over anything else, and read the screenshots it names on its last
+line.
+
+**Measure before you screenshot, never after.** Taking a screenshot while a
+touch is still down moves the finger: the capture re-states the device
+metrics, the browser re-reports the touch it is holding at coordinates of its
+own, and the row jumps further than any finger went. A check that measured
+after the shot read as passing and would have gone on doing so whatever the
+code did.
 
 The fixture photo has metadata and no pixels — that is the point of it, since
 the metadata reader is tested against those exact bytes. A browser draws it as

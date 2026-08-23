@@ -16,7 +16,10 @@
  * Then a real finger. Moving between photographs is a touch gesture, and the
  * unit tests drive it with events they build themselves — which proves the
  * arithmetic and nothing about whether a browser's own touches ever reach the
- * handler. Only a browser with a touchscreen answers that.
+ * handler. Only a browser with a touchscreen answers that, and only a browser
+ * lays the row out: whether the photograph waiting at the side is really off
+ * the screen, and whether the row moves under a finger that is still down,
+ * are both questions about pixels.
  *
  *   node scripts/check-lightbox.mjs <url> <photo> <photo-with-no-place> <shot-dir>
  */
@@ -208,17 +211,70 @@ try {
   })
   await third.evaluate(() => document.querySelector('.photorow .thumbtap').click())
   await third.waitForSelector('.lightbox .count', { timeout: 5000 })
+  await withPixels(third)
+  await new Promise((r) => setTimeout(r, 200))
 
   const said = () => third.$eval('.lightbox .count', (el) => el.textContent.trim())
   const first = await said()
+
+  /*
+    Both measurements are of the row and its screens, never of a photograph's
+    own box. An <img> is as wide as the picture inside it, so it changes size
+    the moment one finishes loading, and a baseline taken a moment earlier
+    then reads as movement that never happened.
+  */
+  const where = () =>
+    third.evaluate(() => ({
+      row: Math.round(document.querySelector('.lightbox .track').getBoundingClientRect().left),
+      next: Math.round(document.querySelectorAll('.lightbox .slide')[1].getBoundingClientRect().left),
+      screen: window.innerWidth,
+    }))
+
+  // At rest the photograph being looked at has the screen to itself. The row
+  // is one screen wide per photograph, and a screen has to be exactly a
+  // screen: put the margin round the picture on the lightbox instead of on
+  // each of those screens and the next photograph shows a sliver of itself.
+  const parked = await where()
+  if (parked.next < parked.screen) {
+    console.log(`FAIL  the next photo starts ${parked.next}px in, on a ${parked.screen}px screen`)
+    fail.push('the next photo shows at the edge before it is asked for')
+  } else {
+    console.log('pass  the photo beside the open one is off the screen until it is asked for')
+  }
 
   // Across the middle of the screen, in steps, the way a thumb travels. One
   // jump from end to end is a gesture no hand makes and some browsers drop.
   await third.touchscreen.touchStart(300, 420)
   for (const x of [260, 220, 180, 140]) await third.touchscreen.touchMove(x, 420)
+
+  /*
+    Still down. This is the whole point of the animation: the reporter sees
+    the next photograph coming while they are dragging, so a swipe that will
+    not be far enough shows itself as one before they let go.
+
+    Measured before the screenshot, never after. Taking one moves the finger:
+    the capture re-states the device metrics, the browser re-reports the touch
+    it is still holding at coordinates of its own, and the row jumps further
+    than any finger went. That read as the drag working, and would have gone
+    on reading that way whatever the code did.
+
+    Not the whole 160px either. A browser is free to run several of those
+    moves together and report one, so what is checked is that the row went a
+    long way with the finger, not that it went exactly as far.
+  */
+  const dragged = await where()
+  const moved = parked.row - dragged.row
+  if (moved < 100) {
+    console.log(`FAIL  160px of finger moved the row ${moved}px`)
+    fail.push('the row does not follow the finger')
+  } else {
+    console.log(`pass  the row follows the finger, ${moved}px of it while still down`)
+  }
+
+  await third.screenshot({ path: `${shots}/lightbox-4-dragging.png` })
   await third.touchscreen.touchEnd()
-  await new Promise((r) => setTimeout(r, 200))
-  await third.screenshot({ path: `${shots}/lightbox-4-swiped.png` })
+  await new Promise((r) => setTimeout(r, 400)) // the row settling
+  await third.screenshot({ path: `${shots}/lightbox-5-swiped.png` })
 
   const now = await said()
   if (first !== '1 of 2' || now !== '2 of 2') {
