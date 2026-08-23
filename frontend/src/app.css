@@ -406,10 +406,10 @@ button[disabled] {
   font-size: 1.2rem;
 }
 
-/* The home screen offer, under the button on the Sent screen. It is centred
-   and set in the page's own colour rather than the muted grey of .hint: it
-   is an invitation, and a grey line of small print at the foot of a screen
-   is read as a footnote and skipped. */
+/* The home screen offer, under the send button at the foot of the form. It
+   is centred and set in the page's own colour rather than the muted grey of
+   .hint: it is an invitation, and a grey line of small print at the foot of
+   a screen is read as a footnote and skipped. */
 .offer {
   margin: 1.5rem 0 0;
   text-align: center;
