@@ -22,7 +22,7 @@ export type Category = (typeof CATEGORIES)[number]
 export const CATEGORY_LABELS: Record<string, string> = {
   garbage: 'Garbage',
   drainage: 'Drainage / flooding',
-  obstruction: 'Road hazard (lubak, debris)',
+  obstruction: 'Road hazard',
   streetlight: 'Street light',
   'illegal-parking': 'Illegal parking',
   other: 'Something else',

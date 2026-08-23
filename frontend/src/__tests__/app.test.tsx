@@ -472,7 +472,7 @@ describe('choosing what the problem is', () => {
 
     expect(root.querySelector('.chips')!.className).toBe('chips')
     expect(root.querySelectorAll('[aria-pressed="true"]')).toHaveLength(0)
-    expect(chips()).toContain('Road hazard (lubak, debris)')
+    expect(chips()).toContain('Road hazard')
   })
 })
 
