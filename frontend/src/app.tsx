@@ -1251,13 +1251,25 @@ function PhotoField({
         here before spent its first two sentences explaining the site to
         somebody standing in the street holding a phone.
 
-        The cause is put as a question about the taps the reporter has just
-        made, because that is the only way they recognise themselves in it.
-        A photo taken through the page is by far the commonest way to reach
-        this message, and the reporter does not think of it as anything but
-        taking a photo: the camera opened, they pressed the button. Told
-        instead that "a picture taken inside this page" has no place, they
-        read a sentence about somebody else.
+        The cause is written twice, because one pick and several picks cannot
+        have happened the same way. `refused` is replaced on every pick, so
+        what is shown here is always one trip to the picker. Neither phone
+        can bring back more than one photo from its camera: iOS takes one
+        shot and hands it over, and Android's camera answers the intent
+        Chrome sends it with a single file. So several at once means they
+        came from the phone, and the reporter who is asked "did you take
+        them just now?" is being asked about taps they did not make.
+
+        One photo asks that question, because it is by far the commonest way
+        to reach this message, and the reporter does not think of it as
+        anything but taking a photo: the camera opened, they pressed the
+        button. Told instead that "a picture taken inside this page" has no
+        place, they read a sentence about somebody else.
+
+        Several photos are told what is true of a photo already on the
+        phone instead: location was off, or it is a screenshot, or somebody
+        sent it. The steps below are the same either way, because taking
+        them again in the camera app is the answer to all of it.
 
         The steps are numbered because they are followed with the phone in
         one hand, and a hurried reader follows a list faster than a sentence
@@ -1267,9 +1279,13 @@ function PhotoField({
         changes anything, and sending them to Settings costs them the trip
         and leaves them back here.
 
-        The last line is for the other ways in: a screenshot, or a picture
-        sent by somebody else. Without it the message tells those reporters
-        something untrue about their own file.
+        The last line is for the reporter the steps cannot help. A page
+        opened inside another app — Facebook, Messenger — is in that app's
+        own browser, and it can hand a photo over with the place taken out.
+        Their location was on, their photo has it, and following the steps
+        leaves them here again. Naming the two apps is worth the words: it
+        is how somebody recognises where they are, since an in-app browser
+        does not say so itself.
 
         The filename is gone. A phone names them all image.jpg, so it picked
         nothing out, and the pictures below say which ones far better.
@@ -1302,11 +1318,17 @@ function PhotoField({
               </li>
             ))}
           </ul>
-          <p>
-            Did you take {refused.length === 1 ? 'it' : 'them'} just now, after tapping Add photos?
-            A photo taken that way never has a location, and no setting on your phone changes
-            that.
-          </p>
+          {refused.length === 1 ? (
+            <p>
+              Did you take it just now, after tapping Add photos? A photo taken that way never
+              has a location, and no setting on your phone changes that.
+            </p>
+          ) : (
+            <p>
+              A photo already on your phone has no location if it was taken with location
+              switched off, if it is a screenshot, or if somebody sent it to you.
+            </p>
+          )}
           <p>What works:</p>
           <ol class="steps">
             <li>Open your camera app.</li>
@@ -1317,7 +1339,13 @@ function PhotoField({
             <li>Come back here and tap Add photos.</li>
             <li>Pick the {refused.length === 1 ? 'photo' : 'photos'} you just took.</li>
           </ol>
-          <p>Screenshots, and photos other people sent you, also have no location.</p>
+          {refused.length === 1 && (
+            <p>Screenshots, and photos other people sent you, also have no location.</p>
+          )}
+          <p>
+            Opening this page inside another app, like Facebook or Messenger, can also remove
+            the location. Open the page in Safari or Chrome instead.
+          </p>
         </ErrorMessage>
       )}
       {overflow > 0 && (

@@ -633,6 +633,9 @@ describe('the photo field', () => {
     // One photo, so the message is about one photo throughout.
     expect(refused?.textContent).toContain('This photo has no location')
     expect(refused?.textContent).toContain('Pick the photo you just took')
+    // One photo can have come from the camera the page opened, so this is the
+    // reporter who is asked about the taps they have just made.
+    expect(refused?.textContent).toContain('Did you take it just now')
   })
 
   // Picking several at once is ordinary — the phone offers the whole library.
@@ -645,9 +648,33 @@ describe('the photo field', () => {
     const refused = root.querySelector('[role="alert"]')
     expect(refused?.querySelectorAll('.thumbs img')).toHaveLength(3)
     expect(refused?.textContent).toContain('These photos have no location, so they were not added')
-    expect(refused?.textContent).toContain('Did you take them just now')
     expect(refused?.textContent).toContain('Take the photos there')
     expect(refused?.textContent).toContain('Pick the photos you just took')
+  })
+
+  // Neither phone hands back more than one photo from its camera, so several
+  // at once came from the library. Asking this reporter whether they took them
+  // just now describes taps they did not make.
+  it('does not blame the page camera when several photos are turned away', async () => {
+    await attach(jpegPhoto({ gps: false }), jpegPhoto({ gps: false }))
+
+    const refused = root.querySelector('[role="alert"]')
+    expect(refused?.textContent).not.toContain('Did you take them just now')
+    expect(refused?.textContent).toContain('A photo already on your phone has no location')
+  })
+
+  // The steps cannot help a reporter whose browser is inside another app: the
+  // place was there and that app took it out. Both messages say so.
+  it('names the in-app browser in both messages', async () => {
+    await attach(jpegPhoto({ gps: false }))
+    expect(root.querySelector('[role="alert"]')?.textContent).toContain(
+      'Opening this page inside another app',
+    )
+
+    await attach(jpegPhoto({ gps: false }), jpegPhoto({ gps: false }))
+    expect(root.querySelector('[role="alert"]')?.textContent).toContain(
+      'Opening this page inside another app',
+    )
   })
 
   it('keeps the photos that do carry a place and refuses the rest', async () => {
