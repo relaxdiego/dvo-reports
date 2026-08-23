@@ -6,7 +6,7 @@ const photo = (name = 'a.jpg') => new File(['x'], name, { type: 'image/jpeg' })
 
 function draft(over: Partial<Draft> = {}): Draft {
   return {
-    category: 'pothole',
+    category: 'obstruction',
     description: 'Deep pothole in the outer lane near the corner.',
     address: 'Quimpo Boulevard, Talomo, Davao City',
     lat: 7.0731,

@@ -8,7 +8,7 @@ vi.mock('../image', () => ({ shrink: async (f: File) => f }))
 
 function draft(over: Partial<Draft> = {}): Draft {
   return {
-    category: 'pothole',
+    category: 'obstruction',
     description: 'Deep pothole in the outer lane near the corner.',
     address: 'Quimpo Boulevard, Talomo, Davao City',
     lat: 7.0731,
@@ -32,7 +32,7 @@ describe('submitReport', () => {
 
     expect(receipt.reference).toBe('REF-1')
     const body = fetchMock.mock.calls[0][1]!.body as FormData
-    expect(body.get('category')).toBe('pothole')
+    expect(body.get('category')).toBe('obstruction')
     expect(body.get('lat')).toBe('7.0731')
     expect(body.getAll('photos')).toHaveLength(1)
     // The city's session token rides in a header, not in the form.

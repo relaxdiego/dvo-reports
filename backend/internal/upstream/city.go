@@ -425,9 +425,8 @@ func titleFor(r report.Report) string {
 var categoryLabels = map[string]string{
 	"garbage":         "Garbage",
 	"drainage":        "Drainage",
-	"pothole":         "Pothole",
+	"obstruction":     "Road hazard",
 	"streetlight":     "Street light",
-	"obstruction":     "Blocked road",
 	"illegal-parking": "Illegal parking",
 }
 
