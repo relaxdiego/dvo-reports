@@ -373,8 +373,17 @@ button[disabled] {
 }
 
 .error p,
-.error .steps {
+.error .steps,
+.error .thumbs {
   margin: 0.5rem 0 0;
+}
+
+/* The refused photos, at the size of the ones that got in, so the two read
+   as the same kind of thing. The message above them is already long, and
+   the larger square everywhere else costs it another line. */
+.error .thumbs img {
+  width: 3.5rem;
+  height: 3.5rem;
 }
 
 /* A link inside an error keeps the red of the box around it: the accent blue

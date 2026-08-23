@@ -1134,7 +1134,11 @@ function PhotoField({
   onChange: (p: File[]) => void
 }) {
   const input = useRef<HTMLInputElement>(null)
-  const [refused, setRefused] = useState<string[]>([])
+  /*
+    The photos turned away, kept as the files themselves rather than their
+    names: the message shows each one, and a phone names them all image.jpg.
+  */
+  const [refused, setRefused] = useState<File[]>([])
   /*
     How many photos the last pick had to leave behind. A file input cannot be
     told how many files the picker may choose, so a phone will happily offer
@@ -1157,7 +1161,7 @@ function PhotoField({
     if (input.current) input.current.value = ''
     const snaps = await Promise.all(picked.map(readSnapshot))
     const kept = picked.filter((_, i) => carriesPlace(snaps[i]))
-    setRefused(picked.filter((_, i) => !carriesPlace(snaps[i])).map((f) => f.name))
+    setRefused(picked.filter((_, i) => !carriesPlace(snaps[i])))
     setOverflow(Math.max(0, photos.length + kept.length - MAX_PHOTOS))
     if (kept.length > 0) onChange([...photos, ...kept].slice(0, MAX_PHOTOS))
   }
@@ -1212,6 +1216,22 @@ function PhotoField({
               ? 'This photo has no location, so it was not added.'
               : `${refused.length} photos have no location, so they were not added.`}
           </strong>
+          {/*
+            Under the verdict, because "which one?" is the question the
+            verdict raises and a picture answers it without being read. It
+            earns its place when several were picked and only some got in:
+            the ones that did are in the list below, and these are the rest.
+            The name is the alt text rather than a line of its own — a
+            screen reader has nothing else to tell one file from another,
+            and on the screen the picture says it better.
+          */}
+          <ul class="thumbs">
+            {refused.map((f, i) => (
+              <li key={`${f.name}-${i}`}>
+                <Thumb file={f} alt={f.name} />
+              </li>
+            ))}
+          </ul>
           <p>
             Did you take it just now, after tapping Add photos? A photo taken that way never has a
             location, and no setting on your phone changes that.
@@ -1376,10 +1396,10 @@ function takenText(at: Date): string {
   })
 }
 
-function Thumb({ file }: { file: File }) {
+function Thumb({ file, alt = '' }: { file: File; alt?: string }) {
   const url = useMemo(() => URL.createObjectURL(file), [file])
   useEffect(() => () => URL.revokeObjectURL(url), [url])
-  return <img src={url} alt="" />
+  return <img src={url} alt={alt} />
 }
 
 function Sent({ receipt, onAgain }: { receipt: Receipt; onAgain: () => void }) {

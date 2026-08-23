@@ -572,6 +572,12 @@ describe('the photo field', () => {
     // And the hint saying the same thing steps aside while it is up, rather
     // than repeating it in different words directly underneath.
     expect(root.textContent).not.toContain('Take the photo with your camera app first')
+    // The photo itself is in the message, so "which one?" is answered without
+    // reading. Its name is the alt text: a phone calls them all image.jpg, so
+    // it is no use on the screen, and a screen reader has nothing else.
+    const shown = refused?.querySelectorAll('.thumbs img')
+    expect(shown).toHaveLength(1)
+    expect(shown?.[0].getAttribute('alt')).toBe('photo.jpg')
   })
 
   it('keeps the photos that do carry a place and refuses the rest', async () => {
