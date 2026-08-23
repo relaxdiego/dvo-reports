@@ -78,7 +78,7 @@ type Tab = 'report' | 'past'
  * Runs something that needs the city's session, asking the reporter for a
  * code when there is none. Returns null if they closed the sign-in instead.
  */
-type WithSession = <T>(why: string, fn: (token: string) => Promise<T>) => Promise<T | null>
+type WithSession = <T>(fn: (token: string) => Promise<T>) => Promise<T | null>
 
 /**
  * What the past reports tab is holding. It lives up here so that moving
@@ -96,7 +96,6 @@ type Past =
 
 /** A pending request for a session. resolve carries the token, or null. */
 interface Ask {
-  why: string
   resolve: (token: string | null) => void
 }
 
@@ -116,15 +115,15 @@ export function App() {
 
   // The stored session is the source of truth, not a state variable: it
   // outlives the page, and reading it here keeps the two from drifting.
-  const requestSession = useCallback((why: string): Promise<string | null> => {
+  const requestSession = useCallback((): Promise<string | null> => {
     const live = liveSession()
     if (live) return Promise.resolve(live.token)
-    return new Promise((resolve) => setAsk({ why, resolve }))
+    return new Promise((resolve) => setAsk({ resolve }))
   }, [])
 
   const withSession = useCallback<WithSession>(
-    async (why, fn) => {
-      let token = await requestSession(why)
+    async (fn) => {
+      let token = await requestSession()
       if (token === null) return null
       try {
         return await fn(token)
@@ -133,7 +132,7 @@ export function App() {
         // for a new code and do the same thing once more.
         if (!(err instanceof ApiError) || !err.expired) throw err
         forget()
-        token = await requestSession('Your session with the city’s site has expired. Ask for a new code.')
+        token = await requestSession()
         if (token === null) return null
         return await fn(token)
       }
@@ -152,10 +151,7 @@ export function App() {
       5000,
     )
     try {
-      const list = await withSession(
-        'Your reports are held by the city, so seeing them needs a code first.',
-        (token) => myReports(token),
-      )
+      const list = await withSession((token) => myReports(token))
       setPast(list === null ? { at: 'declined' } : { at: 'ready', reports: newestFirst(list) })
     } catch (err) {
       setPast({ at: 'error', error: messageOf(err) })
@@ -176,7 +172,6 @@ export function App() {
       )}
       {ask && (
         <SignIn
-          why={ask.why}
           onDone={(token) => {
             ask.resolve(token)
             setAsk(null)
@@ -284,10 +279,7 @@ function ReportTab({
     setError(null)
     setSending(true)
     try {
-      const sent = await withSession(
-        'Sending your report to the city needs a code from their site first.',
-        (token) => submitReport(draft, token),
-      )
+      const sent = await withSession((token) => submitReport(draft, token))
       if (sent) setReceipt(sent)
     } catch (err) {
       setError(messageOf(err))
@@ -519,7 +511,7 @@ function FiledReport({ report, withSession }: { report: Filed; withSession: With
     let dropped = false
     void (async () => {
       try {
-        const h = await withSession('Reading this report needs a code from the city’s site.', (token) =>
+        const h = await withSession((token) =>
           reportHistory(report.reference, token),
         )
         if (!dropped && h) setHistory(h)
@@ -602,7 +594,7 @@ function Progress({ history }: { history: History }) {
  * The e-mail and code steps. The city sends a one-time code to a registered
  * address; this app relays both and keeps the token in this browser only.
  */
-function SignIn({ why, onDone }: { why: string; onDone: (token: string | null) => void }) {
+function SignIn({ onDone }: { onDone: (token: string | null) => void }) {
   const [email, setEmail] = useState(rememberedEmail())
   const [code, setCode] = useState('')
   const [stage, setStage] = useState<'email' | 'code'>('email')
@@ -654,7 +646,6 @@ function SignIn({ why, onDone }: { why: string; onDone: (token: string | null) =
     <div class="sheet" role="dialog" aria-modal="true" aria-label="Sign in with the city">
       <form class="sheetbody" onSubmit={stage === 'email' ? ask : confirm} noValidate>
         <h2>Sign-in required</h2>
-        <p class="hint">{why}</p>
         {/*
           The way out of this sheet for somebody with no account, said before
           the field rather than under the buttons: an address the city has
@@ -686,8 +677,8 @@ function SignIn({ why, onDone }: { why: string; onDone: (token: string | null) =
           />
           {stage === 'email' && (
             <p class="hint">
-              The city sends the code by text message, not by e-mail, to the phone number
-              registered with this address. Have that phone with you.
+              The city sends the code by text message to the phone number registered with the
+              address above. Have that phone with you.
             </p>
           )}
           {stage === 'code' && (

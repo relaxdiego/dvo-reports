@@ -250,8 +250,12 @@ button.secondary.wide {
   outline-offset: 2px;
 }
 
+/* A button that cannot be pressed has to look like one. Every one of these
+   is either waiting on the city or waiting on a field the reporter has not
+   filled in yet, and both read as broken if the button still looks live. */
 button[disabled] {
   cursor: progress;
+  opacity: 0.55;
 }
 
 .thumbs {
