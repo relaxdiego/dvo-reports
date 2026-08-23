@@ -9,10 +9,10 @@ describe('the half-written report', () => {
   })
 
   it('comes back as it was left', () => {
-    saveDraft({ category: 'Pothole (Lubak)', description: 'Deep hole by the gate.' })
+    saveDraft({ category: 'obstruction', description: 'Deep hole by the gate.' })
 
     expect(savedDraft()).toEqual({
-      category: 'Pothole (Lubak)',
+      category: 'obstruction',
       description: 'Deep hole by the gate.',
     })
   })
@@ -20,7 +20,7 @@ describe('the half-written report', () => {
   // Nothing typed is nothing worth keeping, and a reporter who clears the
   // form should not leave an empty draft behind on the phone.
   it('is dropped when the form is emptied again', () => {
-    saveDraft({ category: 'Street light', description: 'Out for a week.' })
+    saveDraft({ category: 'streetlight', description: 'Out for a week.' })
     saveDraft({ category: '', description: '' })
 
     expect(savedDraft()).toBeNull()
@@ -28,7 +28,7 @@ describe('the half-written report', () => {
   })
 
   it('is dropped when it is forgotten', () => {
-    saveDraft({ category: 'Street light', description: 'Out for a week.' })
+    saveDraft({ category: 'streetlight', description: 'Out for a week.' })
     forgetDraft()
 
     expect(savedDraft()).toBeNull()
@@ -43,5 +43,17 @@ describe('the half-written report', () => {
 
     sessionStorage.setItem('dvo-reports.draft', 'not json at all')
     expect(savedDraft()).toBeNull()
+  })
+
+  // A chip that has since been taken off the form. Pressing nothing while
+  // every other chip is hidden leaves a reporter no way to choose, so the
+  // category goes and the words stay.
+  it('drops a category this build no longer offers, and keeps the words', () => {
+    sessionStorage.setItem(
+      'dvo-reports.draft',
+      '{"category":"pothole","description":"Deep hole by the gate."}',
+    )
+
+    expect(savedDraft()).toEqual({ category: '', description: 'Deep hole by the gate.' })
   })
 })

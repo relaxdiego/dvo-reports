@@ -19,6 +19,8 @@
  * are looking at, and a phone is lent to people.
  */
 
+import { CATEGORIES } from './types'
+
 const KEY = 'dvo-reports.draft'
 
 /** The part of a draft worth keeping: what the reporter typed. */
@@ -36,7 +38,12 @@ export function savedDraft(): SavedDraft | null {
     // Anything else in there is not ours, or is from a version that wrote
     // something different. Either way it is not worth restoring.
     if (typeof saved?.category !== 'string' || typeof saved?.description !== 'string') return null
-    return { category: saved.category, description: saved.description }
+    // A chip this build no longer has, saved before it went: restoring it
+    // would press nothing and hide every other chip, leaving a reporter no
+    // way to choose. The words are still worth keeping, so only the category
+    // is dropped.
+    const category = (CATEGORIES as readonly string[]).includes(saved.category) ? saved.category : ''
+    return { category, description: saved.description }
   } catch {
     return null
   }
