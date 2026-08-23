@@ -5,6 +5,7 @@ import { forget, liveSession, needsWelcome, remember, rememberedEmail, welcomed 
 import { validate, descriptionLength, MAX_DESCRIPTION, MAX_PHOTOS } from './validate'
 import { osmLink, placeOfPhotos, readSnapshot, type Place, type Snapshot } from './exif'
 import { Disclaimer } from './disclaimer'
+import { SOURCE } from './sitenotice'
 import { Welcome } from './welcome'
 import { AddToHome, offerHomeScreen } from './addtohome'
 import {
@@ -187,7 +188,15 @@ export function App() {
           }}
         />
       )}
-      <footer class="build">{__BUILD_TIME__} {__BUILD_SHA__}</footer>
+      {/*
+        The sha is the whole record of what is live: there is no version
+        tag, so this is what a reader compares against the source. Linking
+        it means they can go and read that exact commit rather than take
+        the site's word for it.
+      */}
+      <footer class="build">
+        {__BUILD_TIME__} <a href={`${SOURCE}/commit/${__BUILD_SHA__}`}>{__BUILD_SHA__}</a>
+      </footer>
     </main>
   )
 }

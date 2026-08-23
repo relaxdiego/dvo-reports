@@ -19,7 +19,7 @@
  */
 
 const CITY_SITE = 'https://reports.davaocity.gov.ph'
-const SOURCE = 'https://github.com/relaxdiego/dvo-reports'
+export const SOURCE = 'https://github.com/relaxdiego/dvo-reports'
 
 export function SiteNotice() {
   return (

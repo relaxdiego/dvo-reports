@@ -814,3 +814,9 @@ button.primary.waiting .spinner {
   color: var(--muted);
   opacity: 0.55;
 }
+
+/* The accent colour would make a build stamp louder than the form above
+   it. The underline is enough to say it is a link. */
+.build a {
+  color: inherit;
+}
