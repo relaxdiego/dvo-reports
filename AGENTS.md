@@ -287,7 +287,7 @@ at build time; name the environment you deployed to alongside them.
 - Go: standard library only. Adding a dependency to the backend needs a
   reason in the commit message.
 - Frontend: Preact, no UI framework, no component library. The bundle
-  everybody downloads is about 20.7 kB gzipped, and `make size` fails above
+  everybody downloads is about 20.8 kB gzipped, and `make size` fails above
   22 kB — CI runs it, so growing the first page load means raising the budget
   in `frontend/scripts/check-size.mjs` and saying in the commit message what
   the bytes buy a reporter. Leaflet sits outside that number because it is in
