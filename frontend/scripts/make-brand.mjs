@@ -38,11 +38,38 @@ const TILES = [
   ['icon-512.png', 512],
 ]
 
+/**
+ * The favicon, at the two sizes a browser actually draws in a tab.
+ *
+ * It is the same artwork, but not the same picture: the whole eagle with the
+ * report card beside it turns to mush at 16 pixels, which was checked rather
+ * than assumed. What survives is the head — the dark eye stripe and the hook
+ * of the beak are two strong shapes, and two is all a 16-pixel square holds.
+ */
+const FAVICONS = [
+  ['favicon-32.png', 32],
+  ['favicon-16.png', 16],
+]
+
+/**
+ * Where the head is, as a share of the box the whole eagle sits in. Named
+ * this way rather than in pixels so it survives the artwork being re-cut at
+ * another size — but it still describes *this* picture. Replace the artwork
+ * and these four numbers have to be looked at again.
+ */
+const HEAD = { left: 0.43, top: 0.16, right: 0.98, bottom: 0.53 }
+
 // The staging tile: the same eagle drawn as a blueprint, so a maintainer
 // with both on one home screen can tell at a glance which icon files a real
 // report. Paper blue, white ink, and the grid a drawing is set out on.
 const BLUEPRINT_PAPER = '#123a75'
 const BLUEPRINT_INK = [255, 255, 255]
+
+// A tile is drawn on squared paper and can carry fine lines. A 16-pixel
+// favicon can carry neither: the grid turns to noise and the lines thin to
+// nothing, so the drawing is filled in instead and reads as a shape.
+const TILE_LOOK = { grid: true, fill: 0.14 }
+const FAVICON_LOOK = { grid: false, fill: 0.5 }
 
 // What every scraper wants, and the shape they crop to: 1.91:1.
 const CARD = { width: 1200, height: 630 }
@@ -69,7 +96,7 @@ try {
   // from it as it arrives would be mostly margin. So the page finds where the
   // eagle actually is and cuts to it, rather than this file carrying four
   // numbers that are only true of today's picture.
-  const square = await page.evaluate(async (src) => {
+  const { square, head } = await page.evaluate(async (src, headBox) => {
     const img = new Image()
     img.src = src
     await img.decode()
@@ -98,32 +125,56 @@ try {
       }
     }
 
-    // Square, because every size below is, and the tall side decides. The
-    // small margin keeps the beak and the wing tips off the edge without
-    // shrinking the eagle into the middle of nothing.
     const width = right - left + 1
     const height = bottom - top + 1
-    const side = Math.round(Math.max(width, height) * 1.04)
 
-    const cut = document.createElement('canvas')
-    cut.width = side
-    cut.height = side
-    const cutCtx = cut.getContext('2d')
-    cutCtx.fillStyle = '#ffffff'
-    cutCtx.fillRect(0, 0, side, side)
-    cutCtx.drawImage(img, left, top, width, height, (side - width) / 2, (side - height) / 2, width, height)
-    return cut.toDataURL('image/png')
-  }, artwork)
+    // Cuts a piece of the artwork out, centred on a white square of its own.
+    const cutOut = (x, y, w, h, margin) => {
+      const box = Math.round(Math.max(w, h) * margin)
+      const cut = document.createElement('canvas')
+      cut.width = box
+      cut.height = box
+      const cutCtx = cut.getContext('2d')
+      cutCtx.fillStyle = '#ffffff'
+      cutCtx.fillRect(0, 0, box, box)
+      cutCtx.drawImage(img, x, y, w, h, (box - w) / 2, (box - h) / 2, w, h)
+      return cut.toDataURL('image/png')
+    }
+
+    return {
+      // Square, because every size below is, and the tall side decides. The
+      // small margin keeps the beak and the wing tips off the edge without
+      // shrinking the eagle into the middle of nothing.
+      square: cutOut(left, top, width, height, 1.04),
+      // The head alone, named as a share of the box the whole eagle sits in.
+      head: cutOut(
+        left + headBox.left * width,
+        top + headBox.top * height,
+        (headBox.right - headBox.left) * width,
+        (headBox.bottom - headBox.top) * height,
+        1,
+      ),
+    }
+  }, artwork, HEAD)
 
   // Traced once, at the largest tile's size, and then shrunk like any other
   // picture. Tracing each size on its own would find different edges in each
   // and give three icons that are not quite the same drawing.
-  const blueprint = await page.evaluate(traceBlueprint, square, 512, BLUEPRINT_PAPER, BLUEPRINT_INK)
+  const blueprint = await page.evaluate(traceBlueprint, square, 512, BLUEPRINT_PAPER, BLUEPRINT_INK, TILE_LOOK)
+
+  // Traced at 64, not at 512 like the tile. Lines found on a large drawing
+  // and then shrunk to 16 pixels thin away to nothing; found at 64 they are
+  // already thick enough in proportion to survive the last halving.
+  const blueprintHead = await page.evaluate(traceBlueprint, head, 64, BLUEPRINT_PAPER, BLUEPRINT_INK, FAVICON_LOOK)
 
   mkdirSync(staging, { recursive: true })
   for (const [name, size] of TILES) {
     write(join(out, name), await page.evaluate(scale, square, size, '#ffffff'))
     write(join(staging, name), await page.evaluate(scale, blueprint, size, BLUEPRINT_PAPER))
+  }
+  for (const [name, size] of FAVICONS) {
+    write(join(out, name), await page.evaluate(scale, head, size, '#ffffff'))
+    write(join(staging, name), await page.evaluate(scale, blueprintHead, size, BLUEPRINT_PAPER))
   }
 
   // The card says the two things the header says, because a link shared in a
@@ -238,7 +289,7 @@ async function scale(src, side, background) {
  * size a JPEG's own speckle is an edge too, and tracing it gives a tile
  * covered in white dust.
  */
-async function traceBlueprint(src, side, paper, ink) {
+async function traceBlueprint(src, side, paper, ink, look) {
   const img = new Image()
   img.src = src
   await img.decode()
@@ -269,7 +320,7 @@ async function traceBlueprint(src, side, paper, ink) {
   // less so, the way squared paper is printed.
   ctx.lineWidth = Math.max(1, Math.round(side / 512))
   const step = side / 16
-  for (let n = 1; n < 16; n++) {
+  for (let n = 1; look.grid && n < 16; n++) {
     const at = Math.round(n * step) + 0.5
     ctx.strokeStyle = `rgba(${ink}, ${n % 4 === 0 ? 0.22 : 0.1})`
     ctx.beginPath()
@@ -303,7 +354,7 @@ async function traceBlueprint(src, side, paper, ink) {
       // A wash inside the eagle as well, so it reads as a shape and not as
       // an outline floating on the paper. Anything not the white it was
       // drawn on is inside it.
-      const fill = light[y * side + x] < 246 ? 0.14 : 0
+      const fill = light[y * side + x] < 246 ? look.fill : 0
       const i = (y * side + x) * 4
       out.data[i] = ink[0]
       out.data[i + 1] = ink[1]

@@ -211,9 +211,19 @@ at build time; name the environment you deployed to alongside them.
   what changed. None of it is in the first page load, so none of it counts
   against `make size`.
 
-  **Staging gets a different home screen tile:** the same eagle drawn as a
-  blueprint, traced from the artwork by the same script into
-  `frontend/brand/staging`. Two identical icons on one phone are two icons a
+  **The favicon is the eagle's head, not the whole picture.** The eagle with
+  the report card beside it turns to mush at 16 pixels — that was looked at,
+  not assumed. The head keeps two strong shapes, the dark eye stripe and the
+  hook of the beak, and two is all a 16-pixel square holds. `HEAD` in the
+  script says where the head is as a share of the artwork's own box; replace
+  the artwork and those four numbers have to be looked at again. Check any
+  new favicon at 16 pixels before believing it, because nothing else will.
+
+  **Staging gets a different home screen tile and favicon:** the same eagle
+  drawn as a blueprint, traced from the artwork by the same script into
+  `frontend/brand/staging`. The favicon is traced at 64 rather than 512 and
+  filled rather than left as lines: fine lines found on a large drawing thin
+  away to nothing by 16 pixels, and the grid becomes noise. Two identical icons on one phone are two icons a
   maintainer cannot tell apart, and only one of them files a real report.
   Those files are deliberately not in `frontend/public`, which every build
   copies: `blueprintTiles` in `frontend/vite.config.ts` lays them over the
