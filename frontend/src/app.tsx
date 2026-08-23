@@ -366,7 +366,13 @@ function ReportTab({
           <textarea
             id="description"
             rows={4}
-            placeholder="Tap to add a description."
+            /*
+              The languages are named in the placeholder because a reporter
+              who assumes an English-only form either writes nothing or
+              spends the effort translating. The city's clerks read all
+              three, and the description travels to them word for word.
+            */
+            placeholder="Tap to add a description. Bisaya, Tagalog, and English are accepted."
             value={draft.description}
             aria-describedby="description-count"
             onInput={(e) => set('description', (e.target as HTMLTextAreaElement).value)}
