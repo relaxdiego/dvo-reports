@@ -208,7 +208,7 @@ describe('signing in', () => {
     const email = root.querySelector<HTMLInputElement>('#email')!
     email.value = 'nobody@example.org'
     act(() => { email.dispatchEvent(new Event('input', { bubbles: true })) })
-    click('Send me a code')
+    click('Request a code')
     await settle()
 
     const error = root.querySelector('.error')!
@@ -217,6 +217,36 @@ describe('signing in', () => {
     const link = error.querySelector('a')!
     expect(link.textContent).toBe('reports.davaocity.gov.ph')
     expect(link.getAttribute('href')).toBe('https://reports.davaocity.gov.ph')
+  })
+
+  /**
+   * The code arrives in a text message, so the reporter leaves the page to
+   * read it. What they come back to has to be the field that wants it.
+   */
+  it('waits for the code in a focused field, and sends nobody away from a half-written report', async () => {
+    vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => new Response('{}', { status: 200 })))
+
+    act(() => render(<App />, root))
+    click('My reports')
+    await settle()
+
+    // The way to an account is a link out, and it opens beside this sheet
+    // rather than replacing it.
+    const register = root.querySelector<HTMLAnchorElement>('[role="dialog"] p a')!
+    expect(register.getAttribute('href')).toBe('https://reports.davaocity.gov.ph')
+    expect(register.getAttribute('target')).toBe('_blank')
+
+    const email = root.querySelector<HTMLInputElement>('#email')!
+    email.value = 'somebody@example.org'
+    act(() => { email.dispatchEvent(new Event('input', { bubbles: true })) })
+    click('Request a code')
+    await settle()
+
+    const box = root.querySelector<HTMLInputElement>('#code')!
+    expect(document.activeElement).toBe(box)
+    // The address it was sent to stays on the screen, and stays put.
+    expect(email.value).toBe('somebody@example.org')
+    expect(email.disabled).toBe(true)
   })
 })
 

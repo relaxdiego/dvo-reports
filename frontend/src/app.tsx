@@ -284,7 +284,7 @@ function ReportTab({
     setSending(true)
     try {
       const sent = await withSession(
-        'The city only accepts a report from a registered reporter, so it needs a code first.',
+        'Sending your report to the city needs a code from their site first.',
         (token) => submitReport(draft, token),
       )
       if (sent) setReceipt(sent)
@@ -607,6 +607,18 @@ function SignIn({ why, onDone }: { why: string; onDone: (token: string | null) =
   const [stage, setStage] = useState<'email' | 'code'>('email')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const codeBox = useRef<HTMLInputElement>(null)
+
+  /*
+    The code arrives while this sheet is open, in a text message the reporter
+    has to leave the page to read. Coming back to a field already waiting for
+    it saves a tap at the one moment they are holding a phone in one hand.
+    iOS and Android offer the code above the keyboard, and only to a focused
+    field, so this is also what makes autoComplete="one-time-code" work.
+  */
+  useEffect(() => {
+    if (stage === 'code') codeBox.current?.focus()
+  }, [stage])
 
   const ask = async (e: Event) => {
     e.preventDefault()
@@ -640,10 +652,27 @@ function SignIn({ why, onDone }: { why: string; onDone: (token: string | null) =
   return (
     <div class="sheet" role="dialog" aria-modal="true" aria-label="Sign in with the city">
       <form class="sheetbody" onSubmit={stage === 'email' ? ask : confirm} noValidate>
-        <h2>The city needs to know who is reporting</h2>
+        <h2>Sign-in required</h2>
         <p class="hint">{why}</p>
+        {/*
+          The way out of this sheet for somebody with no account, said before
+          the field rather than under the buttons: an address the city has
+          never heard of is refused, and by then they have typed it and
+          waited. The link opens in its own tab because a half-written report
+          and its photographs are behind this sheet, and leaving the page
+          would throw them away. Their front page and not their registration
+          form — see REGISTER_URL in welcome.tsx for why.
+        */}
+        <p>
+          You must be a registered user of the city's site. If you are not registered yet, register
+          at{' '}
+          <a href={CITY_SITE} target="_blank" rel="noreferrer">
+            {CITY_HOST}
+          </a>{' '}
+          first, then come back here. This app never sees your password.
+        </p>
         <fieldset disabled={busy}>
-          <label for="email">Your e-mail address</label>
+          <label for="email">Your registered e-mail address</label>
           <input
             id="email"
             type="email"
@@ -656,8 +685,8 @@ function SignIn({ why, onDone }: { why: string; onDone: (token: string | null) =
           />
           {stage === 'email' && (
             <p class="hint">
-              The city sends the code by text message, to the phone number registered with this
-              address. Have that phone with you.
+              The city sends the code by text message, not by e-mail, to the phone number
+              registered with this address. Have that phone with you.
             </p>
           )}
           {stage === 'code' && (
@@ -665,6 +694,7 @@ function SignIn({ why, onDone }: { why: string; onDone: (token: string | null) =
               <label for="code">The six-digit code</label>
               <input
                 id="code"
+                ref={codeBox}
                 type="text"
                 inputMode="numeric"
                 autoComplete="one-time-code"
@@ -673,8 +703,8 @@ function SignIn({ why, onDone }: { why: string; onDone: (token: string | null) =
                 onInput={(e) => setCode((e.target as HTMLInputElement).value)}
               />
               <p class="hint">
-                The city has sent a text message to the phone number registered with that address.
-                The code runs out after a few minutes.
+                The city should have sent you a text message. Type the code in above. It runs out
+                after a few minutes.
               </p>
             </>
           )}
@@ -682,19 +712,28 @@ function SignIn({ why, onDone }: { why: string; onDone: (token: string | null) =
 
         {error && <ErrorMessage onDismiss={() => setError(null)}>{withCityLink(error)}</ErrorMessage>}
 
-        <button class="primary" type="submit" disabled={busy || !email.trim() || (stage === 'code' && !code.trim())}>
-          {busy ? 'Waiting…' : stage === 'email' ? 'Send me a code' : 'Sign in'}
+        {/*
+          `waiting` is the spinner the rest of the page uses for a wait that
+          sits inside something already on the screen, borrowed here so the
+          button itself says the city is being asked. It pulses instead of
+          turning for a reporter who asked for less motion.
+        */}
+        <button
+          class={busy ? 'primary waiting' : 'primary'}
+          type="submit"
+          disabled={busy || !email.trim() || (stage === 'code' && !code.trim())}
+        >
+          {busy && <span class="spinner" aria-hidden="true" />}
+          {busy
+            ? stage === 'email' ? 'Requesting\u2026' : 'Signing in\u2026'
+            : stage === 'email' ? 'Request a code' : 'Sign in'}
         </button>
         {stage === 'code' && (
-          <button class="secondary" type="button" disabled={busy} onClick={() => { setStage('email'); setCode('') }}>
+          <button class="secondary wide" type="button" disabled={busy} onClick={() => { setStage('email'); setCode('') }}>
             Use a different address
           </button>
         )}
-        <button class="secondary" type="button" onClick={() => onDone(null)}>Not now</button>
-        <p class="hint">
-          You need an account on <a href={CITY_SITE}>the city's own site</a> first. This app cannot
-          register you, and never sees your password.
-        </p>
+        <button class="secondary wide" type="button" onClick={() => onDone(null)}>Not now</button>
       </form>
     </div>
   )

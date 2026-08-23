@@ -66,6 +66,14 @@ textarea {
   resize: vertical;
 }
 
+/* An answer already given: still on the screen so it can be checked, but no
+   longer something to type in. The e-mail address stays like this while the
+   code is being typed. */
+input:disabled {
+  color: var(--muted);
+  background: color-mix(in srgb, currentColor 6%, transparent);
+}
+
 /* The placeholder asks for a description; by the time the box has focus the
    reporter is already doing it, and the words are only something to type
    over. */
@@ -607,6 +615,18 @@ h2 {
   flex: none;
   width: 0.9rem;
   height: 0.9rem;
+}
+
+/* The same waiting line inside the button that is doing the waiting: the
+   label stays centred, and the ring is drawn in the button's own colour
+   rather than the page's, which the accent behind it would swallow. */
+button.waiting {
+  justify-content: center;
+}
+
+button.primary.waiting .spinner {
+  border-color: color-mix(in srgb, var(--accent-fg) 35%, transparent);
+  border-top-color: var(--accent-fg);
 }
 
 /* A reporter who asked for less motion still needs to see that something is
