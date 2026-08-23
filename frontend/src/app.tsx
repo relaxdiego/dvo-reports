@@ -389,9 +389,17 @@ function ReportTab({
           button rather than below it: the eye travels down to the button and
           stops there, and on a phone anything under it can be off the screen.
           See the note in the header before changing this wording.
+
+          This copy carries both facts, not only the terms, and it is the
+          reason the header's notice may be put away for good. The header is
+          the notice a reporter reads on the way in; this is the one nobody
+          can dismiss, on the last screen before a report leaves the phone. It
+          is emphasised for the same reason the emergency line is: a small grey
+          sentence above a blue button is read by nobody.
         */}
         <p class="terms">
-          Sending a report means you agree to the city's terms and to this site's own — see the{' '}
+          <strong>Unofficial site, not the city government's.</strong> Sending a report means you
+          agree to the city's terms and to this site's own — see the{' '}
           <button type="button" class="linky" onClick={onDisclaimer}>
             disclaimer
           </button>
@@ -909,18 +917,24 @@ function NotTheRealSite() {
 }
 
 /*
-  Whether the reporter has shortened the unofficial notice below.
+  Whether the reporter has put the unofficial notice away.
 
   Kept in this browser, next to the city session in `session.ts`, because a
   notice that has been read stops being a notice and starts being something
   to scroll past. It is a single flag: nothing about the reporter, and
   nothing about any report. Storage is switched off in some private windows,
-  and there the notice simply opens again — which is the safe way for this
-  to fail.
-*/
-const UNOFFICIAL_KEY = 'dvo-reports.unofficial-minimized'
+  and there the notice simply comes back — which is the safe way for this to
+  fail.
 
-function unofficialMinimized(): boolean {
+  The key says `dismissed` and used to say `minimized`, because the cross used
+  to shorten the notice rather than remove it. The name is not decoration: a
+  reporter carrying the old flag has only ever agreed to a shorter notice, not
+  to no notice, so they are shown the whole of it once more and can put it
+  away for good if they want to.
+*/
+const UNOFFICIAL_KEY = 'dvo-reports.unofficial-dismissed'
+
+function unofficialDismissed(): boolean {
   try {
     return localStorage.getItem(UNOFFICIAL_KEY) === '1'
   } catch {
@@ -928,16 +942,16 @@ function unofficialMinimized(): boolean {
   }
 }
 
-function rememberUnofficialMinimized(): void {
+function rememberUnofficialDismissed(): void {
   try {
     localStorage.setItem(UNOFFICIAL_KEY, '1')
   } catch {
-    // Nothing to do: the notice is short only for this visit.
+    // Nothing to do: the notice is away only for this visit.
   }
 }
 
 function Header({ onDisclaimer }: { onDisclaimer: () => void }) {
-  const [minimized, setMinimized] = useState(unofficialMinimized)
+  const [dismissed, setDismissed] = useState(unofficialDismissed)
 
   return (
     <header>
@@ -959,27 +973,15 @@ function Header({ onDisclaimer }: { onDisclaimer: () => void }) {
         only behind a link nobody opens, and this site's own disclaimer of
         liability is worth nothing if nobody is pointed at it as they act. The rest is the disclaimer page.
 
-        The terms half is written twice, like the emergency line: once here,
-        and once beside the send button, because this header is scrolled off
-        the screen by the time anyone presses it. Change one and change the
-        other.
-      */}
-      {/*
         Read once, the paragraph is only in the way of the form under it, so
-        it can be made small. What is put away is the wording, not the fact:
-        the short line still says nobody official is behind this, and still
-        opens the terms. Neither of the two things that have to survive
-        skimming ever leaves the page.
+        the cross takes the whole of it away and this browser remembers that.
+        Neither of the two facts leaves the page with it. Both are written
+        again above `Send report`, which is where they are read at the moment
+        of agreeing and where the header cannot reach, having been scrolled
+        off the screen by then. That copy carries no cross and cannot be put
+        away. Change the wording here and change it there.
       */}
-      {minimized ? (
-        <p class="unofficial brief">
-          Unofficial site — see the{' '}
-          <button type="button" class="linky" onClick={onDisclaimer}>
-            disclaimer
-          </button>
-          .
-        </p>
-      ) : (
+      {!dismissed && (
         <p class="unofficial">
           Unofficial site, not run by or connected to the city government. Volunteers built it to
           send your report to <a href={CITY_SITE}>reports.davaocity.gov.ph</a>. Use at your own
@@ -990,16 +992,15 @@ function Header({ onDisclaimer }: { onDisclaimer: () => void }) {
           .
           {/*
             The same cross the rest of the page uses, in the corner the
-            error's cross sits in. It shortens rather than clears, so the
-            short line above is what it leaves behind.
+            error's cross sits in.
           */}
           <button
             type="button"
             class="x dismiss"
-            aria-label="Shorten this notice"
+            aria-label="Hide this notice"
             onClick={() => {
-              setMinimized(true)
-              rememberUnofficialMinimized()
+              setDismissed(true)
+              rememberUnofficialDismissed()
             }}
           >
             <span aria-hidden="true">×</span>

@@ -44,8 +44,13 @@ is the system of record. This project stores nothing.
   line to `ALERT_URL`, which is a third party: that one carries no part of the
   report at all, not even the city's reply, for exactly that reason. See
   `alert` in `internal/api`.
-- **Never present this as official.** The "unofficial" notice in the header
-  and in `README.md` stays.
+- **Never present this as official.** The notice above `Send report` and the
+  one in `README.md` stay. The header's longer notice may be put away — its
+  cross hides it for good, and this browser remembers — so the line above the
+  button is the copy that has to survive: it says whose site this is as well
+  as what sending binds the reporter to, it carries no cross, and there is no
+  setting that removes it. Never make that copy dismissable, and never let it
+  lose the word "unofficial".
 - **Do not hide upstream errors from the logs, or show them to the citizen.**
   The city's site may return HTML or database errors. Log them; show the
   reporter a sentence they can act on.
@@ -199,15 +204,24 @@ at build time; name the environment you deployed to alongside them.
   own site the second is a button the reporter presses, so it cannot live
   only behind a link.
 
-  The second fact is written twice, the way the emergency line is: once in
-  the header, and once directly above `Send report`, because the header has
-  been scrolled off the screen by the time anyone presses that button. A
-  notice that binds somebody belongs next to the thing it binds, and it goes
-  above the button rather than below it — the eye travels down to the button
-  and stops, and on a phone anything under it can be off the screen. Both
-  copies carry the same sentence and both open the disclaimer, so the terms
-  can be read at the moment of agreeing and not only before starting. Change
-  one and change the other.
+  Both facts are written twice, the way the emergency line is: once in the
+  header, and once directly above `Send report`, because the header has been
+  scrolled off the screen by the time anyone presses that button. A notice
+  that binds somebody belongs next to the thing it binds, and it goes above
+  the button rather than below it — the eye travels down to the button and
+  stops, and on a phone anything under it can be off the screen. Both copies
+  open the disclaimer, so the terms can be read at the moment of agreeing and
+  not only before starting. Change one and change the other.
+
+  **Only the header's copy can be put away.** Its cross hides the whole
+  paragraph and this browser remembers, so a returning reporter never sees it
+  again — that is why the copy above the button had to grow the unofficial
+  half, and why that copy has no cross. A reporter who dismissed the header
+  still meets both facts on the last screen before the report leaves their
+  phone. The flag is `dvo-reports.unofficial-dismissed` in `localStorage`; it
+  was renamed from `-minimized` when the cross stopped merely shortening the
+  notice, so that somebody who had only agreed to a shorter notice is shown
+  the whole of it once more.
 - `frontend/src/citynotice.tsx` — the city's disclaimer and privacy terms,
   copied word for word, bar one substitution the file explains. The city has
   no page to link to, so they are carried here, and copied rather than framed

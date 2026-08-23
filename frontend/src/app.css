@@ -21,12 +21,6 @@ h1 {
   margin: 0 0 1.5rem;
 }
 
-/* What is left once the notice has been made small. It carries no cross,
-   so it needs no room for one. */
-.unofficial.brief {
-  padding-inline-end: 0;
-}
-
 fieldset {
   border: 0;
   padding: 0;
@@ -185,6 +179,14 @@ a.gobutton,
   font-size: 0.85rem;
   color: var(--muted);
   margin: 1.5rem 0 0;
+}
+
+/* The half of it that says whose site this is. It is the only copy left once
+   the header's notice has been put away, so it carries the page's own colour
+   rather than the muted grey around it — the same reason the emergency line
+   is emphasised. */
+.terms strong {
+  color: var(--fg);
 }
 
 .terms + button.primary {

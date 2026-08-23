@@ -1106,27 +1106,34 @@ describe('the disclaimer', () => {
     expect(root.querySelectorAll('header .linky')).toHaveLength(1)
   })
 
-  function shorten() {
+  function hide() {
     const button = root.querySelector<HTMLButtonElement>('header .unofficial .dismiss')
     if (!button) throw new Error('no cross on the unofficial notice')
     return button
   }
 
   // Read once, the paragraph is only in the way of the form under it. The
-  // cross shortens it, and this browser remembers that, so a returning
-  // reporter is not asked to read the whole of it again.
-  it('shortens when the cross is pressed, and stays short next visit', () => {
+  // cross takes the whole of it away, and this browser remembers that, so a
+  // returning reporter is not asked to read it again.
+  it('goes away when the cross is pressed, and stays away next visit', () => {
     act(() => render(<App />, root))
-    act(() => shorten().click())
+    act(() => hide().click())
 
-    const brief = root.querySelector('header .unofficial.brief')!
-    expect(brief.textContent).toContain('Unofficial site')
-    expect(brief.textContent).not.toContain('Volunteers built it')
-    expect(brief.querySelector('.dismiss')).toBeNull()
+    expect(root.querySelector('header .unofficial')).toBeNull()
+    expect(root.textContent).not.toContain('Volunteers built it')
 
     render(null, root)
     act(() => render(<App />, root))
-    expect(root.querySelector('header .unofficial.brief')).not.toBeNull()
+    expect(root.querySelector('header .unofficial')).toBeNull()
+  })
+
+  // A reporter carrying the old flag agreed to a shorter notice, never to no
+  // notice. They are shown the whole of it once more.
+  it('does not treat an old shortened notice as one that was hidden', () => {
+    localStorage.setItem('dvo-reports.unofficial-minimized', '1')
+    act(() => render(<App />, root))
+
+    expect(root.querySelector('header .unofficial')).not.toBeNull()
   })
 
   // The same cross as everywhere else on the page, in the same corner as the
@@ -1134,37 +1141,32 @@ describe('the disclaimer', () => {
   it("is the page's shared cross, in the corner", () => {
     act(() => render(<App />, root))
 
-    expect(shorten().classList.contains('x')).toBe(true)
-    expect(shorten().classList.contains('dismiss')).toBe(true)
-    expect(shorten().textContent?.trim()).toBe('\u00d7')
-    expect(shorten().getAttribute('aria-label')).toBe('Shorten this notice')
+    expect(hide().classList.contains('x')).toBe(true)
+    expect(hide().classList.contains('dismiss')).toBe(true)
+    expect(hide().textContent?.trim()).toBe('\u00d7')
+    expect(hide().getAttribute('aria-label')).toBe('Hide this notice')
   })
 
-  // The fact that nobody official is behind this never leaves the page, and
-  // the terms are still one tap away from the header after it is shortened.
-  it('still says it is unofficial, and still opens the terms, once short', () => {
+  // Both facts survive the notice being put away, because both are written
+  // again above the send button — where they are read at the moment of
+  // agreeing, and where no cross can reach them.
+  it('still says whose site this is, above the send button, once hidden', () => {
     act(() => render(<App />, root))
-    act(() => shorten().click())
-
-    const link = root.querySelector<HTMLButtonElement>('header .unofficial.brief .linky')!
-    expect(link.textContent?.trim()).toBe('disclaimer')
-    act(() => link.click())
-    expect(root.textContent).toContain("The city's disclaimer")
-  })
-
-  // Shortening the notice does not touch what sending binds the reporter to:
-  // that is written again beside the button, where it is read at the moment
-  // of agreeing.
-  it('leaves the terms beside the send button when it is short', () => {
-    act(() => render(<App />, root))
-    act(() => shorten().click())
+    act(() => hide().click())
 
     const send = [...root.querySelectorAll('button[type="submit"]')].find(
       (b) => b.textContent?.trim() === 'Send report',
     )!
     const terms = send.previousElementSibling!
+    expect(terms.textContent).toContain("Unofficial site, not the city government's")
     expect(terms.textContent).toContain("Sending a report means you agree to the city's terms")
-    expect(terms.querySelector('.linky')).not.toBeNull()
+    // Nothing to press: this copy is not one a reporter can put away.
+    expect(terms.querySelector('.dismiss')).toBeNull()
+
+    const link = terms.querySelector<HTMLButtonElement>('.linky')!
+    expect(link.textContent?.trim()).toBe('disclaimer')
+    act(() => link.click())
+    expect(root.textContent).toContain("The city's disclaimer")
   })
 
   // And again just above the send button, because the header is scrolled off
