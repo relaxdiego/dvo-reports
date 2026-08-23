@@ -278,6 +278,9 @@ function ReportTab({
   const [error, setError] = useState<string | null>(null)
   const [sending, setSending] = useState(false)
   const [receipt, setReceipt] = useState<Receipt | null>(null)
+  // The only place the home screen offer is made. See addtohome.tsx for why
+  // it is at the foot of the form and not in the header.
+  const [showAddToHome, setShowAddToHome] = useState(false)
 
   useEffect(() => {
     saveDraft(draft)
@@ -325,65 +328,86 @@ function ReportTab({
   }
 
   return (
-    <form onSubmit={onSubmit} noValidate>
-      <fieldset disabled={sending}>
-        <legend>What is the problem?</legend>
-        <div class={draft.category ? 'chips picked' : 'chips'}>
-          {CATEGORIES.map((c) => {
-            const on = draft.category === c
-            return (
-              <button
-                key={c}
-                type="button"
-                class={on ? 'chip on' : 'chip'}
-                aria-pressed={on}
-                onClick={() => set('category', on ? '' : c)}
-              >
-                {CATEGORY_LABELS[c]}
-                {on && (
-                  <span class="x" aria-hidden="true">
-                    ×
-                  </span>
-                )}
-              </button>
-            )
-          })}
-        </div>
+    <>
+      <form onSubmit={onSubmit} noValidate>
+        <fieldset disabled={sending}>
+          <legend>What is the problem?</legend>
+          <div class={draft.category ? 'chips picked' : 'chips'}>
+            {CATEGORIES.map((c) => {
+              const on = draft.category === c
+              return (
+                <button
+                  key={c}
+                  type="button"
+                  class={on ? 'chip on' : 'chip'}
+                  aria-pressed={on}
+                  onClick={() => set('category', on ? '' : c)}
+                >
+                  {CATEGORY_LABELS[c]}
+                  {on && (
+                    <span class="x" aria-hidden="true">
+                      ×
+                    </span>
+                  )}
+                </button>
+              )
+            })}
+          </div>
 
-        <label for="description">Describe it</label>
-        <textarea
-          id="description"
-          rows={4}
-          placeholder="Tap to add a description."
-          value={draft.description}
-          aria-describedby="description-count"
-          onInput={(e) => set('description', (e.target as HTMLTextAreaElement).value)}
-        />
-        <DescriptionCount text={draft.description} />
+          <label for="description">Describe it</label>
+          <textarea
+            id="description"
+            rows={4}
+            placeholder="Tap to add a description."
+            value={draft.description}
+            aria-describedby="description-count"
+            onInput={(e) => set('description', (e.target as HTMLTextAreaElement).value)}
+          />
+          <DescriptionCount text={draft.description} />
 
-        <PhotoField photos={draft.photos} facts={facts} onChange={(p) => set('photos', p)} />
-        <LocationField draft={draft} set={set} fromPhotos={fromPhotos} />
-      </fieldset>
+          <PhotoField photos={draft.photos} facts={facts} onChange={(p) => set('photos', p)} />
+          <LocationField draft={draft} set={set} fromPhotos={fromPhotos} />
+        </fieldset>
 
-      {error && <ErrorMessage onDismiss={() => setError(null)}>{error}</ErrorMessage>}
+        {error && <ErrorMessage onDismiss={() => setError(null)}>{error}</ErrorMessage>}
 
-      {/*
-        The other half of the header's notice, worded the same, above the
-        button rather than below it: the eye travels down to the button and
-        stops there, and on a phone anything under it can be off the screen.
-        See the note in the header before changing this wording.
-      */}
-      <p class="terms">
-        Sending a report means you agree to the city's terms and to this site's own — see the{' '}
-        <button type="button" class="linky" onClick={onDisclaimer}>
-          disclaimer
+        {/*
+          The other half of the header's notice, worded the same, above the
+          button rather than below it: the eye travels down to the button and
+          stops there, and on a phone anything under it can be off the screen.
+          See the note in the header before changing this wording.
+        */}
+        <p class="terms">
+          Sending a report means you agree to the city's terms and to this site's own — see the{' '}
+          <button type="button" class="linky" onClick={onDisclaimer}>
+            disclaimer
+          </button>
+          .
+        </p>
+        <button class="primary" type="submit" disabled={sending}>
+          {sending ? 'Sending…' : 'Send report'}
         </button>
-        .
-      </p>
-      <button class="primary" type="submit" disabled={sending}>
-        {sending ? 'Sending…' : 'Send report'}
-      </button>
-    </form>
+      </form>
+      {/*
+        Under the send button and outside the form, at the foot of the page.
+        Nothing a reporter came here to do is pushed down by it, and it is
+        not a control of the form it sits below.
+      */}
+      {/*
+        No full stop after the link. The line is one character too long for a
+        narrow phone, and the stop is what wraps — a lone dot centred under
+        the link. The link reads as a call to action and needs none.
+      */}
+      {offerHomeScreen() && (
+        <p class="offer">
+          Like this app?{' '}
+          <button type="button" class="linky" onClick={() => setShowAddToHome(true)}>
+            Add it to your home screen
+          </button>
+        </p>
+      )}
+      {showAddToHome && <AddToHome onClose={() => setShowAddToHome(false)} />}
+    </>
   )
 }
 
@@ -1428,9 +1452,6 @@ function Thumb({ file, alt = '' }: { file: File; alt?: string }) {
 }
 
 function Sent({ receipt, onAgain }: { receipt: Receipt; onAgain: () => void }) {
-  // The only place the home screen offer is made. See addtohome.tsx for why
-  // it is here and not in the header.
-  const [showAddToHome, setShowAddToHome] = useState(false)
   return (
     <>
       <h2>Report sent</h2>
@@ -1447,21 +1468,6 @@ function Sent({ receipt, onAgain }: { receipt: Receipt; onAgain: () => void }) {
       <button class="primary" type="button" onClick={onAgain}>
         Report something else
       </button>
-      {/*
-        Under the button, not above it. Everything above this point is the
-        reference number and what to do with it, and none of that should be
-        pushed down the screen by an offer nobody came here for.
-      */}
-      {offerHomeScreen() && (
-        <p class="offer">
-          Like this app?{' '}
-          <button type="button" class="linky" onClick={() => setShowAddToHome(true)}>
-            Add it to your home screen
-          </button>
-          .
-        </p>
-      )}
-      {showAddToHome && <AddToHome onClose={() => setShowAddToHome(false)} />}
     </>
   )
 }

@@ -1207,8 +1207,8 @@ describe('the welcome sheet', () => {
 })
 
 /**
- * The offer to put this on a home screen, which is made on the Sent screen
- * and nowhere else. See addtohome.tsx for why there.
+ * The offer to put this on a home screen, which is made at the foot of the
+ * report form and nowhere else. See addtohome.tsx for why there.
  */
 describe('the offer to add this to a home screen', () => {
   /**
@@ -1228,45 +1228,57 @@ describe('the offer to add this to a home screen', () => {
     await fileAndRead()
   }
 
-  it('is made once a report is sent', async () => {
+  // The icon is worth most to whoever has not filed a report yet.
+  it('is made before anything has been sent', () => {
+    browser({ phone: true })
+    act(() => render(<App />, root))
+
+    expect(root.textContent).toContain('Send report')
+    expect(root.textContent).toContain('Add it to your home screen')
+  })
+
+  // Below the send button, so nothing the form asks for is pushed down.
+  it('sits under the send button', () => {
+    browser({ phone: true })
+    act(() => render(<App />, root))
+
+    const buttons = [...root.querySelectorAll('button')].map((b) => b.textContent?.trim())
+    expect(buttons.indexOf('Add it to your home screen')).toBeGreaterThan(
+      buttons.indexOf('Send report'),
+    )
+  })
+
+  // One offer, in one place. The reference number is what the Sent screen
+  // is for.
+  it('is not made again on the Sent screen', async () => {
     browser({ phone: true })
     await sendAReport()
 
     expect(root.textContent).toContain('Report sent')
-    expect(root.textContent).toContain('Add it to your home screen')
-  })
-
-  // It must not be in the way of writing one.
-  it('is not made while the report is still being written', async () => {
-    browser({ phone: true })
-    act(() => render(<App />, root))
-    await attachPhotos(jpegPhoto())
-    await settle()
-
     expect(root.textContent).not.toContain('Add it to your home screen')
   })
 
   // Every step names something only a phone has.
-  it('is not made on a browser with a mouse', async () => {
+  it('is not made on a browser with a mouse', () => {
     browser({ phone: false })
-    await sendAReport()
+    act(() => render(<App />, root))
 
-    expect(root.textContent).toContain('Report sent')
+    expect(root.textContent).toContain('Send report')
     expect(root.textContent).not.toContain('Add it to your home screen')
   })
 
   // Whoever took the offer has stopped needing it.
-  it('is not made inside the home screen app itself', async () => {
+  it('is not made inside the home screen app itself', () => {
     browser({ phone: true, standalone: true })
-    await sendAReport()
+    act(() => render(<App />, root))
 
-    expect(root.textContent).toContain('Report sent')
+    expect(root.textContent).toContain('Send report')
     expect(root.textContent).not.toContain('Add it to your home screen')
   })
 
-  it('opens a sheet carrying the steps for both kinds of phone', async () => {
+  it('opens a sheet carrying the steps for both kinds of phone', () => {
     browser({ phone: true })
-    await sendAReport()
+    act(() => render(<App />, root))
     click('Add it to your home screen')
 
     const sheet = root.querySelector('[role="dialog"]')
@@ -1277,9 +1289,9 @@ describe('the offer to add this to a home screen', () => {
   })
 
   // The icon has no address bar under it to say whose site this is.
-  it('says in the sheet that the icon is not an app from the city', async () => {
+  it('says in the sheet that the icon is not an app from the city', () => {
     browser({ phone: true })
-    await sendAReport()
+    act(() => render(<App />, root))
     click('Add it to your home screen')
 
     const sheet = root.querySelector('[role="dialog"]')
@@ -1287,13 +1299,13 @@ describe('the offer to add this to a home screen', () => {
     expect(sheet?.textContent).toContain('not an app from the city government')
   })
 
-  it('closes again', async () => {
+  it('closes again, leaving the form as it was', () => {
     browser({ phone: true })
-    await sendAReport()
+    act(() => render(<App />, root))
     click('Add it to your home screen')
     click('Close')
 
     expect(root.querySelector('[role="dialog"]')).toBeNull()
-    expect(root.textContent).toContain('Report sent')
+    expect(root.textContent).toContain('Send report')
   })
 })

@@ -1,10 +1,14 @@
 /**
  * How to put this site on a phone's home screen.
  *
- * It is offered from the Sent screen and nowhere else. That is the one
- * moment the asking is earned: the reporter has their reference number, the
- * form is gone, and nothing here is standing between anybody and filing a
- * report. The header is not the place for it — it already carries the
+ * It is offered from the foot of the report form and nowhere else. Waiting
+ * for the Sent screen meant only somebody who had already filed a report was
+ * ever asked, and the icon is worth most to the reporter who has not filed
+ * one yet: it is how they get back here a second time. So the offer sits
+ * below the send button, after everything the form asks for, where it is
+ * read last and is in the way of nothing.
+ *
+ * The header is still not the place for it — it already carries the
  * emergency line and the unofficial notice, and a third thing beside them
  * weakens the two that have to survive being skimmed.
  *
@@ -14,7 +18,7 @@
  *
  * There is no "no thanks" to remember. Whoever adds the site stops being
  * asked, because the offer is hidden once the site is opened from the icon;
- * whoever does not gets one quiet line under the button, after a report.
+ * whoever does not gets one quiet line under the button.
  */
 
 /**

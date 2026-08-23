@@ -280,9 +280,12 @@ at build time; name the environment you deployed to alongside them.
   Keep the comments in that file to one line each: it is the one HTML a
   citizen downloads, and Vite ships every byte of it.
 - `frontend/src/addtohome.tsx` — the sheet telling a reporter how to put the
-  site on their home screen. It is offered from the `Sent` screen and from
-  nowhere else: that is after the reference number, where the offer is
-  earned and where it cannot be in the way of writing a report. It does not
+  site on their home screen. It is offered from the foot of the report form
+  and from nowhere else: below `Send report`, after everything the form asks
+  for, so it is read last and is in the way of nothing. It used to wait for
+  the `Sent` screen, which meant only somebody who had already filed a report
+  was ever asked — and the icon is worth most to the reporter who has not
+  filed one yet, because it is how they come back a second time. It does not
   belong in the header, which already carries the emergency line and the
   unofficial notice — a third thing beside them weakens the two that have to
   survive being skimmed.
