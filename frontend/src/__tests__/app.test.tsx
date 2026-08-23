@@ -375,8 +375,9 @@ describe('opening one report', () => {
 
   // The three things somebody quotes when they write to the city about a
   // report. Copying them off a phone screen by hand is what this replaces,
-  // so all three have to be there, and the number has to say what it is.
-  it('copies the title, the reference and the date', async () => {
+  // so all three have to be there, each on a labelled line: pasted
+  // elsewhere, a bare number or a bare date says nothing about what it is.
+  it('copies the reference, the subject and the date, each labelled', async () => {
     localStorage.setItem('dvo-reports.session', JSON.stringify({ token: 'tk-1' }))
     vi.stubGlobal(
       'fetch',
@@ -393,9 +394,9 @@ describe('opening one report', () => {
     await settle()
 
     const copied = writeText.mock.calls[0][0]
-    expect(copied).toContain('Report number 1')
-    expect(copied).toContain('Reference #20260501080000001')
-    expect(copied).toContain('2026')
+    expect(copied).toBe(
+      'Reference #: 20260501080000001\nSubject: Report number 1\nDate: May 01, 2026',
+    )
     expect(button.textContent).toBe('Copied')
   })
 

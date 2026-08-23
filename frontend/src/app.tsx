@@ -515,18 +515,23 @@ function Loading({ step }: { step: string }) {
 
 /**
  * Takes the three things somebody quotes when they ask about a report — its
- * title, its reference, and the day it was filed — and puts them on the
+ * reference, its title, and the day it was filed — and puts them on the
  * clipboard, so they can be pasted into a message to the city or to a
  * neighbour without being copied out by hand from a phone screen.
  *
- * The reference is prefixed with "Reference #" because it is pasted away
- * from this page, where a bare number says nothing about what it is.
+ * Every line is labelled, and the reference goes first: the text is pasted
+ * away from this page, where a bare number or a bare date says nothing
+ * about what it is, and the reference is what the city asks for.
  */
 function CopyReport({ report }: { report: Filed }) {
   const [said, setSaid] = useState('')
 
   const copy = async () => {
-    const text = `${report.title}\nReference #${report.reference}\n${whenText(report.filed)}`
+    const text = [
+      `Reference #: ${report.reference}`,
+      `Subject: ${report.title}`,
+      `Date: ${copyDateText(report.filed)}`,
+    ].join('\n')
     try {
       await navigator.clipboard.writeText(text)
       setSaid('Copied')
@@ -543,7 +548,7 @@ function CopyReport({ report }: { report: Filed }) {
       type="button"
       class="copy"
       aria-live="polite"
-      title="Copy the title, reference and date"
+      title="Copy the reference, subject and date"
       onClick={() => void copy()}
     >
       {said || 'Copy'}
@@ -1362,6 +1367,17 @@ function time(s: string): number {
  * A timestamp in a layout no browser can read is shown as the city wrote it,
  * rather than as "Invalid Date".
  */
+/**
+ * The date as the copied text carries it: a short month, so the line stays
+ * short in a message, and never the reporter's own locale, because what is
+ * pasted is read by somebody else.
+ */
+function copyDateText(s: string): string {
+  const t = cityTime(s)
+  if (Number.isNaN(t)) return s
+  return new Date(t).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: '2-digit' })
+}
+
 function whenText(s: string): string {
   const t = cityTime(s)
   if (Number.isNaN(t)) return s
