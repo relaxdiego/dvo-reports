@@ -1173,13 +1173,23 @@ function PhotoField({
         own, so the button below needs no script, and a keyboard still lands
         on the input itself rather than on something pretending to be it.
       */}
+      {/*
+        The advice names the camera app, not a setting. The commonest way to
+        reach a photo with no place is to take one inside this page: the phone
+        hands the page pixels and nothing else, and no setting on the phone
+        changes that. Telling that reporter to switch location on sends them
+        round the same loop. A photo taken in the camera app is saved with its
+        place and can then be picked, and switching location on still matters
+        there, so both are said.
+      */}
       {refused.length > 0 && (
         <ErrorMessage onDismiss={() => setRefused([])}>
           {refused.length === 1
             ? `${refused[0]} does not record where it was taken, so it was not added.`
             : `${refused.length} photos do not record where they were taken, so they were not added.`}{' '}
-          This site files a report at the place the photograph itself carries. Switch location on in
-          your camera and take the picture again.
+          This site files a report at the place the photograph itself carries. A picture taken
+          inside this page carries none. Take it with your camera app instead, with location
+          switched on, then add it from your photos.
         </ErrorMessage>
       )}
       {overflow > 0 && (
@@ -1219,6 +1229,18 @@ function PhotoField({
       */}
       {photos.length < MAX_PHOTOS && (
         <>
+          {/*
+            Said before the picker opens rather than only after a photo is
+            turned away, because the refusal above costs the reporter a
+            picture they have already taken. Only for the first one: by the
+            second they have done it once and know how.
+          */}
+          {photos.length === 0 && (
+            <p class="hint">
+              Take the photo with your camera app, then add it here. A picture taken inside this
+              page does not record where it was taken.
+            </p>
+          )}
           <input
             ref={input}
             id="photos"

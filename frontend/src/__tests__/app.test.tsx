@@ -565,7 +565,10 @@ describe('the photo field', () => {
     expect(root.querySelectorAll('.photorow')).toHaveLength(0)
     const refused = root.querySelector('[role="alert"]')
     expect(refused?.textContent).toContain('does not record where it was taken')
-    expect(refused?.textContent).toContain('Switch location on in your camera')
+    // The advice has to name the camera app: the commonest way to reach a
+    // photo with no place is to take one inside this page, and no setting
+    // fixes that one.
+    expect(refused?.textContent).toContain('Take it with your camera app')
   })
 
   it('keeps the photos that do carry a place and refuses the rest', async () => {
