@@ -48,7 +48,12 @@ export function SiteNotice() {
           <strong>Nothing stored:</strong> Your report — the words, the place, the photos, your
           contact details — passes through this site on its way to the city. It is held only long
           enough to pass it on, and then it is gone. There is no database here, and no log here
-          holds your report, your photos, or your contact details. The city holds your report
+          holds your photos, your contact details, your address, or the place your photo
+          carries. One thing is kept, and only when a report fails: if the city refuses your
+          report, this site writes down the city's own answer, so the fault can be found and
+          fixed. That answer can repeat the short title the city was given, and that title is
+          built from the first part of what you wrote. A report that goes through leaves none
+          of it. The city holds your report
           under its own terms, and gives you a reference number. Keep that number: because nothing
           stays here, it is your only record, and it is how you follow up with the city.
         </p>
@@ -66,9 +71,12 @@ export function SiteNotice() {
           settings, the identifiers it puts on each photograph — is removed before your report
           leaves this site. Your report is filed at the place your photo carries: you cannot type a
           different address here, so if that place is wrong, use the city's own site instead. To put
-          a street name on your report, this site sends the photo's coordinates — and nothing else —
-          to a map service. The small map is drawn with pictures from OpenStreetMap, so opening it
-          tells that service which area you are looking at.
+          a street name on your report, this site sends the photo's coordinates — and nothing
+          else — to a mapping service: Microsoft's Azure Maps, and OpenStreetMap when Azure does
+          not know the street. That is sent by this site and not by your phone, so neither of
+          them sees your phone or where it is connected from. The small map is drawn with
+          pictures from OpenStreetMap, and those your phone does ask for, so opening the map
+          tells OpenStreetMap which area you are looking at.
         </p>
         <p>
           <strong>No promises:</strong> This site can break, go offline, or fail to deliver a

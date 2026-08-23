@@ -76,7 +76,7 @@ export function CityNotice() {
       <h3>The city's {TITLE.toLowerCase()}</h3>
       <p class="hint">
         The following are the city's words, copied from{' '}
-        <a href={CITY_SITE}>{CITY_SITE.replace('https://', '')}</a> as of {COPIED_ON}. One word is
+        <a href={CITY_SITE}>{CITY_SITE.replace('https://', '')}</a> as of {COPIED_ON}. One wording is
         changed: where the city writes "our Privacy Policy", this copy says "the site's", meaning
         the city's own site. The city may have changed the text since.
       </p>

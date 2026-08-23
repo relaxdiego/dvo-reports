@@ -1016,7 +1016,7 @@ describe('the disclaimer', () => {
     expect(sheet.textContent).toContain("The following are the city's words")
     // The one edited word is named where a reader sees it, not only in a
     // code comment: text called somebody's exact words has to be.
-    expect(sheet.textContent).toContain('One word is changed')
+    expect(sheet.textContent).toContain('One wording is changed')
   })
 
   // The way out is at the end of the reading, not beside the start of it,
