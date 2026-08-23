@@ -1,5 +1,8 @@
 import { execFileSync } from 'node:child_process'
-import { defineConfig } from 'vitest/config'
+import { copyFileSync, readdirSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+import { join } from 'node:path'
+import { defineConfig, type Plugin } from 'vitest/config'
 import preact from '@preact/preset-vite'
 
 // Stamped onto the page so a bug report can say which build it came from.
@@ -27,9 +30,46 @@ try {
 // does not know what it is must not pass for the real site.
 const environment = process.env.DEPLOY_ENV || 'development'
 
+/**
+ * Gives a build that is not production the blueprint home screen tile.
+ *
+ * Staging and production are the same site to look at, and a maintainer with
+ * both added to one phone has two identical icons and no way to tell which
+ * one files a real report. The blueprint says "this is the drawing, not the
+ * building" without a word on it.
+ *
+ * The blueprint files are not in public/, because public/ is copied into
+ * every build including the real one. They sit in brand/staging under the
+ * names they are replacing and are laid over the top afterwards, so nothing
+ * in index.html or site.webmanifest has to know which build this is.
+ *
+ * Only a build. `npm run dev` serves public/ straight from disk and shows
+ * the production tile; nobody adds a dev server to their home screen.
+ */
+function blueprintTiles(): Plugin {
+  const from = fileURLToPath(new URL('brand/staging', import.meta.url))
+  let outDir = 'dist'
+  return {
+    name: 'blueprint-tiles',
+    apply: 'build',
+    configResolved(config) {
+      outDir = config.build.outDir
+    },
+    // After writeBundle, which is when Vite copies public/ across. Running
+    // any earlier means public/ lands on top of these again.
+    closeBundle() {
+      if (environment === 'production') return
+      for (const name of readdirSync(from)) {
+        copyFileSync(join(from, name), join(outDir, name))
+      }
+      console.log(`  ${environment}: home screen tiles replaced with the blueprint`)
+    },
+  }
+}
+
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [preact()],
+  plugins: [preact(), blueprintTiles()],
   define: {
     __BUILD_TIME__: JSON.stringify(buildTime),
     __BUILD_SHA__: JSON.stringify(buildSha),

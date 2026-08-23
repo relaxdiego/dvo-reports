@@ -211,6 +211,17 @@ at build time; name the environment you deployed to alongside them.
   what changed. None of it is in the first page load, so none of it counts
   against `make size`.
 
+  **Staging gets a different home screen tile:** the same eagle drawn as a
+  blueprint, traced from the artwork by the same script into
+  `frontend/brand/staging`. Two identical icons on one phone are two icons a
+  maintainer cannot tell apart, and only one of them files a real report.
+  Those files are deliberately not in `frontend/public`, which every build
+  copies: `blueprintTiles` in `frontend/vite.config.ts` lays them over the
+  built ones whenever `DEPLOY_ENV` is not `production`, so `index.html` and
+  `site.webmanifest` never have to know which build they are in. It runs on
+  a build only — `npm run dev` serves `public/` straight from disk and shows
+  the production tile.
+
   **The card carries the word "unofficial" in the picture itself.** A link
   shared in a group chat is read by people who never open the page, so the
   preview has to say what the header says.

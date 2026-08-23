@@ -14,7 +14,7 @@
  *
  *   node scripts/make-brand.mjs
  */
-import { readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import puppeteer from 'puppeteer-core'
@@ -24,6 +24,12 @@ const here = dirname(fileURLToPath(import.meta.url))
 const source = join(here, '..', 'brand', 'citizen-reporter.jpg')
 const out = join(here, '..', 'public')
 
+// The staging tiles do not go in public/, because public/ is copied into
+// every build. They are an input to the build instead: vite.config.ts lays
+// them over the real ones when the build is not for production. See the
+// blueprint plugin there.
+const staging = join(here, '..', 'brand', 'staging')
+
 // A home screen icon, at the three sizes that get asked for: iOS reads the
 // first by name, and site.webmanifest names the other two.
 const TILES = [
@@ -31,6 +37,12 @@ const TILES = [
   ['icon-192.png', 192],
   ['icon-512.png', 512],
 ]
+
+// The staging tile: the same eagle drawn as a blueprint, so a maintainer
+// with both on one home screen can tell at a glance which icon files a real
+// report. Paper blue, white ink, and the grid a drawing is set out on.
+const BLUEPRINT_PAPER = '#123a75'
+const BLUEPRINT_INK = [255, 255, 255]
 
 // What every scraper wants, and the shape they crop to: 1.91:1.
 const CARD = { width: 1200, height: 630 }
@@ -103,45 +115,15 @@ try {
     return cut.toDataURL('image/png')
   }, artwork)
 
+  // Traced once, at the largest tile's size, and then shrunk like any other
+  // picture. Tracing each size on its own would find different edges in each
+  // and give three icons that are not quite the same drawing.
+  const blueprint = await page.evaluate(traceBlueprint, square, 512, BLUEPRINT_PAPER, BLUEPRINT_INK)
+
+  mkdirSync(staging, { recursive: true })
   for (const [name, size] of TILES) {
-    // Halved until one more halving would overshoot, then drawn to the size
-    // asked for. One jump from 1200-odd pixels to 180 leaves the feathers
-    // ragged however good the browser's smoothing is.
-    const png = await page.evaluate(
-      async (src, side) => {
-        const img = new Image()
-        img.src = src
-        await img.decode()
-
-        let from = img
-        let width = img.width
-        while (width / 2 > side) {
-          width = Math.round(width / 2)
-          const step = document.createElement('canvas')
-          step.width = width
-          step.height = width
-          const ctx = step.getContext('2d')
-          ctx.imageSmoothingQuality = 'high'
-          ctx.drawImage(from, 0, 0, width, width)
-          from = step
-        }
-
-        const canvas = document.createElement('canvas')
-        canvas.width = side
-        canvas.height = side
-        const ctx = canvas.getContext('2d')
-        // iOS draws its own rounded corners over this and does not honour
-        // transparency, so the tile is opaque white under the eagle.
-        ctx.fillStyle = '#ffffff'
-        ctx.fillRect(0, 0, side, side)
-        ctx.imageSmoothingQuality = 'high'
-        ctx.drawImage(from, 0, 0, side, side)
-        return canvas.toDataURL('image/png')
-      },
-      square,
-      size,
-    )
-    write(join(out, name), png)
+    write(join(out, name), await page.evaluate(scale, square, size, '#ffffff'))
+    write(join(staging, name), await page.evaluate(scale, blueprint, size, BLUEPRINT_PAPER))
   }
 
   // The card says the two things the header says, because a link shared in a
@@ -199,4 +181,137 @@ try {
 function write(path, dataUrl) {
   writeFileSync(path, Buffer.from(dataUrl.split(',')[1], 'base64'))
   console.log(`  wrote ${path}`)
+}
+
+/*
+ * Everything below runs inside the browser, not here. Each one is handed to
+ * page.evaluate, which sends its source across, so they can use nothing from
+ * this file — only what is passed in.
+ */
+
+/** Draws a square picture at `side`, on an opaque background. */
+async function scale(src, side, background) {
+  const img = new Image()
+  img.src = src
+  await img.decode()
+
+  // Halved until one more halving would overshoot, then drawn to the size
+  // asked for. One jump from 1200-odd pixels to 180 leaves the feathers
+  // ragged however good the browser's smoothing is.
+  let from = img
+  let width = img.width
+  while (width / 2 > side) {
+    width = Math.round(width / 2)
+    const step = document.createElement('canvas')
+    step.width = width
+    step.height = width
+    const ctx = step.getContext('2d')
+    ctx.imageSmoothingQuality = 'high'
+    ctx.drawImage(from, 0, 0, width, width)
+    from = step
+  }
+
+  const canvas = document.createElement('canvas')
+  canvas.width = side
+  canvas.height = side
+  const ctx = canvas.getContext('2d')
+  // iOS draws its own rounded corners over this and does not honour
+  // transparency, so a tile is opaque under the eagle.
+  ctx.fillStyle = background
+  ctx.fillRect(0, 0, side, side)
+  ctx.imageSmoothingQuality = 'high'
+  ctx.drawImage(from, 0, 0, side, side)
+  return canvas.toDataURL('image/png')
+}
+
+/**
+ * The same eagle as a drawing on blueprint paper.
+ *
+ * A blueprint is a negative — pale lines on blue — so what is wanted is the
+ * boundaries of the artwork rather than its colours. Those come from a Sobel
+ * pass over the brightness: it answers "how fast is this changing here",
+ * which is large where one flat colour meets another and near zero inside
+ * them. The gold, the white and the navy of the original therefore leave no
+ * trace at all except where they meet, which is exactly the wanted result.
+ *
+ * The edges are found at the icon's own size, not the artwork's. At full
+ * size a JPEG's own speckle is an edge too, and tracing it gives a tile
+ * covered in white dust.
+ */
+async function traceBlueprint(src, side, paper, ink) {
+  const img = new Image()
+  img.src = src
+  await img.decode()
+
+  const flat = document.createElement('canvas')
+  flat.width = side
+  flat.height = side
+  const flatCtx = flat.getContext('2d')
+  flatCtx.fillStyle = '#ffffff'
+  flatCtx.fillRect(0, 0, side, side)
+  flatCtx.imageSmoothingQuality = 'high'
+  flatCtx.drawImage(img, 0, 0, side, side)
+  const px = flatCtx.getImageData(0, 0, side, side).data
+
+  const light = new Float32Array(side * side)
+  for (let i = 0; i < light.length; i++) {
+    light[i] = 0.299 * px[i * 4] + 0.587 * px[i * 4 + 1] + 0.114 * px[i * 4 + 2]
+  }
+
+  const canvas = document.createElement('canvas')
+  canvas.width = side
+  canvas.height = side
+  const ctx = canvas.getContext('2d')
+  ctx.fillStyle = paper
+  ctx.fillRect(0, 0, side, side)
+
+  // The grid a drawing is set out on. Faint, and every fourth line a little
+  // less so, the way squared paper is printed.
+  ctx.lineWidth = Math.max(1, Math.round(side / 512))
+  const step = side / 16
+  for (let n = 1; n < 16; n++) {
+    const at = Math.round(n * step) + 0.5
+    ctx.strokeStyle = `rgba(${ink}, ${n % 4 === 0 ? 0.22 : 0.1})`
+    ctx.beginPath()
+    ctx.moveTo(at, 0)
+    ctx.lineTo(at, side)
+    ctx.moveTo(0, at)
+    ctx.lineTo(side, at)
+    ctx.stroke()
+  }
+
+  // White where the drawing has an edge, clear where it does not, on a layer
+  // of its own: putImageData would overwrite the paper and the grid rather
+  // than lie on top of them.
+  const lines = document.createElement('canvas')
+  lines.width = side
+  lines.height = side
+  const linesCtx = lines.getContext('2d')
+  const out = linesCtx.createImageData(side, side)
+  const at = (x, y) => light[Math.min(side - 1, Math.max(0, y)) * side + Math.min(side - 1, Math.max(0, x))]
+  for (let y = 0; y < side; y++) {
+    for (let x = 0; x < side; x++) {
+      const gx =
+        at(x - 1, y - 1) + 2 * at(x - 1, y) + at(x - 1, y + 1) -
+        at(x + 1, y - 1) - 2 * at(x + 1, y) - at(x + 1, y + 1)
+      const gy =
+        at(x - 1, y - 1) + 2 * at(x, y - 1) + at(x + 1, y - 1) -
+        at(x - 1, y + 1) - 2 * at(x, y + 1) - at(x + 1, y + 1)
+      // The floor drops the last of the speckle; the divisor decides how
+      // much of a change counts as a line worth drawing.
+      const edge = Math.min(1, Math.max(0, (Math.hypot(gx, gy) - 24) / 150))
+      // A wash inside the eagle as well, so it reads as a shape and not as
+      // an outline floating on the paper. Anything not the white it was
+      // drawn on is inside it.
+      const fill = light[y * side + x] < 246 ? 0.14 : 0
+      const i = (y * side + x) * 4
+      out.data[i] = ink[0]
+      out.data[i + 1] = ink[1]
+      out.data[i + 2] = ink[2]
+      out.data[i + 3] = Math.round(255 * Math.min(1, edge + fill))
+    }
+  }
+  linesCtx.putImageData(out, 0, 0)
+  ctx.drawImage(lines, 0, 0)
+  return canvas.toDataURL('image/png')
 }
