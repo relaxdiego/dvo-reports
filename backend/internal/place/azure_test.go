@@ -24,8 +24,21 @@ func fakeAzure(t *testing.T, reply string, status int) (*httptest.Server, *[]*ht
 // The shape the city's own form reads: features[0].properties.address.
 const azureDavao = `{
   "features": [
-    {"properties": {"address": {
+    {"properties": {"type": "Address", "address": {
       "formattedAddress": "Quimpo Blvd, Davao City, Davao del Sur 8000",
+      "locality": "Davao",
+      "postalCode": "8000"
+    }}}
+  ]
+}`
+
+// What Azure sends for a pin it has no address for. Its Philippine coverage
+// stops at the named roads, so a lane in a barangay comes back like this:
+// the right city, and nothing that separates this report from any other.
+const azureCoarse = `{
+  "features": [
+    {"properties": {"type": "PopulatedPlace", "address": {
+      "formattedAddress": "Davao, Philippines 8000",
       "locality": "Davao",
       "postalCode": "8000"
     }}}
@@ -42,6 +55,29 @@ func TestAzureNamesTheStreetTheWayTheCityDoes(t *testing.T) {
 	// Azure's own formattedAddress, unedited: the city files this string,
 	// so this client should not improve on it.
 	if want := "Quimpo Blvd, Davao City, Davao del Sur 8000"; got.Address != want {
+		t.Errorf("address %q, want %q", got.Address, want)
+	}
+	if !got.InDavao {
+		t.Error("locality Davao was not recognised")
+	}
+	if !got.Street {
+		t.Error("an Address feature was not counted as naming a street")
+	}
+}
+
+// A coarse answer is still an answer — the pin is in Davao and the line says
+// so. What it is not is a street, and Fallback needs to be told that.
+func TestAzureSaysWhenItNamedNoStreet(t *testing.T) {
+	srv, _ := fakeAzure(t, azureCoarse, 200)
+
+	got, err := NewAzure("k", srv.URL).Reverse(context.Background(), 7.00706, 125.50403)
+	if err != nil {
+		t.Fatalf("want nil, got %v", err)
+	}
+	if got.Street {
+		t.Errorf("a %s feature was counted as naming a street", "PopulatedPlace")
+	}
+	if want := "Davao, Philippines 8000"; got.Address != want {
 		t.Errorf("address %q, want %q", got.Address, want)
 	}
 	if !got.InDavao {

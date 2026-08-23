@@ -2,12 +2,17 @@ package place
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
 )
+
+// errStub is a geocoder being down. Which geocoder, and why, is not what any
+// of these tests is about.
+var errStub = errors.New("geocoder is down")
 
 // fakeNominatim stands in for the real one. reply is the body it sends back.
 func fakeNominatim(t *testing.T, reply string, status int) (*httptest.Server, *[]*http.Request) {
@@ -131,5 +136,137 @@ func TestReverseReportsAServerThatRefuses(t *testing.T) {
 
 	if _, err := NewNominatim(srv.URL).Reverse(context.Background(), 7.07, 125.61); err == nil {
 		t.Fatal("want an error, got nil")
+	}
+}
+
+// What OpenStreetMap sends for the pin in the report that prompted Fallback:
+// no road, because the lane it sits on has no name, but the barangay around
+// it is named and that is what a clerk needs.
+const davaoNoRoadReply = `{
+  "display_name": "San Vicente, Tambacan, Daliao, Toril District, Davao City, Davao Region, 8025, Philippines",
+  "address": {
+    "neighbourhood": "San Vicente",
+    "suburb": "Daliao",
+    "city": "Davao City",
+    "postcode": "8025"
+  }
+}`
+
+func TestReverseSaysWhenItNamedNoStreet(t *testing.T) {
+	srv, _ := fakeNominatim(t, davaoNoRoadReply, 200)
+
+	got, err := NewNominatim(srv.URL).Reverse(context.Background(), 7.00706, 125.50403)
+	if err != nil {
+		t.Fatalf("want nil, got %v", err)
+	}
+	if got.Street {
+		t.Error("an answer with no road was counted as naming a street")
+	}
+	// Still worth sending: it names the barangay, which no coarse answer does.
+	if want := "San Vicente, Daliao, Davao City"; got.Address != want {
+		t.Errorf("address %q, want %q", got.Address, want)
+	}
+	if !got.InDavao {
+		t.Error("Davao City was not recognised as Davao")
+	}
+}
+
+// stubGeocoder answers with whatever it was built with, and counts the asking.
+type stubGeocoder struct {
+	place Place
+	err   error
+	asked int
+}
+
+func (s *stubGeocoder) Reverse(context.Context, float64, float64) (Place, error) {
+	s.asked++
+	return s.place, s.err
+}
+
+// The common case: Azure knows the street, so OpenStreetMap is never asked.
+// That matters beyond speed — Nominatim allows one request a second, and a
+// second question on every lookup would spend that allowance on nothing.
+func TestFallbackDoesNotAskTwiceWhenTheFirstNamesAStreet(t *testing.T) {
+	first := &stubGeocoder{place: Place{Address: "Quimpo Blvd, Davao City", InDavao: true, Street: true}}
+	then := &stubGeocoder{place: Place{Address: "somewhere else"}}
+
+	got, err := Fallback{First: first, Then: then}.Reverse(context.Background(), 7.0731, 125.6128)
+	if err != nil {
+		t.Fatalf("want nil, got %v", err)
+	}
+	if got.Address != "Quimpo Blvd, Davao City" {
+		t.Errorf("address %q, want the first geocoder's", got.Address)
+	}
+	if then.asked != 0 {
+		t.Errorf("the second geocoder was asked %d times, want 0", then.asked)
+	}
+}
+
+// The case this exists for: Azure places the pin in Davao and no closer.
+func TestFallbackPrefersANamedPlaceToACoarseOne(t *testing.T) {
+	first := &stubGeocoder{place: Place{Address: "Davao, Philippines 8000", InDavao: true}}
+	then := &stubGeocoder{place: Place{Address: "San Vicente, Daliao, Davao City", InDavao: true}}
+
+	got, err := Fallback{First: first, Then: then}.Reverse(context.Background(), 7.00706, 125.50403)
+	if err != nil {
+		t.Fatalf("want nil, got %v", err)
+	}
+	if want := "San Vicente, Daliao, Davao City"; got.Address != want {
+		t.Errorf("address %q, want %q", got.Address, want)
+	}
+}
+
+// A second geocoder that has nothing to say must not cost the report the
+// line it already had, coarse as that line is.
+func TestFallbackKeepsTheCoarseAnswerWhenTheSecondHasNothing(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		then *stubGeocoder
+	}{
+		{"an error", &stubGeocoder{err: errStub}},
+		{"an empty answer", &stubGeocoder{}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			first := &stubGeocoder{place: Place{Address: "Davao, Philippines 8000", InDavao: true}}
+
+			got, err := Fallback{First: first, Then: tc.then}.Reverse(context.Background(), 7.00706, 125.50403)
+			if err != nil {
+				t.Fatalf("want nil, got %v", err)
+			}
+			if want := "Davao, Philippines 8000"; got.Address != want {
+				t.Errorf("address %q, want %q", got.Address, want)
+			}
+			if !got.InDavao {
+				t.Error("the first geocoder's Davao answer was lost")
+			}
+		})
+	}
+}
+
+// Azure being down is the other reason there is no street.
+func TestFallbackAsksTheSecondWhenTheFirstFails(t *testing.T) {
+	first := &stubGeocoder{err: errStub}
+	then := &stubGeocoder{place: Place{Address: "San Vicente, Daliao, Davao City", InDavao: true}}
+
+	got, err := Fallback{First: first, Then: then}.Reverse(context.Background(), 7.00706, 125.50403)
+	if err != nil {
+		t.Fatalf("want nil, got %v", err)
+	}
+	if want := "San Vicente, Daliao, Davao City"; got.Address != want {
+		t.Errorf("address %q, want %q", got.Address, want)
+	}
+}
+
+// Both down. The caller is told, and answers the citizen with the
+// coordinates, exactly as it did before either geocoder existed.
+func TestFallbackReportsTheFirstFailureWhenBothFail(t *testing.T) {
+	first := &stubGeocoder{err: errStub}
+
+	got, err := Fallback{First: first, Then: &stubGeocoder{err: errStub}}.Reverse(context.Background(), 7.0, 125.5)
+	if err == nil {
+		t.Fatal("want an error, got nil")
+	}
+	if got.Address != "" {
+		t.Errorf("address %q, want empty", got.Address)
 	}
 }

@@ -170,7 +170,7 @@ repository.
 | `UPSTREAM_BASE_URL` | the city's API        | Override for testing against a fake.             |
 | `AZURE_MAPS_KEY`  | unset                   | Names the street under a pin. Unset falls back to OpenStreetMap. |
 | `AZURE_MAPS_BASE_URL` | Azure Maps          | Override for testing the street lookup.          |
-| `NOMINATIM_BASE_URL` | OpenStreetMap's      | Override for the fallback, for testing.          |
+| `NOMINATIM_BASE_URL` | OpenStreetMap's      | Override for the fallback, for testing. Used whether or not Azure is configured. |
 | `ALERT_URL`       | unset                   | Posted to when a report is not filed. Production only. |
 
 ### The street under a pin
@@ -179,6 +179,15 @@ The city's own form fills its location box by reverse geocoding the pin with
 Azure Maps, and files that text. This backend does the same so a report reads
 the same, using **this project's own Azure Maps key** — never the city's,
 which is readable in their public JavaScript and bills their account.
+
+Azure's Philippine coverage stops at the named roads. A pin on an unnamed
+lane comes back as `Davao, Philippines 8000` — the right city, and nothing
+that separates one report from any other. The city's own form has the same
+hole. When Azure names no street, this backend asks OpenStreetMap, which
+knows those lanes and the barangays around them, and files that answer
+instead; Azure's is kept when OpenStreetMap has nothing better. That second
+question is asked only on a miss, so Nominatim's one-request-a-second limit
+is not spent on pins Azure already knew.
 
 `AZURE_MAPS_KEY` is a **Fly secret**, not a value in `fly.*.toml` and not a
 GitHub Actions secret: the backend reads it at runtime, and CI only deploys.

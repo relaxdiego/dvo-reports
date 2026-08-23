@@ -9,7 +9,7 @@
 //
 //   - Azure, when AZURE_MAPS_KEY is set. What the city itself uses, so the
 //     wording matches theirs and so does the test for whether a pin is in
-//     Davao.
+//     Davao. Nominatim backs it up: see Fallback for why.
 //   - Nominatim, otherwise. OpenStreetMap's, free and needing no account,
 //     which is what a developer gets without signing up for anything.
 //
@@ -62,6 +62,40 @@ type Place struct {
 	// InDavao reports whether this looks like somewhere the city will
 	// accept. Their own form refuses anything else outright.
 	InDavao bool `json:"in_davao"`
+	// Street reports whether Address names a street rather than only the
+	// city around it. It is not sent to the browser, which shows whatever
+	// line there is: it exists so Fallback can tell a useful answer from
+	// one like "Davao, Philippines 8000", which every report could carry.
+	Street bool `json:"-"`
+}
+
+// Fallback names a place with First, and asks Then when First could not name
+// a street.
+//
+// Azure knows house numbers where it knows anything, and its wording is the
+// city's own, so it is asked first. But its Philippine coverage stops at the
+// named roads: a pin on an unnamed lane comes back as the city and postcode
+// alone, which tells a clerk nothing that every other report does not also
+// say. OpenStreetMap knows those lanes and the barangays around them, so it
+// is worth a second question in exactly that case.
+//
+// First's answer is kept whenever Then has nothing better, so a lookup that
+// used to produce a coarse line still produces it rather than nothing.
+type Fallback struct {
+	First, Then Geocoder
+}
+
+// Reverse names the place at lat,lon.
+func (f Fallback) Reverse(ctx context.Context, lat, lon float64) (Place, error) {
+	first, err := f.First.Reverse(ctx, lat, lon)
+	if err == nil && first.Street {
+		return first, nil
+	}
+	then, thenErr := f.Then.Reverse(ctx, lat, lon)
+	if thenErr != nil || then.Address == "" {
+		return first, err
+	}
+	return then, nil
 }
 
 // Nominatim asks OpenStreetMap. The zero value is not usable; use
@@ -144,6 +178,7 @@ func (c *Nominatim) Reverse(ctx context.Context, lat, lon float64) (Place, error
 	return Place{
 		Address: line,
 		InDavao: looksLikeDavao(a.City, a.Town, a.County, a.Postcode),
+		Street:  a.Road != "",
 	}, nil
 }
 

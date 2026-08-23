@@ -98,15 +98,21 @@ func splitList(s string) []string {
 // pickGeocoder chooses who names the street under a pin.
 //
 // Azure Maps when a key is set, because that is what the city's own form
-// uses and a report then reads like one filed there. OpenStreetMap
-// otherwise, so that a developer with no Azure account still gets a working
-// form. Neither is required: without either, a report travels with its
-// coordinates, which is what the city's field held before this existed.
+// uses and a report then reads like one filed there — with OpenStreetMap
+// behind it for the pins Azure can only place in the city as a whole.
+// OpenStreetMap alone otherwise, so that a developer with no Azure account
+// still gets a working form. Neither is required: without either, a report
+// travels with its coordinates, which is what the city's field held before
+// this existed.
 func pickGeocoder(log *slog.Logger) place.Geocoder {
+	osm := place.NewNominatim(os.Getenv("NOMINATIM_BASE_URL"))
 	if key := os.Getenv("AZURE_MAPS_KEY"); key != "" {
-		log.Info("naming places with azure maps")
-		return place.NewAzure(key, os.Getenv("AZURE_MAPS_BASE_URL"))
+		log.Info("naming places with azure maps, falling back to openstreetmap")
+		return place.Fallback{
+			First: place.NewAzure(key, os.Getenv("AZURE_MAPS_BASE_URL")),
+			Then:  osm,
+		}
 	}
 	log.Info("naming places with openstreetmap; set AZURE_MAPS_KEY to use the city's own geocoder")
-	return place.NewNominatim(os.Getenv("NOMINATIM_BASE_URL"))
+	return osm
 }

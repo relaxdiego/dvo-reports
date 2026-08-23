@@ -72,6 +72,12 @@ func (a *Azure) Reverse(ctx context.Context, lat, lon float64) (Place, error) {
 	var body struct {
 		Features []struct {
 			Properties struct {
+				// Type is the kind of thing the point was matched to:
+				// "Address", or something coarser like "PopulatedPlace" or
+				// "Postcode1". Azure returns only the most specific match it
+				// has, so anything but "Address" means it knows no address
+				// near the point.
+				Type    string `json:"type"`
 				Address struct {
 					FormattedAddress string `json:"formattedAddress"`
 					Locality         string `json:"locality"`
@@ -87,11 +93,12 @@ func (a *Azure) Reverse(ctx context.Context, lat, lon float64) (Place, error) {
 		return Place{}, nil
 	}
 
-	got := body.Features[0].Properties.Address
+	got := body.Features[0].Properties
 	return Place{
-		Address: got.FormattedAddress,
+		Address: got.Address.FormattedAddress,
 		// The city's own test, which is written three ways round and comes
 		// to this: the locality is Davao, or the postcode is 8000.
-		InDavao: got.Locality == "Davao" || got.PostalCode == "8000",
+		InDavao: got.Address.Locality == "Davao" || got.Address.PostalCode == "8000",
+		Street:  got.Type == "Address",
 	}, nil
 }

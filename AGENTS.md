@@ -117,6 +117,17 @@ at build time; name the environment you deployed to alongside them.
   developer with no account still gets a working form, at one request a
   second because that is Nominatim's published limit.
 
+  **Azure does not know every street here, and Nominatim covers for it.**
+  Azure's Philippine coverage stops at the named roads: a pin on an unnamed
+  lane answers `Davao, Philippines 8000`, which is the right city and
+  nothing else. `place.Fallback` asks Nominatim in exactly that case and
+  files its answer instead, keeping Azure's when Nominatim has nothing
+  better. Azure says which case it is through `Place.Street`, read from the
+  feature type in its reply — anything but `Address` means it matched
+  something coarser than a street. Do not ask both on every lookup: the
+  common case is Azure knowing the answer, and a second question every time
+  would spend Nominatim's one-a-second allowance on nothing.
+
   **The city's own Azure key is readable in their public JavaScript. Do not
   use it.** It bills their account, and this repository is public.
 
