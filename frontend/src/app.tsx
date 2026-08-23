@@ -1328,7 +1328,7 @@ function Sent({ receipt, onAgain }: { receipt: Receipt; onAgain: () => void }) {
         pushed down the screen by an offer nobody came here for.
       */}
       {offerHomeScreen() && (
-        <p class="hint">
+        <p class="offer">
           Like this app?{' '}
           <button type="button" class="linky" onClick={() => setShowAddToHome(true)}>
             Add it to your home screen
