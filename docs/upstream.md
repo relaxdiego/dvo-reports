@@ -77,7 +77,7 @@ the session is good the key is absent, so its absence is not a refusal.
 ### What a real reply looks like
 
 The history call is the first part of the city's API this project has seen
-answer for real, rather than guessed from their front end. Four things in it
+answer for real, rather than guessed from their front end. Five things in it
 are worth writing down, because none of them can be read off their code:
 
 - **Empty means an empty array, not an empty object.** `invalid`, `resubmit`,
@@ -90,9 +90,16 @@ are worth writing down, because none of them can be read off their code:
 - **Text is HTML-escaped.** An office called `CITY MAYOR'S OFFICE` arrives as
   `CITY MAYOR&#039;S OFFICE`. The same goes for a report's own title,
   description, and location in the list.
-- **There is a second number.** `referenceno` sits beside the control number
-  and is the one the city's own staff quote back. It is empty until their
-  office has issued it.
+- **`referenceno` is the control number again.** It sits beside the steps and
+  looks like a second number the city keeps, but on a real report it is the
+  same value that was asked for — checked against two live replies. Nothing
+  here reads it. A card that showed it printed the reporter's own reference
+  back at them twice.
+- **A control number is the city's timestamp.** Seventeen digits,
+  `YYYYMMDDHHMMSSmmm` — `20260822133825088` is a report filed on
+  22 August 2026 at 13:38:25. Nothing parses it; it is quoted as it arrives.
+  The fixtures use the real shape, because a made-up one is how the note
+  above came to be wrong.
 
 `data[]` also carries a `details` field, which on the first step repeats the
 whole report body. This project does not read it: the reporter already has

@@ -220,9 +220,8 @@ func (c *City) History(ctx context.Context, reference, token string) (History, e
 				URL string `json:"url"`
 			} `json:"attachments"`
 		} `json:"result"`
-		Invalid     reason     `json:"invalid"`
-		Resubmit    reason     `json:"resubmit"`
-		ReferenceNo flexString `json:"referenceno"`
+		Invalid  reason `json:"invalid"`
+		Resubmit reason `json:"resubmit"`
 	}
 	q := url.Values{"trans": {"getdetails"}, "controlno": {reference}, "xtk": {token}}
 	if err := c.get(ctx, "complainController", q, &out); err != nil {
@@ -234,7 +233,7 @@ func (c *City) History(ctx context.Context, reference, token string) (History, e
 	if len(out.Data) == 0 {
 		return History{}, ErrNoSuchReport
 	}
-	h := History{Reference: reference, CityReference: string(out.ReferenceNo)}
+	h := History{Reference: reference}
 	for _, d := range out.Data {
 		h.Steps = append(h.Steps, Step{
 			Status: strings.ToUpper(strings.TrimSpace(d.Status)),

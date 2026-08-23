@@ -35,7 +35,7 @@ afterEach(() => {
 
 function listOf(n: number) {
   return Array.from({ length: n }, (_, i) => ({
-    reference: `DCR-${i + 1}`,
+    reference: `20260501080000${String(i + 1).padStart(3, '0')}`,
     title: `Report number ${i + 1}`,
     description: 'x',
     location: 'y',
@@ -85,7 +85,7 @@ async function fileAndRead(): Promise<FormData> {
   const sent = vi.fn<typeof fetch>(async (input) =>
     String(input).includes('/api/place')
       ? new Response(JSON.stringify({ address: '', in_davao: true }), { status: 200 })
-      : new Response(JSON.stringify({ reference: 'DCR-1' }), { status: 201 }),
+      : new Response(JSON.stringify({ reference: '20260501080000001' }), { status: 201 }),
   )
   vi.stubGlobal('fetch', sent)
   click('Garbage')
@@ -149,7 +149,7 @@ describe('the two tabs', () => {
       new Response(
         JSON.stringify({
           reports: [
-            { reference: 'DCR-1', title: 'Pothole: outer lane', description: 'x', location: 'y', status: 'ONGOING', filed: '2026-05-01 08:00:00' },
+            { reference: '20260501080000001', title: 'Pothole: outer lane', description: 'x', location: 'y', status: 'ONGOING', filed: '2026-05-01 08:00:00' },
           ],
         }),
         { status: 200 },
@@ -365,7 +365,7 @@ describe('opening one report', () => {
 
     const copied = writeText.mock.calls[0][0]
     expect(copied).toContain('Report number 1')
-    expect(copied).toContain('Reference #DCR-1')
+    expect(copied).toContain('Reference #20260501080000001')
     expect(copied).toContain('2026')
     expect(button.textContent).toBe('Copied')
   })
@@ -383,8 +383,7 @@ describe('opening one report', () => {
         }
         return new Response(
           JSON.stringify({
-            reference: 'DCR-1',
-            city_reference: '20260501080000',
+            reference: '20260501080000001',
             steps: [
               { status: 'ENCODED', at: '2026-05-01 08:00:00' },
               { status: 'RECEIVED', office: 'City Engineer', at: '2026-05-02 08:00:00' },
@@ -405,9 +404,6 @@ describe('opening one report', () => {
     expect(steps[0].textContent).toContain('ENCODED')
     expect(steps[0].querySelector('.hint')!.textContent).toContain('Added to the city')
     expect(steps[1].querySelector('.hint')!.textContent).toContain('Sent to the office')
-    // The second number the city keeps is not shown: the card already
-    // carries the one the reporter was given.
-    expect(root.textContent).not.toContain('20260501080000')
   })
 })
 

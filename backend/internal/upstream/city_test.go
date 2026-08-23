@@ -97,13 +97,13 @@ func goodReport() report.Report {
 // A report without photos is one request, and the reference is the city's
 // control number.
 func TestSubmitWithoutPhotosSendsOneRequest(t *testing.T) {
-	city := newFakeCity(t, `{"controlno":"DCR-2026-0001"}`)
+	city := newFakeCity(t, `{"controlno":"20260314170358392"}`)
 
 	got, err := city.client().Submit(context.Background(), goodReport(), "tk-1")
 	if err != nil {
 		t.Fatalf("want nil, got %v", err)
 	}
-	if got.Reference != "DCR-2026-0001" {
+	if got.Reference != "20260314170358392" {
 		t.Errorf("reference %q", got.Reference)
 	}
 	if len(city.calls) != 1 {
@@ -130,7 +130,7 @@ func TestSubmitWithoutPhotosSendsOneRequest(t *testing.T) {
 // The city needs two requests when there are photos, and the caller must not
 // have to know that.
 func TestSubmitWithPhotosAttachesOnASecondRequest(t *testing.T) {
-	city := newFakeCity(t, `{"controlno":"DCR-2026-0002"}`, `{"controlno":"DCR-2026-0002"}`)
+	city := newFakeCity(t, `{"controlno":"20260315084512907"}`, `{"controlno":"20260315084512907"}`)
 	r := goodReport()
 	r.Photos = []report.Photo{{Filename: "a.gif", MediaType: "image/gif", Data: []byte("GIF89a")}}
 
@@ -138,7 +138,7 @@ func TestSubmitWithPhotosAttachesOnASecondRequest(t *testing.T) {
 	if err != nil {
 		t.Fatalf("want nil, got %v", err)
 	}
-	if got.Reference != "DCR-2026-0002" {
+	if got.Reference != "20260315084512907" {
 		t.Errorf("reference %q", got.Reference)
 	}
 	if len(city.calls) != 2 {
@@ -148,7 +148,7 @@ func TestSubmitWithPhotosAttachesOnASecondRequest(t *testing.T) {
 		t.Errorf("first request should be a bare ADD: %+v", city.calls[0])
 	}
 	second := city.calls[1]
-	if second.Fields["trans"] != "ATTACH" || second.Fields["contno"] != "DCR-2026-0002" {
+	if second.Fields["trans"] != "ATTACH" || second.Fields["contno"] != "20260315084512907" {
 		t.Errorf("second request %+v", second.Fields)
 	}
 	if len(second.Photos) != 1 || second.Photos[0] != "a.gif:GIF89a" {
@@ -159,7 +159,7 @@ func TestSubmitWithPhotosAttachesOnASecondRequest(t *testing.T) {
 // The report is already filed at this point. Reporting a total failure would
 // tell the citizen a lie.
 func TestSubmitKeepsTheReferenceWhenPhotosFail(t *testing.T) {
-	city := newFakeCity(t, `{"controlno":"DCR-2026-0003"}`, `{"message":"attachment rejected"}`)
+	city := newFakeCity(t, `{"controlno":"20260316101122543"}`, `{"message":"attachment rejected"}`)
 	r := goodReport()
 	r.Photos = []report.Photo{{Filename: "a.gif", MediaType: "image/gif", Data: []byte("GIF89a")}}
 
@@ -167,7 +167,7 @@ func TestSubmitKeepsTheReferenceWhenPhotosFail(t *testing.T) {
 	if !errors.Is(err, ErrPhotosNotAttached) {
 		t.Fatalf("want ErrPhotosNotAttached, got %v", err)
 	}
-	if got.Reference != "DCR-2026-0003" {
+	if got.Reference != "20260316101122543" {
 		t.Errorf("reference %q, want the real one", got.Reference)
 	}
 }
@@ -366,7 +366,7 @@ func TestTitleForShortensALongDescription(t *testing.T) {
 // The city's form refuses an empty location, and a reporter in the field may
 // only have coordinates.
 func TestSubmitFallsBackToCoordinatesForTheLocation(t *testing.T) {
-	city := newFakeCity(t, `{"controlno":"DCR-1"}`)
+	city := newFakeCity(t, `{"controlno":"20260317120944118"}`)
 	r := goodReport()
 	r.Address = ""
 
@@ -381,7 +381,7 @@ func TestSubmitFallsBackToCoordinatesForTheLocation(t *testing.T) {
 // The list carries a reporter's own reports, in the city's own field names.
 func TestMyReportsReadsTheCitysList(t *testing.T) {
 	city := newFakeCity(t, `{"isValid":true,"data":[
-		{"controlno":"DCR-2026-0001","title":"Pothole: outer lane","complain":"Deep pothole.",
+		{"controlno":"20260314170358392","title":"Pothole: outer lane","complain":"Deep pothole.",
 		 "location":"Quimpo Blvd","current_status":"ongoing","date_reported":"2026-05-01T08:00:00Z",
 		 "attachments":[{"link":"https://city.example/a.jpg","label":"a.jpg"},{"link":""}]}]}`)
 
@@ -397,7 +397,7 @@ func TestMyReportsReadsTheCitysList(t *testing.T) {
 		t.Errorf("request %+v", c)
 	}
 	want := Filed{
-		Reference:   "DCR-2026-0001",
+		Reference:   "20260314170358392",
 		Title:       "Pothole: outer lane",
 		Description: "Deep pothole.",
 		Location:    "Quimpo Blvd",
@@ -433,12 +433,12 @@ func TestHistoryReadsTheStepsAndTheReason(t *testing.T) {
 		"invalid":{"reason":"not used here"},
 		"resubmit":{"reason":"the photo does not show the place"}}`)
 
-	got, err := city.client().History(context.Background(), "DCR-2026-0001", "tk-1")
+	got, err := city.client().History(context.Background(), "20260314170358392", "tk-1")
 	if err != nil {
 		t.Fatalf("want nil, got %v", err)
 	}
 	c := city.calls[0]
-	if c.Path != "complainController" || c.Query["trans"] != "getdetails" || c.Query["controlno"] != "DCR-2026-0001" {
+	if c.Path != "complainController" || c.Query["trans"] != "getdetails" || c.Query["controlno"] != "20260314170358392" {
 		t.Errorf("request %+v", c)
 	}
 	if len(got.Steps) != 2 || got.Steps[1].Office != "City Engineer" {
@@ -475,7 +475,7 @@ func TestHistoryReadsTheShapeTheCityActuallySends(t *testing.T) {
 			{"startdate":"2026-03-18 13:21:27","enddate":null,"status":"RECEIVED","details":"Forwarded for feedback","officename":"CITY MAYOR&#039;S OFFICE"}],
 		"result":[],"invalid":[],"resubmit":[],"forresubmission":false}`)
 
-	got, err := city.client().History(context.Background(), "DCR-2026-0001", "tk-1")
+	got, err := city.client().History(context.Background(), "20260314170358392", "tk-1")
 	if err != nil {
 		t.Fatalf("want nil, got %v", err)
 	}
@@ -489,9 +489,6 @@ func TestHistoryReadsTheShapeTheCityActuallySends(t *testing.T) {
 	if got.Steps[0].At != "2026-03-14 16:55:59" {
 		t.Errorf("timestamp %q, want it passed through", got.Steps[0].At)
 	}
-	if got.CityReference != "20260314170358392" {
-		t.Errorf("city reference %q", got.CityReference)
-	}
 	if got.Note != "" {
 		t.Errorf("note %q, want none", got.Note)
 	}
@@ -499,7 +496,7 @@ func TestHistoryReadsTheShapeTheCityActuallySends(t *testing.T) {
 
 // The list is escaped the same way the history is.
 func TestMyReportsUnescapesWhatTheCityStored(t *testing.T) {
-	city := newFakeCity(t, `{"data":[{"controlno":"DCR-2026-0001","title":"Drainage: the mayor&#039;s street",
+	city := newFakeCity(t, `{"data":[{"controlno":"20260314170358392","title":"Drainage: the mayor&#039;s street",
 		"complain":"Blocked &amp; overflowing.","location":"Quimpo Blvd","current_status":"RECEIVED",
 		"date_reported":"2026-03-14 16:55:59"}]}`)
 
