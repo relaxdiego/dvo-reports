@@ -57,7 +57,7 @@ func geoJPEG() []byte {
 
 func valid() Report {
 	return Report{
-		Category:    "pothole",
+		Category:    "obstruction",
 		Description: "Deep pothole in the outer lane near the corner.",
 		Address:     "Quimpo Blvd, Davao City",
 		Lat:         7.0731,

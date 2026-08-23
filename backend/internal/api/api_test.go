@@ -165,7 +165,7 @@ func onePhoto() map[string][]byte {
 
 func goodFields() map[string]string {
 	return map[string]string{
-		"category":    "pothole",
+		"category":    "obstruction",
 		"description": "Deep pothole in the outer lane near the corner.",
 		"lat":         "7.0731",
 		"lon":         "125.6128",
@@ -192,7 +192,7 @@ func TestSubmitRelaysTheReport(t *testing.T) {
 	if got.Reference != "REF-1" {
 		t.Errorf("reference %q, want REF-1", got.Reference)
 	}
-	if up.got.Category != "pothole" || up.got.Lat != 7.0731 {
+	if up.got.Category != "obstruction" || up.got.Lat != 7.0731 {
 		t.Errorf("upstream got %+v", up.got)
 	}
 	// The photo is filtered on the way through, so it is not the same bytes.

@@ -86,7 +86,7 @@ func (f *fakeCity) client() *City { return &City{BaseURL: f.srv.URL, HTTP: f.srv
 
 func goodReport() report.Report {
 	return report.Report{
-		Category:    "pothole",
+		Category:    "obstruction",
 		Description: "Deep pothole in the outer lane near the corner.",
 		Address:     "Quimpo Blvd, Davao City",
 		Lat:         7.0731,
@@ -321,7 +321,7 @@ func TestVerifyOTPKeepsTheTokenWhenTheExpiryIsUnreadable(t *testing.T) {
 
 func TestTitleForPrefixesTheCategory(t *testing.T) {
 	r := goodReport()
-	if got := titleFor(r); got != "Pothole: Deep pothole in the outer lane near the corner." {
+	if got := titleFor(r); got != "Road hazard: Deep pothole in the outer lane near the corner." {
 		t.Errorf("title %q", got)
 	}
 }
@@ -332,7 +332,7 @@ func TestTitleForPrefixesTheCategory(t *testing.T) {
 func TestTitleForUsesTheWordTheReporterSaw(t *testing.T) {
 	for category, want := range map[string]string{
 		"streetlight": "Street light: ",
-		"obstruction": "Blocked road: ",
+		"garbage":     "Garbage: ",
 	} {
 		r := goodReport()
 		r.Category = category
@@ -355,10 +355,10 @@ func TestTitleForShortensALongDescription(t *testing.T) {
 	r := goodReport()
 	r.Description = strings.Repeat("word ", 200)
 	got := titleFor(r)
-	if len([]rune(got)) > maxTitleRunes+len("Pothole: ") {
+	if len([]rune(got)) > maxTitleRunes+len("Road hazard: ") {
 		t.Errorf("title is %d runes: %q", len([]rune(got)), got)
 	}
-	if !strings.HasPrefix(got, "Pothole: ") {
+	if !strings.HasPrefix(got, "Road hazard: ") {
 		t.Errorf("title %q", got)
 	}
 }
