@@ -599,29 +599,33 @@ h2 {
   border-bottom: 1px solid var(--line);
 }
 
-/* The search box and its enter key, side by side. */
-.listtop {
+/* The search box above the list, and nothing beside it: the list is filtered
+   as the letters are typed, so there is nothing to press to search. */
+.searchbox {
+  position: relative;
   display: flex;
-  gap: 0.5rem;
-  align-items: center;
   margin-top: 1rem;
 }
 
-.listtop input {
+/* The cross sits inside the box, over its right edge, so the way to clear a
+   search is where the words are rather than beside them. The text is kept
+   clear of it: words running under the cross make it a thing nobody presses. */
+.searchbox input {
   flex: 1;
+  padding-inline-end: 2.5rem;
 }
 
-.iconbutton {
-  flex: none;
-  width: 3rem;
-  height: 3rem;
-  font-size: 1.3rem;
-  line-height: 1;
-  background: transparent;
-  color: var(--accent);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  cursor: pointer;
+/* WebKit draws its own cross in a search box. Ours is the same cross as
+   every other one on the page, so theirs goes rather than sitting beside it. */
+.searchbox input::-webkit-search-cancel-button {
+  appearance: none;
+}
+
+.searchbox .x {
+  position: absolute;
+  inset-inline-end: 0.35rem;
+  top: 50%;
+  transform: translateY(-50%);
 }
 
 .sentinel {

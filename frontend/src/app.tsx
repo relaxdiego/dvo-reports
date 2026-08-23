@@ -424,7 +424,7 @@ function PastTab({
 
   return (
     <>
-      <div class="listtop">
+      <div class="searchbox">
         <input
           ref={box}
           id="search"
@@ -434,7 +434,19 @@ function PastTab({
           value={query}
           onInput={(e) => setQuery((e.target as HTMLInputElement).value)}
         />
-        <Enter onClick={() => box.current?.blur()} />
+        {query && (
+          <button
+            class="x"
+            type="button"
+            aria-label="Clear search"
+            onClick={() => {
+              setQuery('')
+              box.current?.focus()
+            }}
+          >
+            ×
+          </button>
+        )}
       </div>
       <ul class="reports">
         {matching.slice(0, showing).map((r) => (
@@ -483,20 +495,6 @@ function Refresh({ onClick }: { onClick: () => void }) {
   return (
     <button class="secondary wide" type="button" onClick={onClick}>
       Refresh list
-    </button>
-  )
-}
-
-/**
- * Beside the search box. The list is filtered as the letters are typed, so
- * there is nothing for this to submit — it puts the phone's keyboard away,
- * which is what stands between the reporter and the results they have just
- * asked for.
- */
-function Enter({ onClick }: { onClick: () => void }) {
-  return (
-    <button class="iconbutton" type="button" onClick={onClick} aria-label="Done searching" title="Done">
-      <span aria-hidden="true">↵</span>
     </button>
   )
 }

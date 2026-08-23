@@ -306,6 +306,33 @@ describe('reloading the list', () => {
     expect(root.textContent).toContain('25 reports')
   })
 
+  // Backspacing a search out on a phone is several presses of a small key.
+  // The cross is one press, and it is only there when there is something to
+  // clear.
+  it('clears the search from inside the box', async () => {
+    stubList(3)
+
+    act(() => render(<App />, root))
+    click('My reports')
+    await settle()
+
+    const box = root.querySelector<HTMLInputElement>('#search')!
+    expect(root.querySelector('.searchbox .x')).toBeNull()
+
+    box.value = 'nothing matches this'
+    act(() => { box.dispatchEvent(new Event('input', { bubbles: true })) })
+    expect(root.querySelectorAll('li.report')).toHaveLength(0)
+
+    const clear = root.querySelector<HTMLButtonElement>('.searchbox .x')!
+    act(() => clear.click())
+
+    expect(box.value).toBe('')
+    expect(root.querySelectorAll('li.report')).toHaveLength(3)
+    // The box keeps the focus, so the next search is typed straight away.
+    expect(document.activeElement).toBe(box)
+    expect(root.querySelector('.searchbox .x')).toBeNull()
+  })
+
   it('says what it is waiting for while it waits', async () => {
     vi.stubGlobal('fetch', vi.fn(() => new Promise<Response>(() => {})))
 
