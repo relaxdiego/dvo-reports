@@ -364,6 +364,19 @@ button[disabled] {
   color: var(--danger);
 }
 
+/* One message is long enough to need paragraphs and a list of steps: the
+   refused photo's. Everything inside keeps the box's red, and the first line
+   sits against the top padding rather than a margin of its own. Every other
+   error is a bare sentence, and none of this applies to it. */
+.error > :first-child {
+  margin-top: 0;
+}
+
+.error p,
+.error .steps {
+  margin: 0.5rem 0 0;
+}
+
 /* A link inside an error keeps the red of the box around it: the accent blue
    in the middle of a red sentence reads as a second, unrelated thing. The
    underline is what says it can be tapped. */

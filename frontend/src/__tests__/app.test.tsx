@@ -564,18 +564,21 @@ describe('the photo field', () => {
 
     expect(root.querySelectorAll('.photorow')).toHaveLength(0)
     const refused = root.querySelector('[role="alert"]')
-    expect(refused?.textContent).toContain('does not record where it was taken')
+    expect(refused?.textContent).toContain('has no location')
     // The advice has to name the camera app: the commonest way to reach a
-    // photo with no place is to take one inside this page, and no setting
+    // photo with no place is to take one through the page, and no setting
     // fixes that one.
-    expect(refused?.textContent).toContain('Take it with your camera app')
+    expect(refused?.textContent).toContain('Open your camera app')
+    // And the hint saying the same thing steps aside while it is up, rather
+    // than repeating it in different words directly underneath.
+    expect(root.textContent).not.toContain('Take the photo with your camera app first')
   })
 
   it('keeps the photos that do carry a place and refuses the rest', async () => {
     await attach(jpegPhoto(), jpegPhoto({ gps: false }))
 
     expect(root.querySelectorAll('.photorow')).toHaveLength(1)
-    expect(root.querySelector('[role="alert"]')?.textContent).toContain('does not record where it was taken')
+    expect(root.querySelector('[role="alert"]')?.textContent).toContain('has no location')
   })
 
   // Opening a new tab loses a half-written report, so a plain tap shows the

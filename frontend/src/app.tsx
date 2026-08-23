@@ -53,14 +53,17 @@ function ErrorMessage({
   onDismiss: () => void
   children: ComponentChildren
 }) {
+  // A div rather than a p: the refused-photo message carries a list of the
+  // steps that work, and an ol inside a p is not valid HTML. Every other
+  // message here is a bare sentence and looks the same either way.
   return (
-    <p class="error" role="alert">
+    <div class="error" role="alert">
       {children}
       <button type="button" class="x dismiss" aria-label="Dismiss this message" onClick={onDismiss}>
         {/* The cross is decoration; the button's own label is what is read out. */}
         <span aria-hidden="true">×</span>
       </button>
-    </p>
+    </div>
   )
 }
 
@@ -1174,22 +1177,53 @@ function PhotoField({
         on the input itself rather than on something pretending to be it.
       */}
       {/*
-        The advice names the camera app, not a setting. The commonest way to
-        reach a photo with no place is to take one inside this page: the phone
-        hands the page pixels and nothing else, and no setting on the phone
-        changes that. Telling that reporter to switch location on sends them
-        round the same loop. A photo taken in the camera app is saved with its
-        place and can then be picked, and switching location on still matters
-        there, so both are said.
+        The verdict first, then the cause, then what to do about it. What was
+        here before spent its first two sentences explaining the site to
+        somebody standing in the street holding a phone.
+
+        The cause is put as a question about the taps the reporter has just
+        made, because that is the only way they recognise themselves in it.
+        A photo taken through the page is by far the commonest way to reach
+        this message, and the reporter does not think of it as anything but
+        taking a photo: the camera opened, they pressed the button. Told
+        instead that "a picture taken inside this page" has no place, they
+        read a sentence about somebody else.
+
+        The steps are numbered because they are followed with the phone in
+        one hand, and a hurried reader follows a list faster than a sentence
+        with three clauses in it. Location is named inside the step where
+        switching it on is the thing that works. It is not offered up front:
+        for the reporter who took the photo through the page, no setting
+        changes anything, and sending them to Settings costs them the trip
+        and leaves them back here.
+
+        The last line is for the other ways in: a screenshot, or a picture
+        sent by somebody else. Without it the message tells those reporters
+        something untrue about their own file.
+
+        The filename is gone. A phone names them all image.jpg, so it picked
+        nothing out; the count is what tells a reporter whether the photo
+        they wanted got in.
       */}
       {refused.length > 0 && (
         <ErrorMessage onDismiss={() => setRefused([])}>
-          {refused.length === 1
-            ? `${refused[0]} does not record where it was taken, so it was not added.`
-            : `${refused.length} photos do not record where they were taken, so they were not added.`}{' '}
-          This site files a report at the place the photograph itself carries. A picture taken
-          inside this page carries none. Take it with your camera app instead, with location
-          switched on, then add it from your photos.
+          <strong>
+            {refused.length === 1
+              ? 'This photo has no location, so it was not added.'
+              : `${refused.length} photos have no location, so they were not added.`}
+          </strong>
+          <p>
+            Did you take it just now, after tapping Add photos? A photo taken that way never has a
+            location, and no setting on your phone changes that.
+          </p>
+          <p>What works:</p>
+          <ol class="steps">
+            <li>Open your camera app.</li>
+            <li>Take the photo there, with location switched on.</li>
+            <li>Come back here and tap Add photos.</li>
+            <li>Pick the photo you just took.</li>
+          </ol>
+          <p>Screenshots, and photos other people sent you, also have no location.</p>
         </ErrorMessage>
       )}
       {overflow > 0 && (
@@ -1234,11 +1268,18 @@ function PhotoField({
             turned away, because the refusal above costs the reporter a
             picture they have already taken. Only for the first one: by the
             second they have done it once and know how.
+
+            Gone while that refusal is on screen, which is exactly when it
+            used to appear: nothing is added after one, so both were shown
+            together, saying the same thing in different words directly
+            underneath each other. Two wordings of one instruction read as
+            two instructions, and the reporter goes looking for the
+            difference.
           */}
-          {photos.length === 0 && (
+          {photos.length === 0 && refused.length === 0 && (
             <p class="hint">
-              Take the photo with your camera app, then add it here. A picture taken inside this
-              page does not record where it was taken.
+              Take the photo with your camera app first, then add it here. A photo taken from this
+              page has no location, and the site needs one.
             </p>
           )}
           <input
