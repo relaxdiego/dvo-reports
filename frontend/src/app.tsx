@@ -1246,7 +1246,50 @@ function PhotoField({
         own, so the button below needs no script, and a keyboard still lands
         on the input itself rather than on something pretending to be it.
       */}
+      {photos.length > 0 && (
+        <>
+          <ul class="photolist">
+            {photos.map((f, i) => (
+              <PhotoRow
+                key={`${f.name}-${i}`}
+                file={f}
+                snap={facts.get(f) ?? null}
+                read={facts.has(f)}
+                onRemove={() => onChange(photos.filter((_, j) => j !== i))}
+              />
+            ))}
+          </ul>
+          {/*
+            This has to stay true as the filter changes. The list of what
+            survives is in backend/internal/photo, and it is short enough to
+            name here rather than summarise.
+          */}
+          <p class="hint">
+            The coordinates and times shown above will be sent to the city along with your
+            report.
+          </p>
+        </>
+      )}
       {/*
+        Below the photos that did get in, not above them. A reporter who
+        picks four and gets one in used to meet the red box first and read
+        it as being about all four — nothing above it said otherwise. Their
+        own photo row, with its coordinates on it, answers "did any of that
+        work?" better than a sentence can, so it goes first.
+
+        This costs nothing in the commonest case: when every photo was
+        turned away the list above is empty, so the box still sits directly
+        under the label. It costs something in the rare one — four kept and
+        one refused pushes it off the first screen. That is the better way
+        round. Not noticing one photo was dropped leaves a report that can
+        still be sent; believing all four failed makes somebody give up.
+        The box is on the way down to Send report either way.
+
+        It stays outside the block below, which disappears when the report
+        is full — that is exactly when the overflow message has something to
+        say. `role="alert"` is announced wherever the box sits in the
+        document, so a screen reader hears it first as it always did.
+
         The verdict first, then the cause, then what to do about it. What was
         here before spent its first two sentences explaining the site to
         somebody standing in the street holding a phone.
@@ -1353,30 +1396,6 @@ function PhotoField({
           {overflow === 1 ? 'One photo was' : `${overflow} photos were`} not added: a report
           carries at most {MAX_PHOTOS}.
         </ErrorMessage>
-      )}
-      {photos.length > 0 && (
-        <>
-          <ul class="photolist">
-            {photos.map((f, i) => (
-              <PhotoRow
-                key={`${f.name}-${i}`}
-                file={f}
-                snap={facts.get(f) ?? null}
-                read={facts.has(f)}
-                onRemove={() => onChange(photos.filter((_, j) => j !== i))}
-              />
-            ))}
-          </ul>
-          {/*
-            This has to stay true as the filter changes. The list of what
-            survives is in backend/internal/photo, and it is short enough to
-            name here rather than summarise.
-          */}
-          <p class="hint">
-            The coordinates and times shown above will be sent to the city along with your
-            report.
-          </p>
-        </>
       )}
       {/*
         Gone once the report is full, control and all. Leaving the input

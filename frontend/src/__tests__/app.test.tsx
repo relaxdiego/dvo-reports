@@ -663,6 +663,21 @@ describe('the photo field', () => {
     expect(refused?.textContent).toContain('A photo already on your phone has no location')
   })
 
+  // A reporter who picks four and gets one in has to see the one that landed
+  // before the red box, or they read the box as being about all four.
+  it('puts the refusal below the photos that did get in', async () => {
+    await attach(jpegPhoto(), jpegPhoto({ gps: false }))
+
+    const list = root.querySelector('.photolist')
+    const refused = root.querySelector('[role="alert"]')
+    expect(list).not.toBeNull()
+    expect(refused?.textContent).toContain('has no location')
+    // DOCUMENT_POSITION_FOLLOWING: the box comes after the list, not before.
+    expect(list!.compareDocumentPosition(refused!) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    )
+  })
+
   // The steps cannot help a reporter whose browser is inside another app: the
   // place was there and that app took it out. Both messages say so.
   it('names the in-app browser in both messages', async () => {
