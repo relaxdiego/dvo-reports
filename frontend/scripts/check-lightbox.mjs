@@ -13,6 +13,11 @@
  * which is positioned, and a picture that rose only as far as its own box
  * would look like a broken thumbnail rather than a photograph.
  *
+ * Then a real finger. Moving between photographs is a touch gesture, and the
+ * unit tests drive it with events they build themselves — which proves the
+ * arithmetic and nothing about whether a browser's own touches ever reach the
+ * handler. Only a browser with a touchscreen answers that.
+ *
  *   node scripts/check-lightbox.mjs <url> <photo> <photo-with-no-place> <shot-dir>
  */
 import puppeteer from 'puppeteer-core'
@@ -27,9 +32,12 @@ const browser = await puppeteer.launch({
 const fail = []
 
 /** A page that has been here before, so the welcome sheet is not in the way. */
-async function visit() {
+async function visit(touch = false) {
   const page = await browser.newPage()
-  await page.setViewport({ width: 390, height: 844, deviceScaleFactor: 2 }) // a phone
+  // A phone. The touchscreen is asked for only where it is used: it changes
+  // what the browser reports about itself, and the checks above were written
+  // against a page without one.
+  await page.setViewport({ width: 390, height: 844, deviceScaleFactor: 2, hasTouch: touch })
   await page.evaluateOnNewDocument(() => localStorage.setItem('dvo-reports.welcomed', 'yes'))
   await page.goto(url, { waitUntil: 'networkidle2' })
   return page
@@ -188,6 +196,57 @@ try {
   } else {
     console.log('pass  nothing from the form paints over the refused photo')
   }
+
+  // 3. A finger moving across the open photograph, with two attached. The
+  // same file twice is two photographs as far as the page is concerned, and
+  // the line at the foot is what says which one is on the screen.
+  const third = await visit(true)
+  const both = await third.waitForSelector('#photos')
+  await both.uploadFile(photo, photo)
+  await third.waitForFunction(() => document.querySelectorAll('.photorow').length === 2, {
+    timeout: 15000,
+  })
+  await third.evaluate(() => document.querySelector('.photorow .thumbtap').click())
+  await third.waitForSelector('.lightbox .count', { timeout: 5000 })
+
+  const said = () => third.$eval('.lightbox .count', (el) => el.textContent.trim())
+  const first = await said()
+
+  // Across the middle of the screen, in steps, the way a thumb travels. One
+  // jump from end to end is a gesture no hand makes and some browsers drop.
+  await third.touchscreen.touchStart(300, 420)
+  for (const x of [260, 220, 180, 140]) await third.touchscreen.touchMove(x, 420)
+  await third.touchscreen.touchEnd()
+  await new Promise((r) => setTimeout(r, 200))
+  await third.screenshot({ path: `${shots}/lightbox-4-swiped.png` })
+
+  const now = await said()
+  if (first !== '1 of 2' || now !== '2 of 2') {
+    console.log(`FAIL  a swipe left took "${first}" to "${now}", wanted "1 of 2" to "2 of 2"`)
+    fail.push('a swipe does not move along the group')
+  } else {
+    console.log('pass  a swipe left moves to the next photo of the two')
+  }
+
+  // The swipe must not also be read as a tap, which is what puts it away.
+  if (!(await third.$('.lightbox'))) {
+    console.log('FAIL  the swipe closed the photo instead of moving along it')
+    fail.push('a swipe closes the photo')
+  } else {
+    console.log('pass  the swipe leaves the photo open')
+  }
+
+  await third.touchscreen.touchStart(140, 420)
+  for (const x of [180, 220, 260, 300]) await third.touchscreen.touchMove(x, 420)
+  await third.touchscreen.touchEnd()
+  await new Promise((r) => setTimeout(r, 200))
+  const back = await third.$eval('.lightbox .count', (el) => el.textContent.trim())
+  if (back !== '1 of 2') {
+    console.log(`FAIL  a swipe right left it saying "${back}", wanted "1 of 2"`)
+    fail.push('a swipe right does not go back')
+  } else {
+    console.log('pass  a swipe right goes back to the photo before')
+  }
 } finally {
   await browser.close()
 }
@@ -196,4 +255,4 @@ if (fail.length) {
   console.error(`\nthe open photo is wrong at: ${fail.join(', ')}`)
   process.exit(1)
 }
-console.log('\nthe photo opens over everything, both times')
+console.log('\nthe photo opens over everything, and a finger moves between them')

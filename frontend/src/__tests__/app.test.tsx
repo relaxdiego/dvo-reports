@@ -70,6 +70,36 @@ async function attachPhotos(...files: File[]) {
   await settle()
 }
 
+/**
+ * A finger put down on something and lifted off again, the way a phone
+ * reports it. jsdom has no Touch to build, and the code reads nothing but the
+ * two coordinates, so the points go on a plain event.
+ */
+function swipe(el: Element, dx: number, dy = 0, fingers = 1) {
+  const at = (x: number, y: number) => ({ clientX: x, clientY: y })
+  const down = Object.assign(new Event('touchstart', { bubbles: true }), {
+    touches: fingers === 1 ? [at(200, 400)] : [at(180, 400), at(220, 400)],
+  })
+  const up = Object.assign(new Event('touchend', { bubbles: true }), {
+    touches: [],
+    changedTouches: [at(200 + dx, 400 + dy)],
+  })
+  act(() => {
+    el.dispatchEvent(down)
+    el.dispatchEvent(up)
+  })
+}
+
+/** Which of how many the open picture says it is, or null when it is alone. */
+function counted() {
+  return root.querySelector('.lightbox .count')?.textContent ?? null
+}
+
+/** The picture on the screen right now. */
+function shown() {
+  return root.querySelector<HTMLImageElement>('.lightbox img')!.getAttribute('src')
+}
+
 function click(text: string) {
   const button = [...root.querySelectorAll('button')].find((b) => b.textContent?.trim() === text)
   if (!button) throw new Error(`no button reading "${text}"`)
@@ -347,6 +377,33 @@ describe('reloading the list', () => {
 })
 
 describe('opening one report', () => {
+  /** Opens a report carrying these photographs, and taps the first of them. */
+  async function openPhotos(photos: string[]) {
+    localStorage.setItem('dvo-reports.session', JSON.stringify({ token: 'tk-1' }))
+    const withPhotos = listOf(1).map((r) => ({ ...r, photos }))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn<typeof fetch>(async (input) => {
+        if (String(input).endsWith('/api/reports')) {
+          return new Response(JSON.stringify({ reports: withPhotos }), { status: 200 })
+        }
+        return new Response(JSON.stringify({ reference: '1', steps: [] }), { status: 200 })
+      }),
+    )
+
+    act(() => render(<App />, root))
+    click('My reports')
+    await settle()
+    act(() => root.querySelector<HTMLButtonElement>('.reporthead')!.click())
+    await settle()
+
+    const link = root.querySelector<HTMLAnchorElement>('.reportbody .thumbs a')!
+    act(() => {
+      link.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, button: 0 }))
+    })
+    await settle()
+  }
+
   // A line of text alone reads as a page that has stopped working. The list
   // already turns a spinner while it waits; so does this.
   it('turns a spinner while the city is asked what happened', async () => {
@@ -480,6 +537,79 @@ describe('opening one report', () => {
     act(() => root.querySelector<HTMLButtonElement>('.lightbox .x')!.click())
     await settle()
     expect(root.querySelector('.lightbox')).toBeNull()
+  })
+
+  // Going back to the row of squares to open the one beside it is three taps.
+  // Every photo viewer on a phone moves along the group with a swipe.
+  it('swipes along the photos of the report it was opened from', async () => {
+    await openPhotos(['https://city.example/a.jpg', 'https://city.example/b.jpg'])
+
+    const box = root.querySelector('.lightbox')!
+    expect(shown()).toBe('https://city.example/a.jpg')
+    // Nothing else on the screen says there is a second photograph.
+    expect(counted()).toBe('1 of 2')
+
+    swipe(box, -120)
+    await settle()
+    expect(shown()).toBe('https://city.example/b.jpg')
+    expect(counted()).toBe('2 of 2')
+    // A swipe is not a tap. The photo just reached is not put away again.
+    expect(root.querySelector('.lightbox')).not.toBeNull()
+
+    swipe(box, 120)
+    await settle()
+    expect(shown()).toBe('https://city.example/a.jpg')
+  })
+
+  // Stopping is how the reporter learns there is no more. Wrapping round
+  // shows them the first photo again, which reads as a photo they missed.
+  it('stops at each end of the group', async () => {
+    await openPhotos(['https://city.example/a.jpg', 'https://city.example/b.jpg'])
+    const box = root.querySelector('.lightbox')!
+
+    swipe(box, 120)
+    await settle()
+    expect(shown()).toBe('https://city.example/a.jpg')
+
+    swipe(box, -120)
+    swipe(box, -120)
+    await settle()
+    expect(shown()).toBe('https://city.example/b.jpg')
+  })
+
+  // A thumb resting on a photograph slides a few pixels, and a drag down the
+  // screen is somebody scrolling, not somebody asking for the next photo.
+  it('leaves the photo alone on anything that is not a sideways swipe', async () => {
+    await openPhotos(['https://city.example/a.jpg', 'https://city.example/b.jpg'])
+    const box = root.querySelector('.lightbox')!
+
+    swipe(box, -20)
+    swipe(box, -120, 200)
+    // Two fingers are a pinch, and zooming into a photograph is half the
+    // reason to open it large.
+    swipe(box, -120, 0, 2)
+    await settle()
+
+    expect(shown()).toBe('https://city.example/a.jpg')
+  })
+
+  // Nobody swipes a keyboard.
+  it('moves along the group with the arrow keys', async () => {
+    await openPhotos(['https://city.example/a.jpg', 'https://city.example/b.jpg'])
+
+    act(() => { document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight' })) })
+    await settle()
+    expect(shown()).toBe('https://city.example/b.jpg')
+
+    act(() => { document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft' })) })
+    await settle()
+    expect(shown()).toBe('https://city.example/a.jpg')
+  })
+
+  // One photograph is not a group, and "1 of 1" is a line that says nothing.
+  it('says nothing about a group when there is only one photo', async () => {
+    await openPhotos(['https://city.example/a.jpg'])
+    expect(counted()).toBeNull()
   })
 
   // It is still a link. Someone who asks for a new tab gets one.
@@ -877,6 +1007,22 @@ describe('the photo field', () => {
     expect(root.querySelector('.lightbox')).toBeNull()
   })
 
+  // The photos already attached are a group, the same as a past report's
+  // are. A reporter checking what they are about to send looks at all of
+  // them, not at one and then back to the row of squares.
+  it('swipes along the photos already attached', async () => {
+    await attach(jpegPhoto(), jpegPhoto({ at: { lat: 7.1, lon: 125.6 } }))
+    expect(root.querySelectorAll('.photorow')).toHaveLength(2)
+
+    act(() => root.querySelector<HTMLButtonElement>('.photorow .thumbtap')!.click())
+    await settle()
+    expect(counted()).toBe('1 of 2')
+
+    swipe(root.querySelector('.lightbox')!, -120)
+    await settle()
+    expect(counted()).toBe('2 of 2')
+  })
+
   // The refused photos are where "which one?" is asked hardest: several
   // pictures of the same street are one picture at this size.
   it('opens a refused photo over the page too', async () => {
@@ -887,6 +1033,21 @@ describe('the photo field', () => {
     await settle()
 
     expect(root.querySelector('.lightbox img')?.getAttribute('alt')).toBe('photo.jpg')
+  })
+
+  // "Which ones?" is a question about all of them, so the refused photos are
+  // a group to swipe through as well.
+  it('swipes along the refused photos', async () => {
+    await attach(jpegPhoto({ gps: false }), jpegPhoto({ gps: false, date: false }))
+    expect(root.querySelectorAll('[role="alert"] .thumbtap')).toHaveLength(2)
+
+    act(() => root.querySelector<HTMLButtonElement>('[role="alert"] .thumbtap')!.click())
+    await settle()
+    expect(counted()).toBe('1 of 2')
+
+    swipe(root.querySelector('.lightbox')!, -120)
+    await settle()
+    expect(counted()).toBe('2 of 2')
   })
 
   // The way to add another sits under what is already attached, so a reporter

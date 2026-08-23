@@ -664,21 +664,38 @@ h2 {
   max-height: 100%;
 }
 
-/* The way out, over the top corner of the picture. It carries its own colours
-   instead of inheriting them: it sits on a photograph, which can be any
-   colour at all, so a cross that took the page's would vanish against half
-   of them. */
-.lightbox .x {
+/* The way out, and the line saying which photograph of how many. Both carry
+   their own colours instead of inheriting them: they sit on a photograph,
+   which can be any colour at all, so anything that took the page's would
+   vanish against half of them. */
+.lightbox .x,
+.lightbox .count {
   position: absolute;
-  top: 0.5rem;
-  inset-inline-end: 0.5rem;
   color: #fff;
   background: rgb(0 0 0 / 55%);
+}
+
+.lightbox .x {
+  top: 0.5rem;
+  inset-inline-end: 0.5rem;
 }
 
 .lightbox .x:hover,
 .lightbox .x:focus-visible {
   background: rgb(0 0 0 / 80%);
+}
+
+/* At the foot rather than the top, so it is out from under the thumb that
+   swipes and away from the cross, which is the one thing here that must not
+   be pressed by accident. */
+.lightbox .count {
+  inset-block-end: 0.75rem;
+  inset-inline-start: 50%;
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 0.15rem 0.6rem;
+  border-radius: 1rem;
+  font-size: 0.85rem;
 }
 
 /* The disclaimer, which covers the page rather than rising from the bottom

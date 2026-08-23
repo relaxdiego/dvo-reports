@@ -682,15 +682,7 @@ function FiledReport({ report, withSession }: { report: Filed; withSession: With
         <div class="reportbody">
           <p>{report.description}</p>
           {report.location && <p class="hint">Where: {report.location}</p>}
-          {report.photos && report.photos.length > 0 && (
-            <ul class="thumbs">
-              {report.photos.map((src, i) => (
-                <li key={src}>
-                  <ReportPhoto src={src} nth={i + 1} />
-                </li>
-              ))}
-            </ul>
-          )}
+          {report.photos && report.photos.length > 0 && <ReportPhotos srcs={report.photos} />}
           {error && !hidden && <ErrorMessage onDismiss={() => setHidden(true)}>{error}</ErrorMessage>}
           {!history && !error && (
             <p class="hint waiting" role="status">
@@ -1252,7 +1244,8 @@ function PhotoField({
             {photos.map((f, i) => (
               <PhotoRow
                 key={`${f.name}-${i}`}
-                file={f}
+                group={photos}
+                at={i}
                 snap={facts.get(f) ?? null}
                 read={facts.has(f)}
                 onRemove={() => onChange(photos.filter((_, j) => j !== i))}
@@ -1357,7 +1350,7 @@ function PhotoField({
           <ul class="thumbs">
             {refused.map((f, i) => (
               <li key={`${f.name}-${i}`}>
-                <Thumb file={f} alt={f.name} />
+                <Thumb group={refused} at={i} alt={f.name} />
               </li>
             ))}
           </ul>
@@ -1447,20 +1440,24 @@ function PhotoField({
  * place and the time it carries before they send it, rather than after.
  */
 function PhotoRow({
-  file,
+  group,
+  at,
   snap,
   read,
   onRemove,
 }: {
-  file: File
+  /** Every photo going with the report, so an opened one can be swiped past. */
+  group: File[]
+  at: number
   snap: Snapshot | null
   /** False while the photo is still being read. */
   read: boolean
   onRemove: () => void
 }) {
+  const file = group[at]
   const map = useMapChunk()
   const MapView = map.module?.MapView
-  const at = snap && snap.lat !== null && snap.lon !== null
+  const place = snap && snap.lat !== null && snap.lon !== null
     ? { lat: snap.lat, lon: snap.lon }
     : null
 
@@ -1478,16 +1475,16 @@ function PhotoRow({
 
   return (
     <li class="photorow">
-      <Thumb file={file} />
+      <Thumb group={group} at={at} />
       <div class="photofacts">
         <span class="photoname">{file.name}</span>
         {!read && <span class="meta">Reading the photo…</span>}
-        {read && at && (
-          <a href={osmLink(at.lat, at.lon)} target="_blank" rel="noreferrer" onClick={onCoordinates}>
-            {map.opening ? 'Opening the map…' : `${at.lat}, ${at.lon}`}
+        {read && place && (
+          <a href={osmLink(place.lat, place.lon)} target="_blank" rel="noreferrer" onClick={onCoordinates}>
+            {map.opening ? 'Opening the map…' : `${place.lat}, ${place.lon}`}
           </a>
         )}
-        {read && !at && <span class="meta">No place recorded.</span>}
+        {read && !place && <span class="meta">No place recorded.</span>}
         {read && (
           <span class="meta">{snap?.taken ? takenText(snap.taken) : 'No date recorded.'}</span>
         )}
@@ -1495,9 +1492,9 @@ function PhotoRow({
       <button type="button" class="x remove" aria-label={`Remove ${file.name}`} onClick={onRemove}>
         <span aria-hidden="true">×</span>
       </button>
-      {MapView && at && (
+      {MapView && place && (
         <MapView
-          at={at}
+          at={place}
           caption={snap?.taken ? `Taken ${takenText(snap.taken)}.` : undefined}
           onClose={map.close}
         />
@@ -1517,6 +1514,9 @@ function takenText(at: Date): string {
   })
 }
 
+/** One picture, and the words that stand for it. */
+type Pic = { src: string; alt: string }
+
 /**
  * One photograph, as big as the screen will draw it, over the page.
  *
@@ -1533,24 +1533,109 @@ function takenText(at: Date): string {
  * Tapping anywhere closes it, which is what every photo viewer on a phone
  * does, and the cross says so for anyone who does not already know. Escape
  * closes it too, the way the map sheet behaves.
+ *
+ * It is handed the whole group the picture came from, not one picture, so a
+ * swipe left or right moves to the photograph beside it — again, what every
+ * photo viewer on a phone does. Going back to the row of squares to open the
+ * next one is three taps on a phone, and comparing two photographs of the
+ * same pothole is exactly what somebody about to press Send is doing. The
+ * arrow keys do the same for anyone holding a keyboard, who has no swipe.
  */
-function Lightbox({ src, alt, onClose }: { src: string; alt: string; onClose: () => void }) {
+function Lightbox({ group, at, onClose }: { group: Pic[]; at: number; onClose: () => void }) {
+  const [i, setI] = useState(at)
+  const pic = group[i]
+
+  /* It stops at each end rather than wrapping round, so a reporter who has
+     reached the last photograph finds that out by the picture not moving,
+     rather than by recognising the first one again. */
+  const go = (step: number) =>
+    setI((n) => Math.max(0, Math.min(group.length - 1, n + step)))
+
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose()
+      if (e.key === 'ArrowLeft') go(-1)
+      if (e.key === 'ArrowRight') go(1)
     }
     document.addEventListener('keydown', key)
     return () => document.removeEventListener('keydown', key)
-  }, [onClose])
+  }, [onClose, group.length])
+
+  /*
+    A tap puts the picture away and a sideways drag moves along the group, and
+    all that separates them is how far the finger went. Two fingers are
+    neither: that is a pinch, and zooming into a photograph is half the reason
+    to open it large.
+
+    The drag is remembered because a browser may still send a click after one,
+    and that click would close the photograph the reporter just swiped to.
+  */
+  const from = useRef<{ x: number; y: number } | null>(null)
+  const swiped = useRef(false)
+
+  const onTouchStart = (e: TouchEvent) => {
+    const t = e.touches
+    from.current = t.length === 1 ? { x: t[0].clientX, y: t[0].clientY } : null
+  }
+
+  const onTouchEnd = (e: TouchEvent) => {
+    const start = from.current
+    from.current = null
+    if (!start) return
+    const t = e.changedTouches[0]
+    const dx = t.clientX - start.x
+    const across = Math.abs(dx)
+    // Sideways, and far enough to have been meant: a thumb resting on a
+    // photograph slides a few pixels, and a drag down the screen is not this.
+    if (across < 45 || across <= Math.abs(t.clientY - start.y)) return
+    swiped.current = true
+    go(dx < 0 ? 1 : -1)
+  }
+
+  const onTap = () => {
+    if (swiped.current) {
+      swiped.current = false
+      return
+    }
+    onClose()
+  }
 
   return (
-    <div class="lightbox" role="dialog" aria-modal="true" aria-label={alt} onClick={onClose}>
-      <img src={src} alt={alt} />
+    <div
+      class="lightbox"
+      role="dialog"
+      aria-modal="true"
+      aria-label={pic.alt}
+      onClick={onTap}
+      onTouchStart={onTouchStart}
+      onTouchEnd={onTouchEnd}
+    >
+      <img src={pic.src} alt={pic.alt} />
       <button type="button" class="x" aria-label="Close" onClick={onClose}>
         <span aria-hidden="true">×</span>
       </button>
+      {/* Nothing else on this screen says there is another photograph to
+          reach: the picture fills it, and a swipe leaves no handle to see. */}
+      {group.length > 1 && <p class="count" role="status">{`${i + 1} of ${group.length}`}</p>}
     </div>
   )
+}
+
+/**
+ * The same viewer, for photographs that are still on the phone.
+ *
+ * A thumbnail already holds an address for the one picture it draws; the rest
+ * of the group has none until somebody looks at them. They are made when this
+ * opens and given back when it closes, so the reporter who never opens a
+ * photograph never costs the page one.
+ */
+function FileLightbox({ files, at, onClose }: { files: File[]; at: number; onClose: () => void }) {
+  // Read once. The group cannot change while it is covering the form, and
+  // making the addresses again on a re-render would blink the picture.
+  const pics = useMemo(() => files.map((f) => ({ src: URL.createObjectURL(f), alt: f.name })), [])
+  useEffect(() => () => pics.forEach((p) => URL.revokeObjectURL(p.src)), [pics])
+
+  return <Lightbox group={pics} at={at} onClose={onClose} />
 }
 
 /**
@@ -1567,8 +1652,9 @@ function Lightbox({ src, alt, onClose }: { src: string; alt: string; onClose: ()
  * pothole has no name here — the city does not send one — and the alt text
  * stays empty because there is nothing truthful to put in it.
  */
-function ReportPhoto({ src, nth }: { src: string; nth: number }) {
+function ReportPhoto({ group, at }: { group: Pic[]; at: number }) {
   const [open, setOpen] = useState(false)
+  const pic = group[at]
 
   const onOpen = (e: MouseEvent) => {
     if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return
@@ -1579,16 +1665,37 @@ function ReportPhoto({ src, nth }: { src: string; nth: number }) {
   return (
     <>
       <a
-        href={src}
+        href={pic.src}
         target="_blank"
         rel="noreferrer"
-        aria-label={`Show photo ${nth} larger`}
+        aria-label={`Show photo ${at + 1} larger`}
         onClick={onOpen}
       >
-        <img src={src} alt="" loading="lazy" />
+        <img src={pic.src} alt="" loading="lazy" />
       </a>
-      {open && <Lightbox src={src} alt={`Photo ${nth}`} onClose={() => setOpen(false)} />}
+      {open && <Lightbox group={group} at={at} onClose={() => setOpen(false)} />}
     </>
+  )
+}
+
+/**
+ * Every photograph on one past report, as a row of squares.
+ *
+ * The group is named here rather than inside each square, because a square
+ * opened has to know what the ones beside it are: a swipe moves along this
+ * list.
+ */
+function ReportPhotos({ srcs }: { srcs: string[] }) {
+  const group = srcs.map((src, i) => ({ src, alt: `Photo ${i + 1}` }))
+
+  return (
+    <ul class="thumbs">
+      {group.map((pic, i) => (
+        <li key={pic.src}>
+          <ReportPhoto group={group} at={i} />
+        </li>
+      ))}
+    </ul>
   )
 }
 
@@ -1601,7 +1708,8 @@ function ReportPhoto({ src, nth }: { src: string; nth: number }) {
  * — a reporter who picked four and got a refusal for two needs to see which
  * two, and at this size several photos of the same street are one picture.
  */
-function Thumb({ file, alt = '' }: { file: File; alt?: string }) {
+function Thumb({ group, at, alt = '' }: { group: File[]; at: number; alt?: string }) {
+  const file = group[at]
   const url = useMemo(() => URL.createObjectURL(file), [file])
   useEffect(() => () => URL.revokeObjectURL(url), [url])
   const [open, setOpen] = useState(false)
@@ -1616,7 +1724,7 @@ function Thumb({ file, alt = '' }: { file: File; alt?: string }) {
       >
         <img src={url} alt={alt} />
       </button>
-      {open && <Lightbox src={url} alt={file.name} onClose={() => setOpen(false)} />}
+      {open && <FileLightbox files={group} at={at} onClose={() => setOpen(false)} />}
     </>
   )
 }
