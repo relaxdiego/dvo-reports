@@ -165,6 +165,17 @@ at build time; name the environment you deployed to alongside them.
   being allowed to say where they think they were. Do not add a way around
   it without being asked. `Draft.address` is the street looked up from those
   coordinates, and an empty one is fine.
+- `frontend/src/draft.ts` — keeps what the reporter has typed, in
+  `sessionStorage`, so an app switch does not lose it. The site sends people
+  out to their camera app, and a phone short of memory throws the page away
+  while they are gone. **The photos are deliberately not kept.** A photo is
+  let in only if it carries its own place, which means it was taken in the
+  camera app and is still in the reporter's library, so picking it again
+  costs two taps — and a photograph of a real place does not belong in a
+  browser's storage. `sessionStorage` rather than `localStorage` because a
+  phone restores it with the tab it discarded and drops it when the tab
+  closes, and phones are lent to people. `sitenotice.tsx` says all of this;
+  if what is kept changes, change it there too.
 - `frontend/src/image.ts` — shrinking photos before upload. This is the main
   reason the client feels fast. Do not remove it. It also copies the
   original's metadata block onto the resized photo, unread: drawing to a

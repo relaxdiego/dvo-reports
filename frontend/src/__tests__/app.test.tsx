@@ -18,6 +18,7 @@ let root: HTMLDivElement
 
 beforeEach(() => {
   localStorage.clear()
+  sessionStorage.clear()
   // Everything below is a reporter who has been here before. The welcome
   // sheet is only for a first visit, and it covers the page, so a test that
   // did not say so would be testing the sheet rather than the form. The
@@ -472,6 +473,58 @@ describe('choosing what the problem is', () => {
     expect(root.querySelector('.chips')!.className).toBe('chips')
     expect(root.querySelectorAll('[aria-pressed="true"]')).toHaveLength(0)
     expect(chips()).toContain('Pothole (Lubak)')
+  })
+})
+
+/*
+  The site sends a reporter out to their camera app, because a photograph is
+  the only thing that can say where the problem is. A phone short of memory
+  throws this page away while they are gone, and what they had typed used to
+  go with it.
+*/
+describe('a half-written report', () => {
+  function typeInto(text: string) {
+    const box = root.querySelector<HTMLTextAreaElement>('#description')!
+    box.value = text
+    act(() => { box.dispatchEvent(new Event('input', { bubbles: true })) })
+  }
+
+  it('is still there when the page comes back', async () => {
+    act(() => render(<App />, root))
+    click('Garbage')
+    typeInto('The bins by the gate have not been emptied.')
+
+    // The phone discarded the tab and built the page again.
+    render(null, root)
+    act(() => render(<App />, root))
+    await settle()
+
+    expect(root.querySelector<HTMLTextAreaElement>('#description')!.value).toBe(
+      'The bins by the gate have not been emptied.',
+    )
+    // The chip carries a cross to clear it, so its text is more than its name.
+    expect(root.querySelector('[aria-pressed="true"]')?.textContent).toContain('Garbage')
+  })
+
+  // The photos are not kept, and do not need to be: one is only let in if it
+  // carries its own place, so it was taken in the camera app and is in the
+  // reporter's library still.
+  it('does not keep the photos', async () => {
+    await attachPhotos(jpegPhoto())
+    expect(root.querySelectorAll('.photorow')).toHaveLength(1)
+
+    render(null, root)
+    act(() => render(<App />, root))
+    await settle()
+
+    expect(root.querySelectorAll('.photorow')).toHaveLength(0)
+  })
+
+  it('is gone once the report has been sent', async () => {
+    await attachPhotos(jpegPhoto())
+    await fileAndRead()
+
+    expect(sessionStorage.getItem('dvo-reports.draft')).toBeNull()
   })
 })
 

@@ -2,6 +2,7 @@ import type { ComponentChildren } from 'preact'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/hooks'
 import { ApiError, lookupPlace, myReports, reportHistory, sendCode, submitReport, verifyCode, type Place as Street } from './api'
 import { forget, liveSession, needsWelcome, remember, rememberedEmail, welcomed } from './session'
+import { forgetDraft, saveDraft, savedDraft } from './draft'
 import { validate, descriptionLength, MAX_DESCRIPTION, MAX_PHOTOS } from './validate'
 import { osmLink, placeOfPhotos, readSnapshot, type Place, type Snapshot } from './exif'
 import { Disclaimer } from './disclaimer'
@@ -266,10 +267,21 @@ function ReportTab({
   withSession: WithSession
   onDisclaimer: () => void
 }) {
-  const [draft, setDraft] = useState<Draft>(emptyDraft)
+  /*
+    Started from whatever was being written in this tab before. A reporter is
+    sent to their camera app to get a photograph with a place in it, and a
+    phone short of memory throws this page away while they are gone. See
+    draft.ts: the words come back, the photos do not, because the photos are
+    still in their library.
+  */
+  const [draft, setDraft] = useState<Draft>(() => ({ ...emptyDraft, ...savedDraft() }))
   const [error, setError] = useState<string | null>(null)
   const [sending, setSending] = useState(false)
   const [receipt, setReceipt] = useState<Receipt | null>(null)
+
+  useEffect(() => {
+    saveDraft(draft)
+  }, [draft.category, draft.description])
 
   const set = useCallback(
     <K extends keyof Draft>(key: K, value: Draft[K]) => setDraft((d) => ({ ...d, [key]: value })),
@@ -299,7 +311,12 @@ function ReportTab({
     setSending(true)
     try {
       const sent = await withSession((token) => submitReport(draft, token))
-      if (sent) setReceipt(sent)
+      if (sent) {
+        // The city has it. Nothing is left here to come back to, and the
+        // reference number on the next screen is the record now.
+        forgetDraft()
+        setReceipt(sent)
+      }
     } catch (err) {
       setError(messageOf(err))
     } finally {

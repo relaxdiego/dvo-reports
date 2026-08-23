@@ -58,6 +58,13 @@ export function SiteNotice() {
           stays here, it is your only record, and it is how you follow up with the city.
         </p>
         <p>
+          <strong>What you are still writing:</strong> While you write a report, the words you have
+          typed are kept in your own browser, on your own phone, so that leaving for your camera
+          app does not lose them. They are not sent anywhere, and they are not kept here. Your
+          photos are never kept, not even in your browser. What you typed goes when you send the
+          report, and it goes when you close this tab.
+        </p>
+        <p>
           <strong>Your sign-in:</strong> You sign in with the e-mail address on your city account.
           The city then sends a one-time code by text message, to the phone number registered with
           that account. The key that keeps you signed in is kept in your own browser, and this site
