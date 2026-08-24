@@ -172,16 +172,24 @@ at build time; name the environment you deployed to alongside them.
   both, and remember the backend's answer is the one that counts. A report
   needs at least one photo and a pair of coordinates.
 
-  **The coordinates come from the photograph, and from nowhere else.** A
-  photo that does not carry its own place is refused where it is chosen, in
-  `PhotoField` in `app.tsx`; `backend/internal/report` refuses it again with
-  `photo.HasLocation`, and that is the copy that is trusted. Nobody types an
-  address, nobody drags a pin, and there is no place picker to open. This is
-  deliberate and it turns people away: a camera with its location switched
-  off is ordinary, and that reporter is told to switch it on rather than
-  being allowed to say where they think they were. Do not add a way around
-  it without being asked. `Draft.address` is the street looked up from those
-  coordinates, and an empty one is fine.
+  **The coordinates start at the photograph, and a report cannot begin
+  without one.** A photo that does not carry its own place is refused where
+  it is chosen, in `PhotoField` in `app.tsx`; `backend/internal/report`
+  refuses it again with `photo.HasLocation`, and that is the copy that is
+  trusted. Nobody types an address, and there is no way to open a map before
+  a photograph has put a place on it. This is deliberate and it turns people
+  away: a camera with its location switched off is ordinary, and that
+  reporter is told to switch it on rather than being allowed to say where
+  they think they were. Do not add a way around that without being asked.
+
+  **The pin can then be nudged, from the `Adjust` link beside the street
+  name.** It opens `MapPicker` on the place the photographs gave, so an
+  adjustment starts from the photograph rather than from nowhere. Once the
+  reporter has moved it, it is theirs: `byReporter` in `LocationField` stops
+  another photo dragging it back. Taking the last photo out still takes the
+  place with it and forgets what they chose — with no photograph there is
+  nothing to file and nowhere to file it. `Draft.address` is the street
+  looked up from whatever the pin ends on, and an empty one is fine.
 - `frontend/src/draft.ts` — keeps what the reporter has typed, in
   `sessionStorage`, so an app switch does not lose it. The site sends people
   out to their camera app, and a phone short of memory throws the page away
@@ -266,20 +274,30 @@ at build time; name the environment you deployed to alongside them.
   was checked, not assumed — but the browser sends this site's Referer and
   Origin on its own, and that satisfies it. The policy also asks that
   answers be cached and OpenStreetMap be credited: `api.ts` keeps answers
-  for the life of the page, and the credit rides on each answer and is
-  drawn under the street name. The one client-side thing the policy forbids
-  is autocomplete; do not build one.
+  for the life of the page, and Leaflet draws the credit in the corner of
+  the map that is on the screen directly above the street name. There is no
+  second credit under the name — one screen, one credit. The one
+  client-side thing the policy forbids is autocomplete; do not build one.
 
   It is behind a dynamic `import()`, like the map and for the same reason:
   nothing can be looked up before a photo is attached, so none of it belongs
   in the first page load.
-- `frontend/src/map.tsx` — the small map drawn on the form, and the same map
-  opened over it when a reporter taps the coordinates on a photo. Neither
-  one chooses anything: they draw the place the photographs carry. It is the
-  only code that talks to a third party, and it is loaded with a dynamic
-  `import()`. Do not import it from anywhere eagerly: Leaflet is fetched once
-  there is a place to draw, which means after a photo is attached, and never
-  on the first page load.
+- `frontend/src/map.tsx` — three maps out of one chunk: the small one drawn
+  on the form, the same one opened over it when a reporter taps the
+  coordinates on a photo, and the picker behind the `Adjust` link. The first
+  two only draw the place the photographs carry; the picker is the one thing
+  in the app that moves it, and only because the reporter opened it to do
+  that. It is the only code that talks to a third party, and it is loaded
+  with a dynamic `import()`. Do not import it from anywhere eagerly: Leaflet
+  is fetched once there is a place to draw, which means after a photo is
+  attached, and never on the first page load.
+
+  **The map on the form does not move under a finger.** `MapHere` passes
+  `still`, which switches off every one of Leaflet's handlers, and that is
+  what keeps Leaflet's `leaflet-touch-drag` class — and the `touch-action`
+  that comes with it — off the container. A thumb that lands on a map in the
+  middle of a form is scrolling the form. The two sheets get the whole
+  screen, so they drag as maps should.
 - `frontend/brand/citizen-reporter.jpg` — the one piece of artwork. The home
   screen icon and the picture a chat app shows are both cut from it by
   `frontend/scripts/make-brand.mjs` (`make brand`), which needs a browser and
@@ -351,8 +369,8 @@ at build time; name the environment you deployed to alongside them.
 - Go: standard library only. Adding a dependency to the backend needs a
   reason in the commit message.
 - Frontend: Preact, no UI framework, no component library. The bundle
-  everybody downloads is about 20.8 kB gzipped, and `make size` fails above
-  22 kB — CI runs it, so growing the first page load means raising the budget
+  everybody downloads is about 22.5 kB gzipped, and `make size` fails above
+  23 kB — CI runs it, so growing the first page load means raising the budget
   in `frontend/scripts/check-size.mjs` and saying in the commit message what
   the bytes buy a reporter. Leaflet sits outside that number because it is in
   the map's own chunk — keep new weight behind a dynamic `import()` the same
@@ -380,8 +398,11 @@ make test-browser     # needs chromium on PATH
 ```
 
 It drives four things a real browser has to be asked about. It taps the
-place on a photo's row, which opens a map over the form, and fails if anything
-from the form paints over that sheet. It taps a photo's thumbnail — the one on
+place on a photo's row, which opens a map over the form, then the `Adjust`
+link, which opens the picker, and fails if anything from the form paints over
+either sheet. It also drags a finger up the map on the form and fails if that
+map moves or the page does not: that map is a picture, and a thumb on it is
+scrolling the form. It taps a photo's thumbnail — the one on
 its row, and one in the message listing photos that were turned away — and
 fails if the form paints over the picture that opens, or if the picture is
 drawn barely larger than the square it came from. With two photos attached it

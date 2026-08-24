@@ -76,8 +76,8 @@ export function SiteNotice() {
           sent, so uploads are fast. A photo can carry the place and the time it was taken. Only
           those two things go on to the city. Everything else the camera wrote — its model, its
           settings, the identifiers it puts on each photograph — is removed before your report
-          leaves this site. Your report is filed at the place your photo carries: you cannot type a
-          different address here, so if that place is wrong, use the city's own site instead. To put
+          leaves this site. Your report is filed at the place your photo carries: you cannot type an
+          address here, but you can move the pin on the map if the camera put it a street out. To put
           a street name on your report, your phone sends the photo's coordinates — and nothing
           else — to OpenStreetMap. OpenStreetMap therefore sees your phone and where it is
           connected from. The small map is drawn with pictures from OpenStreetMap too, asked for

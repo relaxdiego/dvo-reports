@@ -124,8 +124,6 @@ export interface Place {
    * asking; the backend keeps the same flag to itself for the same purpose.
    */
   street?: boolean
-  /** Who to credit for this answer, when somebody has to be. */
-  credit?: string
 }
 
 /**

@@ -132,13 +132,14 @@ settings, the thumbnail, the manufacturer's private block, and every other
 embedded block are dropped. The list lives in `backend/internal/photo`, and the backend
 is the only place it is applied.
 
-**Your photos must say where they were taken.** This site files a report at
-the place written inside the photograph, and at no other place. You cannot
-type an address, and there is no map to drag a pin on. A photo taken with the
-camera's location switched off is refused, and you are asked to switch it on
-and take the picture again. That is a deliberate choice: a report the city can
-act on has to say where the problem is, and the camera is the only thing here
-that knows.
+**Your photos must say where they were taken.** This site starts your report
+at the place written inside the photograph. You cannot type an address, and a
+photo taken with the camera's location switched off is refused: you are asked
+to switch it on and take the picture again. That is a deliberate choice — a
+report the city can act on has to say where the problem is, and the camera is
+the only thing here that knows. Once a photo has put the pin down, `Adjust`
+beside the street name lets you move it, for the times the camera was a street
+out.
 
 **Two things reach a third party, and both of them are only a place.**
 

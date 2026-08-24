@@ -25,8 +25,9 @@
  * without a word — but it sends this site's Referer and Origin on its own,
  * which is the other half of that sentence. The policy also asks that
  * answers be cached and that OpenStreetMap be credited: `api.ts` keeps the
- * answers for as long as the page is open, and CREDIT travels with each
- * answer for the form to show.
+ * answers for as long as the page is open, and Leaflet draws OpenStreetMap's
+ * credit in the corner of the map that is on the screen directly above the
+ * street name.
  *
  * `sitenotice.tsx` tells the reporter all of this. If what is sent from the
  * phone changes, change it there too.
@@ -34,9 +35,6 @@
 import type { Place } from './api'
 
 const REVERSE = 'https://nominatim.openstreetmap.org/reverse'
-
-/** Shown under the street name. OpenStreetMap's licence asks for it. */
-const CREDIT = '© OpenStreetMap contributors'
 
 /** The fields of Nominatim's `address` object this reads. Any may be absent. */
 interface Address {
@@ -86,7 +84,7 @@ export async function askOpenStreetMap(
     ''
   if (!address) return null
 
-  return { address, in_davao: looksLikeDavao(a), street: Boolean(a.road), credit: CREDIT }
+  return { address, in_davao: looksLikeDavao(a), street: Boolean(a.road) }
 }
 
 /**

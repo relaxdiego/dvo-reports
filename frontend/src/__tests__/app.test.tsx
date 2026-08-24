@@ -1258,6 +1258,13 @@ describe('the map on the form', () => {
     throw new Error(`${what} never appeared; the page says: ${root.textContent}`)
   }
 
+  /** The link beside the street name, which opens the picker over the form. */
+  function adjust() {
+    const link = root.querySelector<HTMLButtonElement>('.street .adjust')
+    if (!link) throw new Error('no way to adjust the pin')
+    return link
+  }
+
   // Leaflet is tens of kilobytes. A reporter who has attached nothing has
   // nowhere to put a pin, so nothing may load it yet.
   it('does not fetch the map until a photo gives it somewhere to draw', () => {
@@ -1273,12 +1280,72 @@ describe('the map on the form', () => {
     await attachPhotos(jpegPhoto())
     await waitFor('the map on the form', '.leaflet-container')
 
-    // On the form, not over it, and with nothing to press: this map shows a
-    // place, it does not ask for one.
+    // On the form, not over it. Nothing on this map asks for anything: the
+    // one way to move the pin is the link beside the street name, and it
+    // opens a map of its own over the form.
     expect(root.querySelector('[role="dialog"]')).toBeNull()
     expect(root.querySelector('.mapwrap.inline .leaflet-container')).not.toBeNull()
     expect(root.textContent).not.toContain('Adjust location')
-    expect(root.textContent).not.toContain('Set the location')
+  })
+
+  // The pin is where the photographs said, so the picker opens there: an
+  // adjustment starts from the photograph rather than from nowhere.
+  it('opens the picker on the pin the photos put down', async () => {
+    await attachPhotos(jpegPhoto())
+    await waitFor('the way to adjust the pin', '.street .adjust')
+    act(() => adjust().click())
+    await waitFor('the picker', '[role="dialog"] .leaflet-container')
+
+    // Taking the place without moving the map takes whatever the picker
+    // opened on, which is what the photograph recorded.
+    click('Use this location')
+    await settle()
+    expect(root.querySelector('[role="dialog"]')).toBeNull()
+
+    const body = await fileAndRead()
+    expect(body.get('lat')).toBe('7.09753')
+    expect(body.get('lon')).toBe('125.62229')
+  })
+
+  // Once the reporter has put the pin somewhere, it is theirs. Another photo
+  // would otherwise pull it back to the middle of the two, undoing what they
+  // just did.
+  it('keeps the pin the reporter chose when another photo is added', async () => {
+    await attachPhotos(jpegPhoto())
+    await waitFor('the way to adjust the pin', '.street .adjust')
+    act(() => adjust().click())
+    await waitFor('the picker', '[role="dialog"] .leaflet-container')
+    click('Use this location')
+    await settle()
+
+    // Near enough to be the same problem, so the two photos together would
+    // put the pin at 7.09777 — between them — if they still decided it.
+    await attachPhotos(jpegPhoto({ at: { lat: 7.098, lon: 125.62229 } }))
+
+    const body = await fileAndRead()
+    expect(body.get('lat')).toBe('7.09753')
+  })
+
+  // Taking the last photo out takes the place with it, and what the reporter
+  // chose goes too: the next photograph starts the pin again, or there is no
+  // report to file.
+  it('forgets the pin the reporter chose when the photos go', async () => {
+    await attachPhotos(jpegPhoto())
+    await waitFor('the way to adjust the pin', '.street .adjust')
+    act(() => adjust().click())
+    await waitFor('the picker', '[role="dialog"] .leaflet-container')
+    click('Use this location')
+    await settle()
+
+    act(() => root.querySelector<HTMLButtonElement>('.photorow .remove')!.click())
+    await settle()
+    expect(root.querySelector('form')!.textContent).not.toContain('Location')
+
+    await attachPhotos(jpegPhoto({ at: { lat: 7.11111, lon: 125.61111 } }))
+
+    const body = await fileAndRead()
+    expect(body.get('lat')).toBe('7.11111')
+    expect(body.get('lon')).toBe('125.61111')
   })
 
   it('files the report at the place the photo recorded', async () => {
@@ -1335,7 +1402,10 @@ describe('the map on the form', () => {
     await attachPhotos(jpegPhoto({ at: { lat: 7.11111, lon: 125.61111 } }))
     await streetNamed()
 
-    expect(root.querySelector('.street')).toBeNull()
+    // No name for the place, so the line under the map holds nothing but the
+    // way to move the pin off it.
+    await waitFor('the way to adjust the pin', '.street .adjust')
+    expect(root.querySelector('.street')?.textContent?.trim()).toBe('Adjust')
     expect(root.textContent).toContain('Location')
     expect(root.textContent).not.toContain('Looking up the street')
   })

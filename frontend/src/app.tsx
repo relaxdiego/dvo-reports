@@ -1045,17 +1045,32 @@ function LocationField({
 }) {
   const [street, setStreet] = useState<Street | null>(null)
   const [naming, setNaming] = useState(false)
+  const [byReporter, setByReporter] = useState(false)
+  const [picking, setPicking] = useState(false)
   const map = useMapChunk()
   const MapHere = map.module?.MapHere
+  const MapPicker = map.module?.MapPicker
 
   // The place is the photographs' to give, and nobody's to type. Every photo
   // attached carries one, because one that does not is turned away in the
-  // field above, so the pin is simply where they were taken. It follows them
-  // as they are added and removed, and goes when the last one does.
+  // field above, so the pin starts where they were taken, and follows them as
+  // they are added and removed.
+  //
+  // The reporter may then move it themselves, and after that it is theirs:
+  // another photo does not drag it back. Taking out the last photo still
+  // takes the place with it, and forgets what they chose — with no
+  // photograph there is nothing to file and nowhere to file it.
   useEffect(() => {
-    set('lat', fromPhotos?.lat ?? null)
-    set('lon', fromPhotos?.lon ?? null)
-  }, [fromPhotos, set])
+    if (!fromPhotos) {
+      setByReporter(false)
+      set('lat', null)
+      set('lon', null)
+      return
+    }
+    if (byReporter) return
+    set('lat', fromPhotos.lat)
+    set('lon', fromPhotos.lon)
+  }, [fromPhotos, byReporter, set])
 
   const placed = draft.lat !== null && draft.lon !== null
   const at = placed ? { lat: draft.lat as number, lon: draft.lon as number } : null
@@ -1090,6 +1105,13 @@ function LocationField({
     return () => { dropped = true }
   }, [lat, lon, set])
 
+  const pick = (spot: { lat: number; lon: number }) => {
+    setByReporter(true)
+    set('lat', spot.lat)
+    set('lon', spot.lon)
+    setPicking(false)
+  }
+
   return (
     <>
       {/*
@@ -1112,10 +1134,30 @@ function LocationField({
           Looking up the street…
         </p>
       )}
-      {at && !naming && street?.address && (
+      {/*
+        The street the report will be filed under, and the way to move the
+        pin off it. The link sits beside the name because the name is what
+        tells a reporter the pin is wrong: it is the sentence a city worker
+        will read, and the moment to disagree with it is while reading it.
+
+        Nobody is credited under it. OpenStreetMap asks to be credited
+        wherever its data is shown, and Leaflet draws that credit in the
+        corner of the map directly above this line — twice on one screen is
+        one too many.
+
+        The link waits for the map, because it opens the map. It arrives
+        moments after the picture above it and never on a build where
+        Leaflet failed to load, which is the one case where pressing it
+        could do nothing at all.
+      */}
+      {at && !naming && (street?.address || MapPicker) && (
         <p class="street">
-          {street.address}
-          {street.credit && <small>{street.credit}</small>}
+          {street?.address}
+          {MapPicker && (
+            <button type="button" class="linky adjust" onClick={() => setPicking(true)}>
+              Adjust
+            </button>
+          )}
         </p>
       )}
       {at && !naming && street && !street.in_davao && (
@@ -1131,7 +1173,7 @@ function LocationField({
         cannot show is photographs that disagree with each other, so that is
         the only case that still gets a sentence.
       */}
-      {at && fromPhotos?.spread && (
+      {at && !byReporter && fromPhotos?.spread && (
         <p class="hint">
           Your photos were taken in different places, so the report goes to the first one. Take out
           the photos that belong somewhere else.
@@ -1147,6 +1189,10 @@ function LocationField({
         <p class="hint">
           The map could not be drawn. The place your photos recorded is still on the report.
         </p>
+      )}
+
+      {picking && at && MapPicker && (
+        <MapPicker at={at} onPick={pick} onClose={() => setPicking(false)} />
       )}
     </>
   )

@@ -954,13 +954,12 @@ button.primary.waiting .spinner {
   font-size: 0.9rem;
 }
 
-/* Who the street name came from. OpenStreetMap's licence asks to be credited
-   wherever its data is shown, and the map's own credit is not on the screen
-   when the map fails to draw. */
-.street small {
-  display: block;
-  color: var(--muted);
-  font-size: 0.75rem;
+/* The way to move the pin, beside the name of where it is now. A link and
+   not a button: the photographs are usually right, and this is the quiet way
+   out for the times they are not. */
+.street .adjust {
+  margin-left: 0.5rem;
+  color: var(--accent);
 }
 
 

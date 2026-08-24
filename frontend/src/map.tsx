@@ -1,6 +1,7 @@
-import { useEffect, useRef } from 'preact/hooks'
+import { useEffect, useRef, useState } from 'preact/hooks'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
+import { roundCoord } from './api'
 import './map.css'
 
 /**
@@ -8,9 +9,10 @@ import './map.css'
  * only fetched by a reporter who has a place to draw. Everyone else downloads
  * the same small page as before.
  *
- * Neither map chooses anything. The place on a report is the one the
- * photographs carry, so there is nothing here to drag: these draw where that
- * is, on the form and over it.
+ * The place on a report starts as the one the photographs carry. Two of these
+ * maps only draw it — the one on the form and the one a photo's coordinates
+ * open — and the third, the picker, is the only thing in the app that moves
+ * it, and only because the reporter opened it to do that.
  */
 
 /** One place on the earth, in the shape the rest of the app uses. */
@@ -26,6 +28,49 @@ const TILES = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
 
 /** OpenStreetMap asks that this stay on the map. Leaflet draws it in a corner. */
 const CREDIT = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+
+/**
+ * The picker, opened from the `Adjust` link beside the street name. The pin
+ * is held still in the middle of the frame and the map moves under it: on a
+ * phone that beats dragging a marker, which the finger covers up.
+ *
+ * It only ever opens on a place that is already set, so there is nothing to
+ * find and nothing to wait for. What it hands back is where the reporter put
+ * it, which from then on is the place the report is filed at.
+ */
+export function MapPicker({
+  at,
+  onPick,
+  onClose,
+}: {
+  /** Where the pin is now: the photographs' place, or the last one chosen. */
+  at: Spot
+  onPick: (spot: Spot) => void
+  onClose: () => void
+}) {
+  const [centre, setCentre] = useState<Spot>(at)
+
+  useEscape(onClose)
+
+  return (
+    <div class="sheet" role="dialog" aria-modal="true" aria-label="Adjust the place on a map">
+      <div class="sheetbody">
+        <h2>Adjust location</h2>
+        <div class="mapwrap">
+          <Canvas start={at} onMove={setCentre} />
+          <span class="mappin" aria-hidden="true" dangerouslySetInnerHTML={{ __html: PIN }} />
+        </div>
+        <p class="hint">Move the map until the pin is on the right spot.</p>
+        <button class="primary" type="button" onClick={() => onPick(centre)}>
+          Use this location
+        </button>
+        <button class="secondary wide" type="button" onClick={onClose}>
+          Cancel
+        </button>
+      </div>
+    </div>
+  )
+}
 
 /**
  * A place on the map, opened over the form. This is what a reporter gets when
@@ -49,7 +94,7 @@ export function MapView({
       <div class="sheetbody">
         <h2>Where this photo was taken</h2>
         <div class="mapwrap">
-          <Canvas start={at} />
+          <Canvas start={at} mark />
         </div>
         {caption && <p class="hint">{caption}</p>}
         <button class="primary" type="button" onClick={onClose}>
@@ -62,8 +107,10 @@ export function MapView({
 
 /**
  * The place the report will be filed under, drawn on the page rather than
- * over it. It does not move under the finger, and nothing here moves it: the
- * photographs decided it.
+ * over it. It does not move under the finger: a thumb that lands here is
+ * scrolling the form it sits in the middle of, and a map that slid under it
+ * would take the pin somewhere nobody chose. Moving the pin is the picker's
+ * job, and the picker gets the whole screen.
  *
  * Leaflet sets itself up once per element, so give this a key that changes
  * with the place to have it drawn again somewhere else.
@@ -71,7 +118,7 @@ export function MapView({
 export function MapHere({ at }: { at: Spot }) {
   return (
     <div class="mapwrap inline">
-      <Canvas start={at} />
+      <Canvas start={at} mark still />
     </div>
   )
 }
@@ -102,27 +149,61 @@ const PIN = `
 
 /**
  * The Leaflet map itself. It is set up once and then left alone: Leaflet owns
- * this element, and re-rendering must not reach inside it. It draws a pin on
- * the spot it is given and answers nothing back.
+ * this element, and re-rendering must not reach inside it.
+ *
+ * With `mark` it plants a pin on the spot; otherwise the pin is the fixed one
+ * in the middle of the frame and `onMove` says where the map has been slid
+ * to. With `still` nothing moves it at all — see MapHere for why.
  */
-function Canvas({ start }: { start: Spot }) {
+function Canvas({
+  start,
+  onMove,
+  mark,
+  still,
+}: {
+  start: Spot
+  onMove?: (spot: Spot) => void
+  mark?: boolean
+  still?: boolean
+}) {
   const node = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const el = node.current
     if (!el) return
-    const map = L.map(el, { center: [start.lat, start.lon], zoom: START_ZOOM })
+    // A map with neither handler switched on keeps Leaflet's touch-action
+    // classes off its container, which is what leaves a finger on it
+    // scrolling the page. The zoom buttons stay: they are taps, not drags.
+    const map = L.map(el, {
+      center: [start.lat, start.lon],
+      zoom: START_ZOOM,
+      dragging: !still,
+      touchZoom: !still,
+      scrollWheelZoom: !still,
+      doubleClickZoom: !still,
+      keyboard: !still,
+    })
     L.tileLayer(TILES, { maxZoom: 19, attribution: CREDIT }).addTo(map)
 
-    // Leaflet's own pin is an image file, and image files do not survive a
-    // bundler without being pointed at by hand. This is the same shape drawn
-    // inline, anchored on its point rather than its middle, and coloured from
-    // map.css so the colour lives in one place.
-    L.marker([start.lat, start.lon], {
-      icon: L.divIcon({ html: PIN, className: 'mappin-drop', iconSize: [26, 35], iconAnchor: [13, 35] }),
-      interactive: false,
-      keyboard: false,
-    }).addTo(map)
+    if (mark) {
+      // Leaflet's own pin is an image file, and image files do not survive a
+      // bundler without being pointed at by hand. This is the same shape
+      // drawn inline, anchored on its point rather than its middle, and
+      // coloured from map.css so the colour lives in one place.
+      L.marker([start.lat, start.lon], {
+        icon: L.divIcon({ html: PIN, className: 'mappin-drop', iconSize: [26, 35], iconAnchor: [13, 35] }),
+        interactive: false,
+        keyboard: false,
+      }).addTo(map)
+    }
+
+    // The pin does not move; the map moves under it. On a small screen that
+    // beats dragging a marker, which the finger covers up.
+    const report = () => {
+      const c = map.getCenter()
+      onMove?.({ lat: roundCoord(c.lat), lon: roundCoord(c.lng) })
+    }
+    if (onMove) map.on('move', report)
 
     // The sheet animates open, so the element can still be growing when
     // Leaflet measures it. This makes it measure again once it has settled.
@@ -130,6 +211,7 @@ function Canvas({ start }: { start: Spot }) {
 
     return () => {
       clearTimeout(settled)
+      if (onMove) map.off('move', report)
       map.remove()
     }
     // Deliberately once: `start` is where the map opens, not somewhere it

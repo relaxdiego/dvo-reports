@@ -27,7 +27,6 @@ describe('askOpenStreetMap', () => {
     expect(place?.address).toBe('J. P. Laurel Avenue, Wilfredo C. Aquino, Davao City')
     expect(place?.street).toBe(true)
     expect(place?.in_davao).toBe(true)
-    expect(place?.credit).toBe('© OpenStreetMap contributors')
   })
 
   it('falls back to suburb when there is no quarter', async () => {

@@ -29,11 +29,12 @@ export function descriptionLength(s: string): number {
  * time and mobile data uploading photos.
  *
  * A photo is required: a report the city can act on shows the problem. So is
- * the place written inside that photo. Nobody types or picks a location here
- * — a photograph that does not say where it was taken is turned away when it
- * is attached, so by the time this runs the coordinates are the camera's own.
- * The check below is what is left of that rule: a draft with photos but no
- * place should not exist.
+ * the place written inside that photo. Nobody types an address here — a
+ * photograph that does not say where it was taken is turned away when it is
+ * attached, so the coordinates start as the camera's own. The reporter may
+ * nudge the pin off them afterwards, from the map that photograph put on the
+ * screen. The check below is what is left of that rule: a draft with photos
+ * but no place should not exist.
  */
 export function validate(d: Draft): string | null {
   if (!d.category) return 'Pick what kind of problem this is.'
