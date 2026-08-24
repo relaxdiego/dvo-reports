@@ -956,9 +956,10 @@ button.primary.waiting .spinner {
 
 /* The way to move the pin, beside the name of where it is now. A link and
    not a button: the photographs are usually right, and this is the quiet way
-   out for the times they are not. */
+   out for the times they are not. The gap before it is a space in the text,
+   not a margin here, so that a long street name that pushes the link onto
+   its own line does not leave it indented. */
 .street .adjust {
-  margin-left: 0.5rem;
   color: var(--accent);
 }
 

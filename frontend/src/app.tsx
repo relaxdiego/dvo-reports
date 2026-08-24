@@ -1153,10 +1153,19 @@ function LocationField({
       {at && !naming && (street?.address || MapPicker) && (
         <p class="street">
           {street?.address}
+          {/*
+            A real space, not a margin. The gap has to disappear when the
+            link wraps onto a line of its own: a space at a line break is
+            dropped, and a margin is not — it would indent the link by half
+            a rem and read as a stray one.
+          */}
           {MapPicker && (
-            <button type="button" class="linky adjust" onClick={() => setPicking(true)}>
-              Adjust
-            </button>
+            <>
+              {' '}
+              <button type="button" class="linky adjust" onClick={() => setPicking(true)}>
+                Adjust
+              </button>
+            </>
           )}
         </p>
       )}
