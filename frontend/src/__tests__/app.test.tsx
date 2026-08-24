@@ -6,13 +6,50 @@ import { welcomed } from '../session'
 import { MAX_DESCRIPTION, MAX_PHOTOS } from '../validate'
 import { jpegPhoto } from './fixtures'
 
-/** Lets the fetch, the state updates it causes, and the re-render settle. */
+/**
+ * Lets the fetch, the state updates it causes, and the re-render settle.
+ *
+ * Each turn yields to the task queue rather than only draining microtasks.
+ * Naming the street crosses a dynamic import() — street.ts is fetched the
+ * first time a photo is attached — and a module load is not a microtask, so
+ * a microtask-only drain returned before the answer arrived. That failed on
+ * a slow machine and passed on a fast one, which is the worst way for a test
+ * to be wrong.
+ */
 async function settle() {
-  for (let i = 0; i < 5; i++) await act(async () => { await Promise.resolve() })
+  for (let i = 0; i < 8; i++) await act(async () => { await new Promise((r) => setTimeout(r)) })
+}
+
+/**
+ * Waits for something to become true, however many turns it takes.
+ *
+ * A fixed number of turns cannot express "after the street lookup", because
+ * how long that takes is not this test's to know. Anything that waits on the
+ * lookup waits on a condition instead.
+ */
+async function until(done: () => boolean, what: string) {
+  const deadline = Date.now() + 5000
+  while (!done()) {
+    if (Date.now() > deadline) throw new Error(`gave up waiting for ${what}`)
+    await act(async () => { await new Promise((r) => setTimeout(r, 5)) })
+  }
+}
+
+/** Waits until the street under the pin has been looked up, or has failed. */
+async function streetNamed() {
+  await until(() => !root.textContent?.includes('Looking up the street'), 'the street lookup')
 }
 
 // shrink() needs canvas, which jsdom does not have. Nothing here uploads.
 vi.mock('../image', () => ({ shrink: async (f: File) => f }))
+
+// street.ts is the one file that talks to OpenStreetMap, and it has its own
+// tests. Mocking it here keeps `make test` off the network: nothing stubs
+// fetch by default, so without this every test that attaches a photo sent a
+// real request to nominatim.openstreetmap.org — slow, rude, and answered
+// differently on a CI runner than on a laptop. Answering "no road" sends
+// each lookup on to the backend, which every test below stubs for itself.
+vi.mock('../street', () => ({ askOpenStreetMap: async () => null }))
 
 let root: HTMLDivElement
 
@@ -138,11 +175,17 @@ async function fileAndRead(): Promise<FormData> {
       : new Response(JSON.stringify({ reference: '20260501080000001' }), { status: 201 }),
   )
   vi.stubGlobal('fetch', sent)
+  // The pin's street is still being looked up when a photo has just been
+  // attached. Let it finish before filing, so the report is not sent out
+  // from under it.
+  await streetNamed()
   click('Garbage')
   const description = root.querySelector<HTMLTextAreaElement>('#description')!
   description.value = 'Something worth describing.'
   act(() => { description.dispatchEvent(new Event('input', { bubbles: true })) })
   act(() => { root.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })) })
+  const wasFiled = () => sent.mock.calls.some(([url]) => String(url).endsWith('/api/reports'))
+  await until(wasFiled, 'the report to be sent')
   await settle()
   const filed = sent.mock.calls.find(([url]) => String(url).endsWith('/api/reports'))!
   return filed[1]?.body as FormData
@@ -1252,17 +1295,15 @@ describe('the map on the form', () => {
   // The city's form fills its location box from the pin. So does this one,
   // and it shows the answer, because it is what a city worker will read.
   it('names the street under the pin and sends that as the location', async () => {
-    // The shape OpenStreetMap's own reverse lookup replies with, now that
-    // this is asked from the browser rather than the backend.
     vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () =>
       new Response(
-        JSON.stringify({ address: { road: 'Quimpo Boulevard', suburb: 'Talomo', city: 'Davao City', postcode: '8000' } }),
+        JSON.stringify({ address: 'Quimpo Boulevard, Talomo, Davao City', in_davao: true }),
         { status: 200 },
       ),
     ))
 
     await attachPhotos(jpegPhoto())
-    await settle()
+    await streetNamed()
 
     expect(root.querySelector('.street')?.textContent).toContain('Quimpo Boulevard, Talomo, Davao City')
     expect(root.textContent).not.toContain('outside Davao City')
@@ -1275,11 +1316,11 @@ describe('the map on the form', () => {
   // street as well.
   it('warns when the photos were taken outside the city', async () => {
     vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () =>
-      new Response(JSON.stringify({ address: { road: 'Session Road', city: 'Baguio', postcode: '2600' } }), { status: 200 }),
+      new Response(JSON.stringify({ address: 'Session Road, Baguio', in_davao: false }), { status: 200 }),
     ))
 
     await attachPhotos(jpegPhoto({ at: { lat: 16.4116, lon: 120.5933 } }))
-    await settle()
+    await streetNamed()
 
     const warning = root.querySelector('[role="alert"]')
     expect(warning?.textContent).toContain('outside Davao City')
@@ -1292,7 +1333,7 @@ describe('the map on the form', () => {
     vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => new Response('nope', { status: 503 })))
 
     await attachPhotos(jpegPhoto({ at: { lat: 7.11111, lon: 125.61111 } }))
-    await settle()
+    await streetNamed()
 
     expect(root.querySelector('.street')).toBeNull()
     expect(root.textContent).toContain('Location')
