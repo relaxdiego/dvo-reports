@@ -5,21 +5,23 @@
 // service, with this project's own key, and sends the answer upstream in the
 // same field — so a report filed here reads like one filed there.
 //
-// Two geocoders, chosen by whether a key is configured:
+// This is no longer the first thing asked. The page asks OpenStreetMap
+// itself, from the reporter's own browser, because it names Davao's lanes
+// and barangays where Azure names the nearest postal address it happens to
+// hold — see frontend/src/street.ts. What is left here is what a browser
+// cannot do:
 //
-//   - Azure, when AZURE_MAPS_KEY is set. What the city itself uses, so the
-//     wording matches theirs and so does the test for whether a pin is in
-//     Davao. Nominatim backs it up: see Fallback for why.
+//   - Azure, when AZURE_MAPS_KEY is set. Its key must never be shipped to a
+//     page, so the page asks this backend when OpenStreetMap could not name
+//     a road. The wording is the city's own, and so is the test for whether
+//     a pin is in Davao.
 //   - Nominatim, otherwise. OpenStreetMap's, free and needing no account,
-//     which is what a developer gets without signing up for anything.
+//     which is what a developer with no key gets. It duplicates what the
+//     page already asked and is kept so that the form works the same with
+//     and without a key.
 //
 // The city's own key is not used here and must never be: it bills their
 // account, and this repository is public.
-//
-// Whichever is used, the lookup lives in the backend rather than the page.
-// Nominatim's terms want a User-Agent naming the caller, which a browser
-// cannot set, and Azure's key must not be shipped to one. A citizen's
-// location never reaches a third party from their own device as a result.
 //
 // Nothing is stored. A lookup that fails is not an error a citizen should
 // ever see: the report is filed with its coordinates instead, exactly as it
@@ -153,6 +155,7 @@ func (c *Nominatim) Reverse(ctx context.Context, lat, lon float64) (Place, error
 		Address     struct {
 			Road          string `json:"road"`
 			Neighbourhood string `json:"neighbourhood"`
+			Quarter       string `json:"quarter"`
 			Suburb        string `json:"suburb"`
 			Village       string `json:"village"`
 			Town          string `json:"town"`
@@ -168,8 +171,10 @@ func (c *Nominatim) Reverse(ctx context.Context, lat, lon float64) (Place, error
 	a := body.Address
 	// What a city worker needs to find the spot: the street, the barangay,
 	// and the city. Nominatim's own display_name adds the region, the
-	// country and a postcode, which only make the line harder to read.
-	line := join(firstOf(a.Road, a.Neighbourhood), firstOf(a.Suburb, a.Village), firstOf(a.City, a.Town))
+	// country and a postcode, which only make the line harder to read. In
+	// Davao, Nominatim puts the barangay in quarter, not suburb, so quarter
+	// wins when it has one.
+	line := join(firstOf(a.Road, a.Neighbourhood), firstOf(a.Quarter, a.Suburb, a.Village), firstOf(a.City, a.Town))
 	if line == "" {
 		line = body.DisplayName
 	}

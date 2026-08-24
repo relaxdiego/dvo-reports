@@ -83,6 +83,7 @@ frontend/
   src/api.ts           talking to the backend
   src/session.ts       the city session, kept in this browser only
   src/validate.ts      the backend's rules, mirrored for early warnings
+  src/street.ts        asking OpenStreetMap what street the photos were taken on
   src/map.tsx          drawing the place the photos carry, on an OpenStreetMap map
   src/app.tsx          the form, and the reports already filed
   src/disclaimer.tsx   the terms, opened from the form
@@ -147,11 +148,13 @@ and your browser asks
 map around that spot. Those requests go straight from your phone to their
 servers, so they reveal roughly where the photograph was taken.
 
-*The street name.* To put a street on your report — the same text the city's
-own form would have filled in — this backend sends the photo's coordinates, and
-nothing else, to Microsoft's Azure Maps, and to OpenStreetMap's Nominatim when
-Azure does not know the street. That request is made by the backend, not by
-your phone, so neither service sees your device or your network address.
+*The street name.* To put a street on your report, your browser sends the
+photo's coordinates, and nothing else, to OpenStreetMap's Nominatim. That
+request goes straight from your phone, so it reveals the same thing the map
+squares already do, at the same moment. When Nominatim cannot name a road,
+this backend asks Microsoft's Azure Maps instead; that request is made by the
+backend, not by your phone, so Microsoft never sees your device or your
+network address.
 
 No other part of your report is ever sent to any of them.
 

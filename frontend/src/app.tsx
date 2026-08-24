@@ -1112,7 +1112,12 @@ function LocationField({
           Looking up the street…
         </p>
       )}
-      {at && !naming && street?.address && <p class="street">{street.address}</p>}
+      {at && !naming && street?.address && (
+        <p class="street">
+          {street.address}
+          {street.credit && <small>{street.credit}</small>}
+        </p>
+      )}
       {at && !naming && street && !street.in_davao && (
         <p class="note" role="alert">
           This looks like it is outside Davao City. The city's own site turns away a report from

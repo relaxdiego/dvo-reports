@@ -122,33 +122,42 @@ at build time; name the environment you deployed to alongside them.
 - `backend/internal/place` — names the street under a pin, so the report
   carries what the city's own form would have put in its location box. It is
   the only part of the backend that talks to anyone but the city. Azure Maps
-  when `AZURE_MAPS_KEY` is set, which is the city's own geocoder and makes
-  the wording match theirs; OpenStreetMap's Nominatim otherwise, so a
+  when `AZURE_MAPS_KEY` is set; OpenStreetMap's Nominatim otherwise, so a
   developer with no account still gets a working form, at one request a
   second because that is Nominatim's published limit.
 
-  **Azure does not know every street here, and Nominatim covers for it.**
-  Azure's Philippine coverage stops at the named roads: a pin on an unnamed
-  lane answers `Davao, Philippines 8000`, which is the right city and
-  nothing else. `place.Fallback` asks Nominatim in exactly that case and
-  files its answer instead, keeping Azure's when Nominatim has nothing
-  better. Azure says which case it is through `Place.Street`, read from the
-  feature type in its reply — anything but `Address` means it matched
-  something coarser than a street. Do not ask both on every lookup: the
-  common case is Azure knowing the answer, and a second question every time
-  would spend Nominatim's one-a-second allowance on nothing.
+  **This is the fallback now, not the first question.** The page asks
+  Nominatim itself — see `frontend/src/street.ts` — and only comes here when
+  Nominatim could not name a road. Azure stays in the backend because its
+  key must never be shipped to a browser, and that is the whole reason this
+  endpoint still exists.
+
+  **Azure's answer is the nearest postal address, not the road under the
+  pin, and in Davao that is often the wrong road.** Measured over 84 points,
+  each the midpoint of a named road within 800 m of the Shell station on
+  J. P. Laurel Avenue: Azure named the road the pin actually sits on about
+  six times in ten, and answered `type: "Address"` with `confidence: "High"`
+  on all 84. At the Shell station itself it answers `8000 Rimas Street`, a
+  lane a hundred metres away. So `Place.Street` is always true for a Davao
+  pin and `place.Fallback` never fires — do not add a distance check either,
+  because the wrong-road answers are often the closest ones (`Santo Niño
+  Street` matched `781 Watusi Street` two metres away). This is Azure's data,
+  not the API version: `search/address/reverse` v1 gives the same answers.
 
   **Use this project's own Azure Maps key, never the city's.** Theirs bills
   their account.
 
-  It lives in the backend, not the browser: Nominatim wants a User-Agent
-  naming the caller, a page cannot set one, and a key must never be shipped
-  to a browser. Be exact about what that buys: the coordinates still reach
-  Microsoft, and Nominatim on a miss, but they arrive from this backend, so
-  neither service ever sees the citizen's device or network address. The
-  notice in `sitenotice.tsx` names both services; keep it naming them. A
-  lookup that fails is not an error — the report goes with its coordinates,
-  as it did before this existed.
+  Be exact about what the split buys. The coordinates reach OpenStreetMap
+  from the citizen's own phone, which is a change and is disclosed; they
+  reach Microsoft only from this backend, so Microsoft never sees the
+  citizen's device or network address. The notice in `sitenotice.tsx` names
+  both services and says which is asked by whom; keep it doing that. A lookup
+  that fails is not an error — the report goes with its coordinates, as it
+  did before this existed.
+
+  **Nominatim puts the barangay in `quarter`, not `suburb`.** In Davao
+  `suburb` is the district above it. Both this package and `street.ts` read
+  `quarter` first; they build the same line and have to keep agreeing.
 - `backend/internal/photo` — **the only place photo metadata is decided.** It
   also answers whether a photograph says where it was taken, which is what
   `report.Validate` refuses a report on. It keeps a named few fields and
@@ -240,6 +249,30 @@ at build time; name the environment you deployed to alongside them.
   The emergency line is written twice on purpose: once on the page, in the
   header, where nobody has to go looking for it, and once at the top of this
   notice. Change one and change the other.
+- `frontend/src/street.ts` — asks OpenStreetMap what road the photographs
+  were taken on. `lookupPlace` in `api.ts` calls it first and only asks the
+  backend, and so Azure, when there is no road in the answer.
+
+  **The reporter's own phone makes this request, and that is deliberate.**
+  OpenStreetMap sees their device and network address as a result. It
+  already did: the map above the street name is drawn from OpenStreetMap's
+  tiles, fetched by the same phone at the same moment, so this tells them
+  nothing new. What it buys is a road that is right — see the measurements
+  under `backend/internal/place`. Azure cannot move here, because its key
+  must never be in a page.
+
+  Nominatim's policy wants a Referer **or** a User-Agent naming the caller.
+  A page cannot set a User-Agent — Chromium drops the header silently, which
+  was checked, not assumed — but the browser sends this site's Referer and
+  Origin on its own, and that satisfies it. The policy also asks that
+  answers be cached and OpenStreetMap be credited: `api.ts` keeps answers
+  for the life of the page, and the credit rides on each answer and is
+  drawn under the street name. The one client-side thing the policy forbids
+  is autocomplete; do not build one.
+
+  It is behind a dynamic `import()`, like the map and for the same reason:
+  nothing can be looked up before a photo is attached, so none of it belongs
+  in the first page load.
 - `frontend/src/map.tsx` — the small map drawn on the form, and the same map
   opened over it when a reporter taps the coordinates on a photo. Neither
   one chooses anything: they draw the place the photographs carry. It is the

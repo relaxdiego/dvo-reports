@@ -209,26 +209,30 @@ repository.
 | `ALLOWED_ORIGINS` | `http://localhost:5173` | Comma-separated origins allowed to call the API. |
 | `UPSTREAM`        | `city`                  | `nosubmit` reads the city but files nothing; `echo` answers everything without the city. |
 | `UPSTREAM_BASE_URL` | the city's API        | Override for testing against a fake.             |
-| `AZURE_MAPS_KEY`  | unset                   | Names the street under a pin. Unset falls back to OpenStreetMap. |
+| `AZURE_MAPS_KEY`  | unset                   | Names the street when the page's own lookup could not. Unset falls back to OpenStreetMap. |
 | `AZURE_MAPS_BASE_URL` | Azure Maps          | Override for testing the street lookup.          |
-| `NOMINATIM_BASE_URL` | OpenStreetMap's      | Override for the fallback, for testing. Used whether or not Azure is configured. |
+| `NOMINATIM_BASE_URL` | OpenStreetMap's      | Override for the backend's own fallback, for testing. Used whether or not Azure is configured. |
 | `ALERT_URL`       | unset                   | Posted to when a report is not filed. Production only. |
 
 ### The street under a pin
 
-The city's own form fills its location box by reverse geocoding the pin with
-Azure Maps, and files that text. This backend does the same so a report reads
-the same, using **this project's own Azure Maps key** — never the city's,
-which bills their account.
+The reporter's browser asks OpenStreetMap's Nominatim, and files that text.
+It knows Davao's lanes and the barangays around them.
 
-Azure's Philippine coverage stops at the named roads. A pin on an unnamed
-lane comes back as `Davao, Philippines 8000` — the right city, and nothing
-that separates one report from any other. The city's own form has the same
-hole. When Azure names no street, this backend asks OpenStreetMap, which
-knows those lanes and the barangays around them, and files that answer
-instead; Azure's is kept when OpenStreetMap has nothing better. That second
-question is asked only on a miss, so Nominatim's one-request-a-second limit
-is not spent on pins Azure already knew.
+The backend is the fallback, for the pins Nominatim cannot name a road for.
+It asks Azure Maps, using **this project's own Azure Maps key** — never the
+city's, which bills their account. Azure lives here rather than in the page
+because its key must never be shipped to a browser, and that is the only
+reason this endpoint still exists.
+
+Azure was the first question until it was measured. Over 84 points around
+Bajada and Agdao it named the road the pin actually sits on about six times
+in ten, while reporting `type: "Address"` and `confidence: "High"` every
+single time — so the backend's own fallback could never tell a good answer
+from a bad one and never fired. It answers the Shell station on J. P. Laurel
+Avenue with `8000 Rimas Street`. What it returns is the nearest postal
+address it holds, which in this city is frequently on another lane and
+carries a house number belonging to somebody else.
 
 `AZURE_MAPS_KEY` is a **Fly secret**, not a value in `fly.*.toml` and not a
 GitHub Actions secret: the backend reads it at runtime, and CI only deploys.
@@ -238,10 +242,11 @@ fly secrets set AZURE_MAPS_KEY=... -a dvo-reports-api-staging
 fly secrets set AZURE_MAPS_KEY=... -a dvo-reports-api
 ```
 
-Setting a secret restarts the app. Leave it unset and the backend uses
+Setting a secret restarts the app. Leave it unset and the backend asks
 OpenStreetMap's Nominatim instead, which needs no account and is what a
 developer gets locally; it is rate limited to one request a second, which is
-that service's own published limit.
+that service's own published limit. That duplicates what the page already
+asked, and is kept so the form behaves the same with and without a key.
 
 Without either, nothing breaks. A report then travels with its coordinates in
 the location field, which is what the city's form received before any of this

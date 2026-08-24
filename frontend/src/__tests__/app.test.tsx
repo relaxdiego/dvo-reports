@@ -1252,9 +1252,11 @@ describe('the map on the form', () => {
   // The city's form fills its location box from the pin. So does this one,
   // and it shows the answer, because it is what a city worker will read.
   it('names the street under the pin and sends that as the location', async () => {
+    // The shape OpenStreetMap's own reverse lookup replies with, now that
+    // this is asked from the browser rather than the backend.
     vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () =>
       new Response(
-        JSON.stringify({ address: 'Quimpo Boulevard, Talomo, Davao City', in_davao: true }),
+        JSON.stringify({ address: { road: 'Quimpo Boulevard', suburb: 'Talomo', city: 'Davao City', postcode: '8000' } }),
         { status: 200 },
       ),
     ))
@@ -1273,7 +1275,7 @@ describe('the map on the form', () => {
   // street as well.
   it('warns when the photos were taken outside the city', async () => {
     vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () =>
-      new Response(JSON.stringify({ address: 'Session Road, Baguio', in_davao: false }), { status: 200 }),
+      new Response(JSON.stringify({ address: { road: 'Session Road', city: 'Baguio', postcode: '2600' } }), { status: 200 }),
     ))
 
     await attachPhotos(jpegPhoto({ at: { lat: 16.4116, lon: 120.5933 } }))

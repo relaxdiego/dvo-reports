@@ -118,6 +118,14 @@ export function roundCoord(n: number): number {
 export interface Place {
   address: string
   in_davao: boolean
+  /**
+   * Whether address names a road rather than only the city around it. Set by
+   * the OpenStreetMap lookup and used here to decide whether Azure is worth
+   * asking; the backend keeps the same flag to itself for the same purpose.
+   */
+  street?: boolean
+  /** Who to credit for this answer, when somebody has to be. */
+  credit?: string
 }
 
 /**
@@ -128,10 +136,17 @@ export interface Place {
 const named = new Map<string, Place>()
 
 /**
- * Names the street under a pin, through this project's own backend rather
- * than from the browser: OpenStreetMap wants a User-Agent saying who is
- * calling, which a page cannot set, and this way a citizen's location is
- * never sent to a third party from their own device.
+ * Names the street under a pin.
+ *
+ * OpenStreetMap is asked first, by this browser: it knows Davao's lanes and
+ * barangays, where Azure Maps answers with the nearest postal address it has
+ * and so names the wrong road often enough to matter. See street.ts, which
+ * is fetched only when this is called and explains what asking from the
+ * phone gives away.
+ *
+ * Azure is the fallback, and it has to be asked through the backend because
+ * its key must not be shipped to a browser. It is worth asking only when
+ * OpenStreetMap could not name a road at all.
  *
  * Returns null when there is no answer. That is not an error worth showing:
  * the report goes to the city with its coordinates, which is what happened
@@ -141,12 +156,32 @@ export async function lookupPlace(lat: number, lon: number, signal?: AbortSignal
   const key = `${lat},${lon}`
   const seen = named.get(key)
   if (seen) return seen
+
+  const osm = await fromOpenStreetMap(lat, lon, signal)
+  // A coarse answer is still kept when Azure has nothing better, so a pin
+  // that used to produce some sort of line still produces one.
+  const found = osm?.street ? osm : ((await fromAzure(lat, lon, signal)) ?? osm)
+  if (found) named.set(key, found)
+  return found
+}
+
+async function fromOpenStreetMap(lat: number, lon: number, signal?: AbortSignal): Promise<Place | null> {
+  try {
+    const { askOpenStreetMap } = await import('./street')
+    return await askOpenStreetMap(lat, lon, signal)
+  } catch {
+    return null
+  }
+}
+
+async function fromAzure(lat: number, lon: number, signal?: AbortSignal): Promise<Place | null> {
   try {
     const res = await fetch(`${API_BASE}/api/place?lat=${lat}&lon=${lon}`, { signal })
     if (!res.ok) return null
     const found = (await res.json()) as Place
-    named.set(key, found)
-    return found
+    // The backend answers 200 with an empty address when it has nothing, so
+    // that a citizen is never shown an error for this.
+    return found.address ? found : null
   } catch {
     return null
   }

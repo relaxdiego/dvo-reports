@@ -78,12 +78,13 @@ export function SiteNotice() {
           settings, the identifiers it puts on each photograph — is removed before your report
           leaves this site. Your report is filed at the place your photo carries: you cannot type a
           different address here, so if that place is wrong, use the city's own site instead. To put
-          a street name on your report, this site sends the photo's coordinates — and nothing
-          else — to a mapping service: Microsoft's Azure Maps, and OpenStreetMap when Azure does
-          not know the street. That is sent by this site and not by your phone, so neither of
-          them sees your phone or where it is connected from. The small map is drawn with
-          pictures from OpenStreetMap, and those your phone does ask for, so opening the map
-          tells OpenStreetMap which area you are looking at.
+          a street name on your report, your phone sends the photo's coordinates — and nothing
+          else — to OpenStreetMap. OpenStreetMap therefore sees your phone and where it is
+          connected from. The small map is drawn with pictures from OpenStreetMap too, asked for
+          by your phone at the same moment, so it already knew which area you are looking at.
+          When OpenStreetMap does not know the street, this site asks Microsoft's Azure Maps
+          instead. That question is sent by this site and not by your phone, so Microsoft never
+          sees your phone or where it is connected from.
         </p>
         <p>
           <strong>No promises:</strong> This site can break, go offline, or fail to deliver a

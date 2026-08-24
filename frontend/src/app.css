@@ -954,6 +954,15 @@ button.primary.waiting .spinner {
   font-size: 0.9rem;
 }
 
+/* Who the street name came from. OpenStreetMap's licence asks to be credited
+   wherever its data is shown, and the map's own credit is not on the screen
+   when the map fails to draw. */
+.street small {
+  display: block;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
 
 /* Says this build is not the real site. Filled, and the first thing on the
    page, because it has to be seen before a report is written rather than

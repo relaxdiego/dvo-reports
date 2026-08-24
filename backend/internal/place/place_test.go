@@ -46,12 +46,45 @@ func TestReverseNamesTheStreet(t *testing.T) {
 		t.Fatalf("want nil, got %v", err)
 	}
 	// The street, the barangay, the city. Not the region, the postcode, or
-	// the country, which only make the line longer.
+	// the country, which only make the line longer. This reply carries no
+	// quarter, so "Talomo" has to come from suburb, the older fallback.
 	if want := "Quimpo Boulevard, Talomo, Davao City"; got.Address != want {
 		t.Errorf("address %q, want %q", got.Address, want)
 	}
 	if !got.InDavao {
 		t.Error("Davao City was not recognised as Davao")
+	}
+}
+
+// What OpenStreetMap sends for the Shell station on J. P. Laurel Avenue: the
+// barangay is in quarter, not suburb — suburb there is the district above it.
+const davaoQuarterReply = `{
+  "display_name": "Shell, J. P. Laurel Avenue, Kalayaan, Wilfredo C. Aquino, Agdao District, Buhangin District, Davao City, Davao Region, 8000, Philippines",
+  "address": {
+    "amenity": "Shell",
+    "road": "J. P. Laurel Avenue",
+    "neighbourhood": "Kalayaan",
+    "quarter": "Wilfredo C. Aquino",
+    "suburb": "Agdao District",
+    "city_district": "Buhangin District",
+    "city": "Davao City",
+    "region": "Davao Region",
+    "postcode": "8000",
+    "country": "Philippines"
+  }
+}`
+
+// The barangay, not the district above it, is what a clerk routes a report
+// by, and Nominatim names it in quarter rather than suburb.
+func TestReverseNamesTheBarangayFromQuarter(t *testing.T) {
+	srv, _ := fakeNominatim(t, davaoQuarterReply, 200)
+
+	got, err := NewNominatim(srv.URL).Reverse(context.Background(), 7.09790, 125.62179)
+	if err != nil {
+		t.Fatalf("want nil, got %v", err)
+	}
+	if want := "J. P. Laurel Avenue, Wilfredo C. Aquino, Davao City"; got.Address != want {
+		t.Errorf("address %q, want %q", got.Address, want)
 	}
 }
 
