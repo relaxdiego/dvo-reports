@@ -223,14 +223,20 @@ repository.
    org token for both. Environment-scoped is the safer of the two: a staging
    deploy then cannot touch production.
 
-3. **Make the container image public.** The `build` job pushes the backend
+3. **The container image needs no setup.** The `build` job pushes the backend
    image to `ghcr.io/relaxdiego/dvo-reports-api`, and both deploys pull it
-   from there by digest. A package starts private, and Fly has no credentials
-   for this registry, so **the first run after this is set up will fail at the
-   staging deploy**: the package does not exist until that run's `build` job
-   pushes it, and it cannot be made public before it exists. Let the run fail,
-   set the package's visibility to public in its settings on GitHub, then
-   re-run the failed jobs. This is a one-time step.
+   from there by digest. Nothing has to be set up for it: a package the
+   Actions token publishes takes the visibility of the repository it is
+   published from, and this repository is public, so Fly pulls it without
+   credentials. That was checked by asking ghcr.io for an anonymous pull
+   token and being given one.
+
+   Public is right rather than merely convenient here: the image holds
+   nothing but a binary built from source anyone can already read. Nothing
+   secret reaches it — see the rule about this repository in `AGENTS.md`.
+   Were the repository ever made private, the package would follow it and
+   Fly would stop being able to pull; that is the thing to remember, not a
+   one-time switch.
 
    Public is right rather than merely convenient: the repository is public and
    the image holds nothing but a binary built from that source. Nothing

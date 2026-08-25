@@ -121,10 +121,15 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Lowercased because a registry path must be, and a GitHub owner need
-      # not be.
       - id: name
-        run: echo "image=ghcr.io/${GITHUB_REPOSITORY,,}-api" >> "$GITHUB_OUTPUT"
+        run: |
+          # Lowercased because a registry path must be, and a GitHub owner
+          # need not be.
+          echo "image=ghcr.io/${GITHUB_REPOSITORY,,}-api" >> "$GITHUB_OUTPUT"
+          # The same rule frontend/vite.config.ts uses for the page's footer,
+          # so the two halves' stamps can be compared by eye rather than by
+          # prefix. Both are read off a phone screen.
+          echo "sha=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
 
       - id: build
         name: Build and push the backend image
@@ -135,7 +140,7 @@ jobs:
           tags: ${{ steps.name.outputs.image }}:${{ github.sha }}
           # There is no .git in the backend build context, so the binary
           # cannot work this out for itself. /healthz answers with it.
-          build-args: BUILD_SHA=${{ github.sha }}
+          build-args: BUILD_SHA=${{ steps.name.outputs.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
