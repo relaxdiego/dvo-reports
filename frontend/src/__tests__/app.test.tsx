@@ -1919,19 +1919,129 @@ describe('a report the city would not take', () => {
     expect(root.querySelectorAll('.reportbody .thumbs li')).toHaveLength(1)
   })
 
-  // Saving twice is the reporter carrying on writing, not a second report.
-  // Two cards for one problem is how a report gets sent to the city twice.
+  /*
+    Writing the report down used to change nothing on the screen: the same
+    notice, the same button. A reporter could only read that as nothing
+    having happened, and press it again. The sheet is what says otherwise,
+    and the first thing it has to say is that the report is still not sent —
+    a sheet after a button press reads as a success, and "sent" is the
+    success it is easiest to assume.
+  */
+  it('says where the report went, and that it still has not been sent', async () => {
+    cityDown()
+    await attachPhotos(jpegPhoto())
+    await fillAndSend()
+    click('Keep it on this phone')
+    await until(() => root.querySelector('[role="dialog"]') !== null, 'the sheet')
+
+    const sheet = root.querySelector('[role="dialog"]')!
+    expect(sheet.textContent).toContain('This report has not been sent.')
+    expect(sheet.textContent).toContain('My reports')
+    expect(sheet.textContent).toContain('Draft')
+  })
+
+  // A form left full after the report was put away is two of the same thing
+  // in front of the reporter, with no way to tell which one is which.
+  it('empties the form once the report is somewhere else', async () => {
+    cityDown()
+    await attachPhotos(jpegPhoto())
+    await fillAndSend()
+    click('Keep it on this phone')
+    await until(() => root.querySelector('[role="dialog"]') !== null, 'the sheet')
+    click('Close')
+    await settle()
+
+    expect(root.querySelector('[role="dialog"]')).toBeNull()
+    expect(root.querySelector<HTMLTextAreaElement>('#description')?.value).toBe('')
+    expect(root.querySelectorAll('.photorow')).toHaveLength(0)
+    // Nothing left saying a report failed, because there is no longer one here.
+    expect(root.querySelector('.keep')).toBeNull()
+  })
+
+  it('takes the reporter to where it is waiting', async () => {
+    cityDown()
+    await attachPhotos(jpegPhoto())
+    await fillAndSend()
+    click('Keep it on this phone')
+    await until(() => root.querySelector('[role="dialog"]') !== null, 'the sheet')
+    click('Show me where')
+    await until(() => root.querySelector('.status.kept') !== null, 'the kept report')
+
+    expect(root.querySelector('.status.kept')?.textContent).toBe('Draft')
+  })
+
+  // Keeping it again is the reporter carrying on writing, not a second
+  // report. Two cards for one problem is how a report gets sent twice.
   it('writes over itself rather than making a second card', async () => {
     cityDown()
     await attachPhotos(jpegPhoto())
     await fillAndSend()
     click('Keep it on this phone')
+    await until(() => root.querySelector('[role="dialog"]') !== null, 'the sheet')
+    click('Close')
     await settle()
+
+    // Back to it, changed, and the city is still not taking it.
+    await openDrafts()
+    act(() => root.querySelector<HTMLButtonElement>('.reporthead')!.click())
+    await settle()
+    click('Open it and send')
+    await settle()
+    const description = root.querySelector<HTMLTextAreaElement>('#description')!
+    description.value = 'Said better the second time.'
+    act(() => { description.dispatchEvent(new Event('input', { bubbles: true })) })
+    act(() => { root.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })) })
+    await settle()
+
+    expect(root.querySelector('.keep')?.textContent).toContain('An older copy')
     click('Keep the changes')
+    await until(() => root.querySelector('[role="dialog"]') !== null, 'the sheet')
+    click('Close')
     await settle()
     await openDrafts()
 
     expect(root.querySelectorAll('.status.kept')).toHaveLength(1)
+    expect(root.textContent).toContain('Said better the second time.')
+  })
+
+  /*
+    Keeping a report empties the form, so coming back to the same draft a
+    second time has to fill it in again. It did not: the form was drawn under
+    a key built from the draft's own id, which had not moved, so nothing was
+    rebuilt and the reporter was left looking at an empty form with their
+    report still waiting in the other tab.
+  */
+  it('fills the form again when the same draft is opened a second time', async () => {
+    cityDown()
+    await attachPhotos(jpegPhoto())
+    await fillAndSend()
+    click('Keep it on this phone')
+    await until(() => root.querySelector('[role="dialog"]') !== null, 'the sheet')
+    click('Close')
+    await settle()
+
+    for (const go of [1, 2]) {
+      await openDrafts()
+      act(() => root.querySelector<HTMLButtonElement>('.reporthead')!.click())
+      await settle()
+      click('Open it and send')
+      await settle()
+
+      expect(root.querySelector<HTMLTextAreaElement>('#description')?.value).toBe(
+        'Rubbish left on the pavement.',
+      )
+      expect(root.querySelectorAll('.photorow')).toHaveLength(1)
+
+      if (go === 1) {
+        // Put it away again without sending, the way a reporter would.
+        act(() => { root.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })) })
+        await settle()
+        click('Keep the changes')
+        await until(() => root.querySelector('[role="dialog"]') !== null, 'the sheet')
+        click('Close')
+        await settle()
+      }
+    }
   })
 
   it('sends it when the city is answering again, and stops holding it', async () => {

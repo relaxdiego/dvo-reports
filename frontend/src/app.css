@@ -680,6 +680,13 @@ h2 {
   margin-top: 0;
 }
 
+/* Two actions stacked in a sheet, where the home screen sheet has one. They
+   need air between them: on a phone the thumb is aiming at whichever is
+   nearer, and these two do different things. */
+.sheetbody button + button {
+  margin-top: 0.6rem;
+}
+
 /* The two lists of steps in the home screen sheet. A browser's own indent
    for a numbered list is a good part of a phone's width, and the steps read
    as one block under the phone they belong to. */

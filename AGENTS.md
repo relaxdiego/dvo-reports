@@ -240,6 +240,18 @@ at build time; name the environment you deployed to alongside them.
   is told — unlike `draft.ts`, a failure here cannot be quiet, because they
   are about to close the page believing their photographs are safe.
 
+  **Keeping a report raises a sheet and empties the form.** Writing it down
+  changed nothing a reporter could see — the same notice, the same button —
+  so pressing it read as pressing nothing, on the one action where they are
+  deciding whether their photographs are safe to walk away from. The sheet
+  says the report is *not sent* before it says where it went: a sheet after a
+  button press reads as a success, and "sent" is the success easiest to
+  assume. The form empties at the same moment, because a form still full of
+  the report that was just put away is two of the same thing with no way to
+  tell them apart. That is also why `ReportTab` is keyed on a counter and not
+  on the draft's id — coming back to the same draft twice has to fill the
+  form again, and a key that has not moved rebuilds nothing.
+
   The reports it holds are drawn at the top of the reports tab, above the
   city's own list and outside it. Keep them there: they exist because the
   city's site was not answering, and on that same day the list below them is

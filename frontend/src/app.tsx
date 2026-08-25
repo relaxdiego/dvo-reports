@@ -177,8 +177,19 @@ export function App() {
     the copy on the phone rather than leaving a second one behind.
   */
   const [resumed, setResumed] = useState<SavedReport | null>(null)
+  /*
+    What the form is drawn under, moved on every resume.
+
+    It cannot be built from the draft's own id. Keeping a report empties the
+    form, so coming back to the same draft a second time has to fill it in
+    again — and a key that has not moved is a component that is never
+    rebuilt, which left the reporter looking at an empty form and their
+    report still in the other tab.
+  */
+  const [formKey, setFormKey] = useState(0)
   const resume = useCallback((d: SavedReport) => {
     setResumed(d)
+    setFormKey((n) => n + 1)
     setTab('report')
   }, [])
 
@@ -212,11 +223,12 @@ export function App() {
           screen. A fresh form is the 'new' key and is the ordinary case.
         */
         <ReportTab
-          key={resumed ? `draft-${resumed.id}` : 'new'}
+          key={formKey}
           withSession={withSession}
           onDisclaimer={() => setShowDisclaimer(true)}
           resumed={resumed}
           onDraftsChanged={loadDrafts}
+          onShowDrafts={() => setTab('past')}
         />
       ) : (
         <PastTab
@@ -323,6 +335,7 @@ function ReportTab({
   onDisclaimer,
   resumed,
   onDraftsChanged,
+  onShowDrafts,
 }: {
   withSession: WithSession
   onDisclaimer: () => void
@@ -330,6 +343,8 @@ function ReportTab({
   resumed: SavedReport | null
   /** Told when a draft is written or removed, so the list stays true. */
   onDraftsChanged: () => Promise<void>
+  /** Takes the reporter to the tab the kept report is waiting in. */
+  onShowDrafts: () => void
 }) {
   /*
     Started from whatever was being written in this tab before. A reporter is
@@ -359,6 +374,14 @@ function ReportTab({
   const [unsent, setUnsent] = useState(false)
   const [keeping, setKeeping] = useState(false)
   const [keepError, setKeepError] = useState<string | null>(null)
+  /*
+    Raised the moment a report is on the phone. Writing it used to change
+    nothing on the screen — the same notice, the same button — so a reporter
+    who pressed it could only conclude that nothing had happened, and press
+    it again. What they need to be told is the one thing the form cannot
+    show: that it is not sent, and where it is waiting.
+  */
+  const [kept, setKept] = useState(false)
   // The only place the home screen offer is made. See addtohome.tsx for why
   // it is at the foot of the form and not in the header.
   const [showAddToHome, setShowAddToHome] = useState(false)
@@ -466,14 +489,34 @@ function ReportTab({
     setKeeping(true)
     try {
       const { saveReport } = await import('./saved')
-      setKeptAs(await saveReport(draft, keptAs))
+      await saveReport(draft, keptAs)
       setKeepError(null)
       await onDraftsChanged()
+      setKept(true)
     } catch (err) {
+      // Only on the way out. A reporter told the report is safe when it is
+      // not is the one failure here that cannot be taken back.
       setKeepError(messageOf(err))
     } finally {
       setKeeping(false)
     }
+  }
+
+  /*
+    Clears the form, once the report is somewhere else.
+
+    Only ever reached from the sheet, which is only raised by a write that
+    worked. A form left full after the report was put away reads as a report
+    still waiting to be sent, and the reporter has two of the same thing in
+    front of them with no way to tell which is which.
+  */
+  const startAgain = () => {
+    setKept(false)
+    setDraft(emptyDraft)
+    setKeptAs(undefined)
+    setUnsent(false)
+    setError(null)
+    setKeepError(null)
   }
 
   async function drop(id: number) {
@@ -604,6 +647,15 @@ function ReportTab({
         </p>
       )}
       {showAddToHome && <AddToHome onClose={() => setShowAddToHome(false)} />}
+      {kept && (
+        <KeptReport
+          onClose={startAgain}
+          onShowDrafts={() => {
+            startAgain()
+            onShowDrafts()
+          }}
+        />
+      )}
     </>
   )
 }
@@ -638,7 +690,7 @@ function KeepOnPhone({
       <p>
         {keptAs === undefined
           ? 'The city’s site did not take this report. You can keep it on this phone, and send it when their site is answering again.'
-          : 'This report has not been sent. It is kept on this phone, under My reports, marked Draft. Open it there to send it when the city’s site is answering again.'}
+          : 'The city’s site did not take this report. An older copy of it is already on this phone, under My reports. What you have changed since is not in that copy yet.'}
       </p>
       {error && <ErrorMessage onDismiss={onDismissError}>{error}</ErrorMessage>}
       <button class="secondary wide" type="button" disabled={keeping} onClick={onKeep}>
@@ -648,6 +700,48 @@ function KeepOnPhone({
         This keeps the words, the place, and the photos in this browser, on this phone. Nothing is
         sent anywhere. Anyone else using this browser can open it.
       </p>
+    </div>
+  )
+}
+
+/**
+ * What happens after a report is put on the phone.
+ *
+ * It covers the page on purpose. Writing the report down changed nothing a
+ * reporter could see — the same notice, the same button — so pressing it
+ * read as pressing nothing, which is the worst way for this particular
+ * action to behave: the reporter is deciding whether their photographs are
+ * safe enough to walk away from.
+ *
+ * The first thing it says is that the report has not been sent. That comes
+ * before where it went, because a sheet appearing after a button press is
+ * read as a success, and the success it is easiest to assume is the wrong
+ * one. Only then does it say where to look, and it offers to go there
+ * rather than only naming the tab.
+ */
+function KeptReport({ onShowDrafts, onClose }: { onShowDrafts: () => void; onClose: () => void }) {
+  return (
+    <div class="sheet" role="dialog" aria-modal="true" aria-label="Where this report is now">
+      <div class="sheetbody">
+        <h2>Kept on this phone</h2>
+        <p>
+          <strong>This report has not been sent.</strong> The city has not seen it, and it has no
+          reference number yet.
+        </p>
+        <p>
+          It is waiting at the top of <strong>My reports</strong>, marked <strong>Draft</strong>.
+          Open it there and send it when the city's site is answering again.
+        </p>
+        <button class="primary" type="button" onClick={onShowDrafts}>
+          Show me where
+        </button>
+        <button class="secondary wide" type="button" onClick={onClose}>
+          Close
+        </button>
+        <p class="hint">
+          The form is empty again, ready for another report. Nothing you wrote has been lost.
+        </p>
+      </div>
     </div>
   )
 }
