@@ -1859,13 +1859,23 @@ describe('a report the city would not take', () => {
     await until(() => root.querySelector('.status.kept') !== null, 'the kept report')
   }
 
-  it('offers to keep it on this phone', async () => {
+  /*
+    One notice, not two. The offer used to sit in a box of its own under the
+    error, opening with the same fact the error had just stated; it is now a
+    clause on the end of the sentence it answers, with the action as a link
+    inside it. The city's own message still leads, because that is the part
+    that changes.
+  */
+  it('offers a draft inside the message that says why', async () => {
     cityDown()
     await attachPhotos(jpegPhoto())
     await fillAndSend()
 
-    expect(root.textContent).toContain('The city’s site is not answering.')
-    expect(root.querySelector('.keep')).not.toBeNull()
+    const notice = root.querySelector('.error')!
+    expect(root.querySelectorAll('.error')).toHaveLength(1)
+    expect(notice.textContent).toContain('The city’s site is not answering.')
+    expect([...notice.querySelectorAll('button')].map((b) => b.textContent?.trim()))
+      .toContain('save it as a draft')
   })
 
   // The reporter's own mistake is theirs to fix here and now. Offering them
@@ -1891,7 +1901,7 @@ describe('a report the city would not take', () => {
     cityDown()
     await attachPhotos(jpegPhoto())
     await fillAndSend()
-    click('Save draft on this phone')
+    click('save it as a draft')
     await settle()
 
     await openDrafts()
@@ -1931,7 +1941,7 @@ describe('a report the city would not take', () => {
     cityDown()
     await attachPhotos(jpegPhoto())
     await fillAndSend()
-    click('Save draft on this phone')
+    click('save it as a draft')
     await until(() => root.querySelector('[role="dialog"]') !== null, 'the sheet')
 
     const sheet = root.querySelector('[role="dialog"]')!
@@ -1946,7 +1956,7 @@ describe('a report the city would not take', () => {
     cityDown()
     await attachPhotos(jpegPhoto())
     await fillAndSend()
-    click('Save draft on this phone')
+    click('save it as a draft')
     await until(() => root.querySelector('[role="dialog"]') !== null, 'the sheet')
     click('Start a new report')
     await settle()
@@ -1955,14 +1965,14 @@ describe('a report the city would not take', () => {
     expect(root.querySelector<HTMLTextAreaElement>('#description')?.value).toBe('')
     expect(root.querySelectorAll('.photorow')).toHaveLength(0)
     // Nothing left saying a report failed, because there is no longer one here.
-    expect(root.querySelector('.keep')).toBeNull()
+    expect(root.querySelector('.error')).toBeNull()
   })
 
   it('takes the reporter to where it is waiting', async () => {
     cityDown()
     await attachPhotos(jpegPhoto())
     await fillAndSend()
-    click('Save draft on this phone')
+    click('save it as a draft')
     await until(() => root.querySelector('[role="dialog"]') !== null, 'the sheet')
     click('Show me where it is')
     await until(() => root.querySelector('.status.kept') !== null, 'the kept report')
@@ -1976,7 +1986,7 @@ describe('a report the city would not take', () => {
     cityDown()
     await attachPhotos(jpegPhoto())
     await fillAndSend()
-    click('Save draft on this phone')
+    click('save it as a draft')
     await until(() => root.querySelector('[role="dialog"]') !== null, 'the sheet')
     click('Start a new report')
     await settle()
@@ -1993,8 +2003,8 @@ describe('a report the city would not take', () => {
     act(() => { root.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })) })
     await settle()
 
-    expect(root.querySelector('.keep')?.textContent).toContain('An older draft')
-    click('Save the changes')
+    expect(root.querySelector('.error')?.textContent).toContain('An older draft')
+    click('save the changes')
     await until(() => root.querySelector('[role="dialog"]') !== null, 'the sheet')
     click('Start a new report')
     await settle()
@@ -2015,7 +2025,7 @@ describe('a report the city would not take', () => {
     cityDown()
     await attachPhotos(jpegPhoto())
     await fillAndSend()
-    click('Save draft on this phone')
+    click('save it as a draft')
     await until(() => root.querySelector('[role="dialog"]') !== null, 'the sheet')
     click('Start a new report')
     await settle()
@@ -2036,7 +2046,7 @@ describe('a report the city would not take', () => {
         // Put it away again without sending, the way a reporter would.
         act(() => { root.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })) })
         await settle()
-        click('Save the changes')
+        click('save the changes')
         await until(() => root.querySelector('[role="dialog"]') !== null, 'the sheet')
         click('Start a new report')
         await settle()
@@ -2191,16 +2201,25 @@ describe('a report the city would not take', () => {
       expect(root.textContent).toContain('First half, and the second.')
     })
 
-    // Two buttons doing one thing on one screen is a reporter deciding which
-    // of them is the real one.
-    it('gives way to the offer a failed send puts up', async () => {
+    /*
+      After a failed send there are two ways to a draft, and they are not the
+      same control said twice: a link inside the sentence explaining the
+      failure, for the reporter who is reading it, and the standing button
+      under Send report, for the reporter who has stopped reading and is
+      looking for something to press. The button stays where it always is.
+    */
+    it('stays where it is after a failed send, beside the link in the notice', async () => {
       cityDown()
       await attachPhotos(jpegPhoto())
       await fillAndSend()
 
-      const buttons = keepButtons()
-      expect(buttons).toHaveLength(1)
-      expect(buttons[0].closest('.keep')).not.toBeNull()
+      const standing = keepButtons()
+      expect(standing).toHaveLength(1)
+      expect(standing[0].closest('.error')).toBeNull()
+      expect(standing[0].closest('form')).not.toBeNull()
+
+      const inNotice = [...root.querySelectorAll('.error button')].map((b) => b.textContent?.trim())
+      expect(inNotice).toContain('save it as a draft')
     })
   })
 
@@ -2225,6 +2244,9 @@ describe('a report the city would not take', () => {
     click('Not now')
     await settle()
 
-    expect(root.querySelector('.keep')).not.toBeNull()
+    const notice = root.querySelector('.error')!
+    expect(notice.textContent).toContain('has not been sent')
+    expect([...notice.querySelectorAll('button')].map((b) => b.textContent?.trim()))
+      .toContain('save it as a draft')
   })
 })

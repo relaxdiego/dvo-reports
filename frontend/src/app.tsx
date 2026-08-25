@@ -599,27 +599,47 @@ function ReportTab({
           <LocationField draft={draft} set={set} fromPhotos={fromPhotos} pinKept={resumed !== null} />
         </fieldset>
 
-        {error && <ErrorMessage onDismiss={() => setError(null)}>{error}</ErrorMessage>}
-
         {/*
-          Offered only after a send that did not reach the city, and never
-          after the form refused the report itself: a reporter who mistyped
-          something can fix it here, and does not need a copy on their phone.
+          One notice, not two. What can be done about a failed send used to
+          sit in a box of its own under this one, and the two read as the
+          same thing said twice: both opened by saying the city had not taken
+          the report, and only the second went on to offer anything.
 
-          It sits under the error it answers, because it is the one thing
-          that can be done about it, and above the send button, because the
-          reporter's next move is either to try again or to keep it. The
-          error's cross puts the message away and leaves this: the report is
-          still unsent, whatever they do with the sentence saying so.
+          The sentence the city's failure produced is kept and leads, because
+          it is the part that changes — "the site did not answer" and "there
+          is no city account for this address" are different problems, and
+          only one of them is worth waiting out. The offer is a clause on the
+          end of it rather than a second paragraph.
+
+          Never after the form itself refused the report: a reporter who
+          mistyped something fixes it here, and does not need a draft.
         */}
-        {unsent && (
-          <KeepOnPhone
-            keptAs={keptAs}
-            keeping={keeping}
-            error={keepError}
-            onKeep={() => void keep('put-away')}
-            onDismissError={() => setKeepError(null)}
-          />
+        {error && (
+          <ErrorMessage onDismiss={() => setError(null)}>
+            {error}
+            {unsent && (
+              <>
+                {' '}
+                {keptAs === undefined ? (
+                  <>
+                    You can also{' '}
+                    <button type="button" class="linky" disabled={keeping} onClick={() => void keep('put-away')}>
+                      save it as a draft
+                    </button>{' '}
+                    on this phone, and send it when their site is answering again.
+                  </>
+                ) : (
+                  <>
+                    An older draft is already on this phone. You can{' '}
+                    <button type="button" class="linky" disabled={keeping} onClick={() => void keep('put-away')}>
+                      save the changes
+                    </button>{' '}
+                    to it, and send it when their site is answering again.
+                  </>
+                )}
+              </>
+            )}
+          </ErrorMessage>
         )}
 
         {/*
@@ -656,12 +676,14 @@ function ReportTab({
           the tab, and it is also what the report is built on. Before there
           is one there is nothing here worth a place on the phone.
 
-          It is hidden while the offer above is up. That block explains a
-          failure and carries the same action, and two buttons doing one
-          thing on one screen is a reporter deciding which of them is the
-          real one.
+          It stays put after a failed send. The notice above carries the same
+          action as a link inside the sentence that explains it, which is
+          where a reporter reading the failure will reach for it; this is
+          where a reporter who has stopped reading and is looking for a
+          control will. One is prose and one is a button, so neither is the
+          other one repeated.
         */}
-        {draft.photos.length > 0 && !unsent && (
+        {draft.photos.length > 0 && (
           <button
             class="secondary wide"
             type="button"
@@ -671,9 +693,7 @@ function ReportTab({
             {keeping ? 'Saving…' : keptAs === undefined ? 'Save draft on this phone' : 'Save the changes'}
           </button>
         )}
-        {keepError && !unsent && (
-          <ErrorMessage onDismiss={() => setKeepError(null)}>{keepError}</ErrorMessage>
-        )}
+        {keepError && <ErrorMessage onDismiss={() => setKeepError(null)}>{keepError}</ErrorMessage>}
       </form>
       {/*
         Under the send button and outside the form, at the foot of the page.
@@ -706,50 +726,6 @@ function ReportTab({
         />
       )}
     </>
-  )
-}
-
-/**
- * The offer to keep a report the city would not take.
- *
- * It is worded as a place to put the report rather than as a button that
- * fixes anything: nothing here sends the report, and a reporter who reads it
- * as "sent" would walk away believing the city has it.
- *
- * Once there is a copy on the phone the offer becomes a note saying where it
- * went, and the button goes on saying the same thing — the reporter may go
- * on editing, and the last thing they wrote is what should be waiting for
- * them, not the version that happened to fail first.
- */
-function KeepOnPhone({
-  keptAs,
-  keeping,
-  error,
-  onKeep,
-  onDismissError,
-}: {
-  keptAs: number | undefined
-  keeping: boolean
-  error: string | null
-  onKeep: () => void
-  onDismissError: () => void
-}) {
-  return (
-    <div class="keep">
-      <p>
-        {keptAs === undefined
-          ? 'The city’s site did not take this report. You can save it as a draft on this phone, and send it when their site is answering again.'
-          : 'The city’s site did not take this report. An older draft of it is already on this phone, under My reports. What you have changed since is not in that draft yet.'}
-      </p>
-      {error && <ErrorMessage onDismiss={onDismissError}>{error}</ErrorMessage>}
-      <button class="secondary wide" type="button" disabled={keeping} onClick={onKeep}>
-        {keeping ? 'Saving…' : keptAs === undefined ? 'Save draft on this phone' : 'Save the changes'}
-      </button>
-      <p class="hint">
-        This saves the words, the place, and the photos in this browser, on this phone. Nothing is
-        sent anywhere. Anyone else using this browser can open it.
-      </p>
-    </div>
   )
 }
 

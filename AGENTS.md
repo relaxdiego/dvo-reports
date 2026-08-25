@@ -217,11 +217,19 @@ at build time; name the environment you deployed to alongside them.
   project that keeps a photograph**, and every part of that is narrow on
   purpose: nothing is written unless the reporter taps a button, it goes no
   further than their own browser, and sending or deleting the draft ends it.
-  There are two such buttons and they are the same action — one under `Send
-  report`, live from the moment a photograph is attached, and one in the
-  offer a failed send puts up. Only ever draw one of them at a time: two
-  buttons doing one thing on one screen is a reporter deciding which is the
-  real one. `sitenotice.tsx` says all of it to the
+  There are two ways to it and they are deliberately not the same shape: a
+  button under `Send report`, live from the moment a photograph is attached,
+  and a link inside the sentence that explains a failed send. One is for the
+  reporter reading the failure, the other for the one who has stopped reading
+  and is looking for a control. Keep them different shapes — two identical
+  buttons on one screen is a reporter working out which is the real one.
+
+  **A failed send raises one notice, not two.** What can be done about it is
+  a clause on the end of the city's own message, not a second box under it;
+  the two used to open with the same fact. The city's message leads and is
+  never replaced by a generic one — "the site did not answer" and "there is
+  no city account for this address" are different problems, and only one of
+  them is worth waiting out. `sitenotice.tsx` says all of it to the
   reporter, including the two unflattering parts — that somebody else holding
   the phone can open it, and that a phone short of storage may throw it away.
   Change what is kept and change that notice in the same commit.
