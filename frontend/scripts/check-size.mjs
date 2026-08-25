@@ -19,10 +19,18 @@ import { readFileSync } from 'node:fs'
 import { gzipSync } from 'node:zlib'
 import { join } from 'node:path'
 
-// Room for ordinary work above today's 22.5 kB, while a doubling fails loudly.
+// Room for ordinary work above today's 24.0 kB, while a doubling fails loudly.
 // Raising this is a decision, not a formality: read the table this prints and
 // say in the commit message what the extra bytes buy a reporter.
-const BUDGET = 23_000
+//
+// It was 23.0 kB against a 22.5 kB page. What moved it is the tab and the
+// form learning about a report the city would not take: the card it is drawn
+// as, and the offer that puts it on the phone. The storage behind it is not
+// in this number — saved.ts is fetched only when a send fails or the reports
+// tab is opened — but a list has to be able to draw a draft, and the offer
+// has to be on the form before the reporter can accept it. Neither can wait
+// behind an import() that only the other one would trigger.
+const BUDGET = 24_500
 
 const dist = process.argv[2] ?? 'dist'
 const html = readFileSync(join(dist, 'index.html'), 'utf8')

@@ -1,3 +1,7 @@
+// jsdom has no IndexedDB, and a report kept on the phone is written to one.
+// This is the same API over memory; each test below gets a fresh factory.
+import 'fake-indexeddb/auto'
+import { IDBFactory } from 'fake-indexeddb'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { render } from 'preact'
 import { act } from 'preact/test-utils'
@@ -56,6 +60,7 @@ let root: HTMLDivElement
 beforeEach(() => {
   localStorage.clear()
   sessionStorage.clear()
+  globalThis.indexedDB = new IDBFactory()
   // Everything below is a reporter who has been here before. The welcome
   // sheet is only for a first visit, and it covers the page, so a test that
   // did not say so would be testing the sheet rather than the form. The
@@ -1812,5 +1817,202 @@ describe('the offer to add this to a home screen', () => {
 
     expect(root.querySelector('[role="dialog"]')).toBeNull()
     expect(root.textContent).toContain('Send report')
+  })
+})
+
+/**
+ * The reports the city would not take, kept on the phone until it will.
+ *
+ * These drive the whole path a reporter walks on a day the city's site is
+ * down: the send that fails, the offer, the card in the other tab, and the
+ * send that works afterwards. The storage itself has its own tests in
+ * saved.test.ts; what is checked here is that the form and the tab agree
+ * with it.
+ */
+describe('a report the city would not take', () => {
+  /** The city's site, refusing everything but the street lookup. */
+  function cityDown() {
+    localStorage.setItem('dvo-reports.session', JSON.stringify({ token: 'tk-1' }))
+    const fetchMock = vi.fn<typeof fetch>(async (input) =>
+      String(input).includes('/api/place')
+        ? new Response(JSON.stringify({ address: '', in_davao: true }), { status: 200 })
+        : new Response(JSON.stringify({ error: 'The city’s site is not answering.' }), { status: 502 }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+    return fetchMock
+  }
+
+  /** Fills in what the form insists on, and presses the button. */
+  async function fillAndSend(words = 'Rubbish left on the pavement.') {
+    await streetNamed()
+    click('Garbage')
+    const description = root.querySelector<HTMLTextAreaElement>('#description')!
+    description.value = words
+    act(() => { description.dispatchEvent(new Event('input', { bubbles: true })) })
+    act(() => { root.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })) })
+    await settle()
+  }
+
+  /** Opens the reports tab and waits for the card of a kept report. */
+  async function openDrafts() {
+    click('My reports')
+    await until(() => root.querySelector('.status.kept') !== null, 'the kept report')
+  }
+
+  it('offers to keep it on this phone', async () => {
+    cityDown()
+    await attachPhotos(jpegPhoto())
+    await fillAndSend()
+
+    expect(root.textContent).toContain('The city’s site is not answering.')
+    expect(root.querySelector('.keep')).not.toBeNull()
+  })
+
+  // The reporter's own mistake is theirs to fix here and now. Offering them
+  // a place on the phone for it teaches that the button means "give up".
+  it('offers nothing when the form is what refused the report', async () => {
+    cityDown()
+    await attachPhotos(jpegPhoto())
+    await streetNamed()
+    act(() => { root.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })) })
+    await settle()
+
+    expect(root.querySelector('.error')).not.toBeNull()
+    expect(root.querySelector('.keep')).toBeNull()
+  })
+
+  /*
+    The whole point of a draft is that it exists on a day when the city's
+    site is down — which is the same day the list below it cannot load. A
+    report reachable only through a section showing an error is a report the
+    reporter has lost.
+  */
+  it('shows it in the reports tab even when the city’s list will not load', async () => {
+    cityDown()
+    await attachPhotos(jpegPhoto())
+    await fillAndSend()
+    click('Keep it on this phone')
+    await settle()
+
+    await openDrafts()
+
+    expect(root.querySelector('.status.kept')?.textContent).toBe('Draft')
+    expect(root.textContent).toContain('Not sent yet')
+    expect(root.textContent).toContain('Rubbish left on the pavement.')
+    // The city's half of the tab failed, as it would on the day this matters,
+    // and the card above it is there all the same.
+    await until(() => root.querySelector('.error') !== null, 'the city’s list to fail')
+    expect(root.querySelector('.status.kept')).not.toBeNull()
+  })
+
+  it('keeps the photographs with it', async () => {
+    cityDown()
+    await attachPhotos(jpegPhoto())
+    await fillAndSend()
+    click('Keep it on this phone')
+    await settle()
+    await openDrafts()
+
+    act(() => root.querySelector<HTMLButtonElement>('.reporthead')!.click())
+    await settle()
+
+    expect(root.querySelectorAll('.reportbody .thumbs li')).toHaveLength(1)
+  })
+
+  // Saving twice is the reporter carrying on writing, not a second report.
+  // Two cards for one problem is how a report gets sent to the city twice.
+  it('writes over itself rather than making a second card', async () => {
+    cityDown()
+    await attachPhotos(jpegPhoto())
+    await fillAndSend()
+    click('Keep it on this phone')
+    await settle()
+    click('Keep the changes')
+    await settle()
+    await openDrafts()
+
+    expect(root.querySelectorAll('.status.kept')).toHaveLength(1)
+  })
+
+  it('sends it when the city is answering again, and stops holding it', async () => {
+    cityDown()
+    await attachPhotos(jpegPhoto())
+    await fillAndSend()
+    click('Keep it on this phone')
+    await settle()
+    await openDrafts()
+    act(() => root.querySelector<HTMLButtonElement>('.reporthead')!.click())
+    await settle()
+
+    // The city comes back up, and the reporter opens what they were holding.
+    const sent = vi.fn<typeof fetch>(async (input) =>
+      String(input).includes('/api/place')
+        ? new Response(JSON.stringify({ address: '', in_davao: true }), { status: 200 })
+        : new Response(JSON.stringify({ reference: '20260501080000001' }), { status: 201 }),
+    )
+    vi.stubGlobal('fetch', sent)
+    click('Open it and send')
+    await settle()
+
+    // The form came back with the report in it, ready to go as it was.
+    expect(root.querySelector<HTMLTextAreaElement>('#description')?.value).toBe(
+      'Rubbish left on the pavement.',
+    )
+    expect(root.querySelectorAll('.photorow')).toHaveLength(1)
+
+    act(() => { root.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })) })
+    await until(() => root.textContent?.includes('Reference number') ?? false, 'the receipt')
+
+    click('My reports')
+    await settle()
+    expect(root.querySelector('.status.kept')).toBeNull()
+  })
+
+  // The photographs are the part that is nowhere else. One mis-tap on a
+  // phone must not be able to take them.
+  it('takes two taps to delete, and the first can be taken back', async () => {
+    cityDown()
+    await attachPhotos(jpegPhoto())
+    await fillAndSend()
+    click('Keep it on this phone')
+    await settle()
+    await openDrafts()
+    act(() => root.querySelector<HTMLButtonElement>('.reporthead')!.click())
+    await settle()
+
+    click('Delete this draft')
+    expect(root.textContent).toContain('Delete this report and its photos from this phone?')
+    click('Keep it')
+    expect(root.querySelector('.status.kept')).not.toBeNull()
+
+    click('Delete this draft')
+    click('Delete')
+    await until(() => root.querySelector('.status.kept') === null, 'the card to go')
+
+    expect(root.textContent).not.toContain('Not sent yet')
+  })
+
+  /*
+    The send button is always live, and the sign-in sheet opens on the tap.
+    So on a day the city is down the reporter can be stopped inside the sheet
+    instead — the code never comes — and close it. That used to leave a
+    filled-in form, no message, and no way to keep any of it.
+  */
+  it('offers to keep it when the sign-in is what could not be finished', async () => {
+    const fetchMock = vi.fn<typeof fetch>(async (input) =>
+      String(input).includes('/api/place')
+        ? new Response(JSON.stringify({ address: '', in_davao: true }), { status: 200 })
+        : new Response(JSON.stringify({ error: 'The city’s site is not answering.' }), { status: 502 }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+    // No session: the sheet opens when the button is pressed.
+    await attachPhotos(jpegPhoto())
+    await fillAndSend()
+
+    expect(root.querySelector('[role="dialog"]')).not.toBeNull()
+    click('Not now')
+    await settle()
+
+    expect(root.querySelector('.keep')).not.toBeNull()
   })
 })

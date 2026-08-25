@@ -19,6 +19,14 @@ is the system of record. This project stores nothing.
 - **Store nothing.** No database, no queue, no object storage, no log line
   that prints a report body, an address, a photo, or a contact detail. A
   report holds a real person's location and photographs.
+
+  This is about this project's own machines. There is one deliberate
+  exception on the reporter's own phone: `frontend/src/saved.ts` keeps a
+  whole report, photographs and all, when the city refuses it and the
+  reporter taps to accept. Nothing about it is sent anywhere and nothing here
+  ever sees it. Read that file before touching it, and read the two rules
+  about the notice below — the promise a reporter is shown has to keep
+  matching what the code does.
 - **Never invent a reference number in production.** If the upstream
   submission fails, the citizen is told it failed. Two clients invent one:
   `upstream.Echo`, for local development, and `upstream.NoSubmit`, which is
@@ -190,8 +198,11 @@ at build time; name the environment you deployed to alongside them.
   place with it and forgets what they chose — with no photograph there is
   nothing to file and nowhere to file it. `Draft.address` is the street
   looked up from whatever the pin ends on, and an empty one is fine.
-- `frontend/src/draft.ts` — keeps what the reporter has typed, in
-  `sessionStorage`, so an app switch does not lose it. The site sends people
+- `frontend/src/draft.ts` — keeps what the reporter has typed *while they are
+  writing*, in `sessionStorage`, so an app switch does not lose it. The other
+  half of this is `saved.ts`, which is what a report reaches when the city
+  will not take it; these two are not the same mechanism and do not share a
+  store. The site sends people
   out to their camera app, and a phone short of memory throws the page away
   while they are gone. **The photos are deliberately not kept.** A photo is
   let in only if it carries its own place, which means it was taken in the
@@ -201,6 +212,39 @@ at build time; name the environment you deployed to alongside them.
   phone restores it with the tab it discarded and drops it when the tab
   closes, and phones are lent to people. `sitenotice.tsx` says all of this;
   if what is kept changes, change it there too.
+- `frontend/src/saved.ts` — a whole report kept on the reporter's phone
+  because the city's site would not take it. **This is the only place in the
+  project that keeps a photograph**, and every part of that is narrow on
+  purpose: nothing is written unless the reporter taps the button on the
+  failed send, it goes no further than their own browser, and sending or
+  deleting the draft ends it. `sitenotice.tsx` says all of it to the
+  reporter, including the two unflattering parts — that somebody else holding
+  the phone can open it, and that a phone short of storage may throw it away.
+  Change what is kept and change that notice in the same commit.
+
+  IndexedDB, not `localStorage`, which is where this started: photos are
+  bytes, `localStorage` holds strings, and base64 puts a phone's photographs
+  well past the five megabytes an origin usually gets. The photographs are
+  taken apart on the way in — the bytes as an `ArrayBuffer`, the name and
+  type beside them — and rebuilt into a `File` on the way out. A browser
+  stores a `File` whole, so this is more code than the shortest thing that
+  works; it buys one place that says exactly what is kept, and it keeps the
+  name, which travels on to the city. Do not check `instanceof ArrayBuffer`
+  on what comes back out: it was built in another realm and fails that test.
+
+  They are kept as the camera wrote them and are **not** shrunk. `api.ts`
+  shrinks on the way out, so a draft is megabytes where it could be hundreds
+  of kilobytes. That is deliberate: a second pass through a JPEG encoder is
+  detail nobody agreed to lose, on a photograph that is often of a plate or a
+  house number. When there is no room, `saveReport` throws and the reporter
+  is told — unlike `draft.ts`, a failure here cannot be quiet, because they
+  are about to close the page believing their photographs are safe.
+
+  The reports it holds are drawn at the top of the reports tab, above the
+  city's own list and outside it. Keep them there: they exist because the
+  city's site was not answering, and on that same day the list below them is
+  an error message. A report reachable only through a section that cannot
+  load is a report the reporter has lost.
 - `frontend/src/image.ts` — shrinking photos before upload. This is the main
   reason the client feels fast. Do not remove it. It also copies the
   original's metadata block onto the resized photo, unread: drawing to a
@@ -369,8 +413,8 @@ at build time; name the environment you deployed to alongside them.
 - Go: standard library only. Adding a dependency to the backend needs a
   reason in the commit message.
 - Frontend: Preact, no UI framework, no component library. The bundle
-  everybody downloads is about 22.5 kB gzipped, and `make size` fails above
-  23 kB — CI runs it, so growing the first page load means raising the budget
+  everybody downloads is about 24.0 kB gzipped, and `make size` fails above
+  24.5 kB — CI runs it, so growing the first page load means raising the budget
   in `frontend/scripts/check-size.mjs` and saying in the commit message what
   the bytes buy a reporter. Leaflet sits outside that number because it is in
   the map's own chunk — keep new weight behind a dynamic `import()` the same

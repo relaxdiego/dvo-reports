@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/hooks'
 import { ApiError, lookupPlace, myReports, reportHistory, sendCode, submitReport, verifyCode, type Place as Street } from './api'
 import { forget, liveSession, needsWelcome, remember, rememberedEmail, welcomed } from './session'
 import { forgetDraft, saveDraft, savedDraft } from './draft'
+import type { SavedReport } from './saved'
 import { validate, descriptionLength, MAX_DESCRIPTION, MAX_PHOTOS } from './validate'
 import { osmLink, placeOfPhotos, readSnapshot, type Place, type Snapshot } from './exif'
 import { Disclaimer } from './disclaimer'
@@ -147,6 +148,40 @@ export function App() {
 
   const [past, setPast] = useState<Past>({ at: 'unopened' })
 
+  /*
+    The reports this phone is holding because the city would not take them.
+    They live up here, beside the city's list and not inside it, for two
+    reasons: moving between the tabs must not lose them, and they have to be
+    shown whatever the city's site is doing. The whole point of a draft is
+    that it exists on a day when the list below it cannot load at all.
+
+    Read through a dynamic import(), so a reporter who never opens this tab
+    and never has a send fail does not download saved.ts — and this site
+    never opens a database on their phone.
+  */
+  const [drafts, setDrafts] = useState<SavedReport[]>([])
+  const loadDrafts = useCallback(async () => {
+    try {
+      const { savedReports } = await import('./saved')
+      setDrafts(await savedReports())
+    } catch {
+      // Storage off, or nothing readable there. There is nothing to show and
+      // nothing worth saying: this list is not what the reporter came for.
+      setDrafts([])
+    }
+  }, [])
+
+  /*
+    A draft the reporter has asked to carry on with. It is handed to the form
+    as its starting point, and its id goes with it so that sending it removes
+    the copy on the phone rather than leaving a second one behind.
+  */
+  const [resumed, setResumed] = useState<SavedReport | null>(null)
+  const resume = useCallback((d: SavedReport) => {
+    setResumed(d)
+    setTab('report')
+  }, [])
+
   const loadPast = useCallback(async () => {
     setPast({ at: 'loading', step: 'Asking the city’s site for your reports.' })
     // The city's site can take its time. Saying so beats a spinner that
@@ -171,9 +206,27 @@ export function App() {
       <Header onDisclaimer={() => setShowDisclaimer(true)} />
       <Tabs tab={tab} onChange={setTab} />
       {tab === 'report' ? (
-        <ReportTab withSession={withSession} onDisclaimer={() => setShowDisclaimer(true)} />
+        /*
+          Keyed on the draft it started from, so choosing one puts the form
+          back to that report rather than merging it into whatever was on the
+          screen. A fresh form is the 'new' key and is the ordinary case.
+        */
+        <ReportTab
+          key={resumed ? `draft-${resumed.id}` : 'new'}
+          withSession={withSession}
+          onDisclaimer={() => setShowDisclaimer(true)}
+          resumed={resumed}
+          onDraftsChanged={loadDrafts}
+        />
       ) : (
-        <PastTab past={past} onLoad={loadPast} withSession={withSession} />
+        <PastTab
+          past={past}
+          onLoad={loadPast}
+          withSession={withSession}
+          drafts={drafts}
+          onLoadDrafts={loadDrafts}
+          onResume={resume}
+        />
       )}
       {ask && (
         <SignIn
@@ -268,9 +321,15 @@ function DescriptionCount({ text }: { text: string }) {
 function ReportTab({
   withSession,
   onDisclaimer,
+  resumed,
+  onDraftsChanged,
 }: {
   withSession: WithSession
   onDisclaimer: () => void
+  /** A report kept on this phone that the reporter has come back to. */
+  resumed: SavedReport | null
+  /** Told when a draft is written or removed, so the list stays true. */
+  onDraftsChanged: () => Promise<void>
 }) {
   /*
     Started from whatever was being written in this tab before. A reporter is
@@ -279,10 +338,27 @@ function ReportTab({
     draft.ts: the words come back, the photos do not, because the photos are
     still in their library.
   */
-  const [draft, setDraft] = useState<Draft>(() => ({ ...emptyDraft, ...savedDraft() }))
+  const [draft, setDraft] = useState<Draft>(() =>
+    resumed ? draftOf(resumed) : { ...emptyDraft, ...savedDraft() },
+  )
   const [error, setError] = useState<string | null>(null)
   const [sending, setSending] = useState(false)
   const [receipt, setReceipt] = useState<Receipt | null>(null)
+  /*
+    Which copy on this phone this report is, once there is one. It starts set
+    when the reporter came back to a draft, so sending it or saving it again
+    works on that same copy instead of leaving a second one behind.
+  */
+  const [keptAs, setKeptAs] = useState<number | undefined>(resumed?.id)
+  /*
+    Whether the last attempt to send got no further than this phone. It is
+    kept apart from the message, because it is what puts the offer to keep
+    the report on the screen, and a report the reporter simply mistyped must
+    not be offered a place on their phone.
+  */
+  const [unsent, setUnsent] = useState(false)
+  const [keeping, setKeeping] = useState(false)
+  const [keepError, setKeepError] = useState<string | null>(null)
   // The only place the home screen offer is made. See addtohome.tsx for why
   // it is at the foot of the form and not in the header.
   const [showAddToHome, setShowAddToHome] = useState(false)
@@ -305,13 +381,29 @@ function ReportTab({
   )
 
   if (receipt) {
-    return <Sent receipt={receipt} onAgain={() => { setReceipt(null); setDraft(emptyDraft) }} />
+    return (
+      <Sent
+        receipt={receipt}
+        onAgain={() => {
+          setReceipt(null)
+          setDraft(emptyDraft)
+          // The copy on the phone went with the send. Starting again must
+          // not write the next report over a key that is no longer there.
+          setKeptAs(undefined)
+          setUnsent(false)
+          setKeepError(null)
+        }}
+      />
+    )
   }
 
   const onSubmit = async (e: Event) => {
     e.preventDefault()
     const problem = validate(draft)
     if (problem) {
+      // The reporter's own mistake, and they can fix it here. Nothing is
+      // offered a place on the phone for this.
+      setUnsent(false)
       setError(problem)
       return
     }
@@ -323,12 +415,50 @@ function ReportTab({
         // The city has it. Nothing is left here to come back to, and the
         // reference number on the next screen is the record now.
         forgetDraft()
+        if (keptAs !== undefined) await drop(keptAs)
         setReceipt(sent)
+        return
       }
+      /*
+        No session, and no error either: the reporter closed the sign-in
+        without one. On a day when the city's site is down that is not a
+        change of mind, it is the same outage arriving one step earlier —
+        the code never came. Nothing was said here before, which left a
+        filled-in form, an untouched button and no way to keep any of it.
+      */
+      setUnsent(true)
+      setError('This report has not been sent. Sending needs a code from the city’s site, and the code did not arrive.')
     } catch (err) {
+      setUnsent(true)
       setError(messageOf(err))
     } finally {
       setSending(false)
+    }
+  }
+
+  /** Puts this report on the phone, or writes over the copy it came from. */
+  const keep = async () => {
+    setKeeping(true)
+    try {
+      const { saveReport } = await import('./saved')
+      setKeptAs(await saveReport(draft, keptAs))
+      setKeepError(null)
+      await onDraftsChanged()
+    } catch (err) {
+      setKeepError(messageOf(err))
+    } finally {
+      setKeeping(false)
+    }
+  }
+
+  async function drop(id: number) {
+    try {
+      const { dropReport } = await import('./saved')
+      await dropReport(id)
+      await onDraftsChanged()
+    } catch {
+      // The report is with the city, which is what matters. A copy left on
+      // the phone is untidy, not harmful, and the reporter can delete it.
     }
   }
 
@@ -379,10 +509,31 @@ function ReportTab({
           />
 
           <PhotoField photos={draft.photos} facts={facts} onChange={(p) => set('photos', p)} />
-          <LocationField draft={draft} set={set} fromPhotos={fromPhotos} />
+          <LocationField draft={draft} set={set} fromPhotos={fromPhotos} pinKept={resumed !== null} />
         </fieldset>
 
         {error && <ErrorMessage onDismiss={() => setError(null)}>{error}</ErrorMessage>}
+
+        {/*
+          Offered only after a send that did not reach the city, and never
+          after the form refused the report itself: a reporter who mistyped
+          something can fix it here, and does not need a copy on their phone.
+
+          It sits under the error it answers, because it is the one thing
+          that can be done about it, and above the send button, because the
+          reporter's next move is either to try again or to keep it. The
+          error's cross puts the message away and leaves this: the report is
+          still unsent, whatever they do with the sentence saying so.
+        */}
+        {unsent && (
+          <KeepOnPhone
+            keptAs={keptAs}
+            keeping={keeping}
+            error={keepError}
+            onKeep={() => void keep()}
+            onDismissError={() => setKeepError(null)}
+          />
+        )}
 
         {/*
           The other half of the header's notice, worded the same, above the
@@ -433,13 +584,226 @@ function ReportTab({
 }
 
 /**
+ * The offer to keep a report the city would not take.
+ *
+ * It is worded as a place to put the report rather than as a button that
+ * fixes anything: nothing here sends the report, and a reporter who reads it
+ * as "sent" would walk away believing the city has it.
+ *
+ * Once there is a copy on the phone the offer becomes a note saying where it
+ * went, and the button goes on saying the same thing — the reporter may go
+ * on editing, and the last thing they wrote is what should be waiting for
+ * them, not the version that happened to fail first.
+ */
+function KeepOnPhone({
+  keptAs,
+  keeping,
+  error,
+  onKeep,
+  onDismissError,
+}: {
+  keptAs: number | undefined
+  keeping: boolean
+  error: string | null
+  onKeep: () => void
+  onDismissError: () => void
+}) {
+  return (
+    <div class="keep">
+      <p>
+        {keptAs === undefined
+          ? 'The city’s site did not take this report. You can keep it on this phone, and send it when their site is answering again.'
+          : 'This report has not been sent. It is kept on this phone, under My reports, marked Draft. Open it there to send it when the city’s site is answering again.'}
+      </p>
+      {error && <ErrorMessage onDismiss={onDismissError}>{error}</ErrorMessage>}
+      <button class="secondary wide" type="button" disabled={keeping} onClick={onKeep}>
+        {keeping ? 'Keeping…' : keptAs === undefined ? 'Keep it on this phone' : 'Keep the changes'}
+      </button>
+      <p class="hint">
+        This keeps the words, the place, and the photos in this browser, on this phone. Nothing is
+        sent anywhere. Anyone else using this browser can open it.
+      </p>
+    </div>
+  )
+}
+
+/** A kept report as the form takes it, so the reporter carries on writing. */
+function draftOf(r: SavedReport): Draft {
+  return {
+    category: r.category,
+    description: r.description,
+    address: r.address,
+    lat: r.lat,
+    lon: r.lon,
+    photos: r.photos,
+  }
+}
+
+/**
  * How many reports are put on the page at once. The city sends every report
  * an account has in one reply — there is no page or limit to ask it for — so
  * this only bounds how many rows the browser builds, not what is fetched.
  */
 const PAGE = 20
 
+/**
+ * Everything the reporter has to their name: what is still on this phone,
+ * and what the city holds.
+ *
+ * The drafts come first and are drawn whatever the city's list is doing.
+ * That is the whole point of them — they exist because the city's site was
+ * not answering, and on the day it is still not answering the list below
+ * this is an error message. A report waiting to be sent must not be reachable
+ * only through a section that cannot load.
+ */
 function PastTab({
+  past,
+  onLoad,
+  withSession,
+  drafts,
+  onLoadDrafts,
+  onResume,
+}: {
+  past: Past
+  onLoad: () => Promise<void>
+  withSession: WithSession
+  drafts: SavedReport[]
+  onLoadDrafts: () => Promise<void>
+  onResume: (d: SavedReport) => void
+}) {
+  // Every time this tab is opened, not only the first: the reporter may have
+  // kept a report on the other tab a moment ago. It reads this phone and
+  // asks nobody for anything, so it is cheap enough to do again.
+  useEffect(() => { void onLoadDrafts() }, [onLoadDrafts])
+
+  return (
+    <>
+      <Drafts drafts={drafts} onResume={onResume} onChanged={onLoadDrafts} />
+      {/*
+        Only once there is something above it to be told apart from. With no
+        drafts this tab is the city's list and nothing else, and a heading
+        over the whole of it says nothing a reporter did not already know.
+      */}
+      {drafts.length > 0 && <h3 class="listhead">Sent to the city</h3>}
+      <CityReports past={past} onLoad={onLoad} withSession={withSession} />
+    </>
+  )
+}
+
+/**
+ * The reports waiting on this phone, above the city's own list and plainly
+ * apart from it. Two headings, because a reporter has to be able to tell
+ * what the city has from what only their phone has: the second kind has no
+ * reference number and nobody but them knows it exists.
+ */
+function Drafts({
+  drafts,
+  onResume,
+  onChanged,
+}: {
+  drafts: SavedReport[]
+  onResume: (d: SavedReport) => void
+  onChanged: () => Promise<void>
+}) {
+  if (drafts.length === 0) return null
+
+  return (
+    <section class="drafts">
+      <h3 class="listhead">Not sent yet</h3>
+      <p class="hint">
+        These are on this phone only. The city has not seen them, and they have no reference
+        number. Open one to send it.
+      </p>
+      <ul class="reports">
+        {drafts.map((d) => (
+          <DraftReport key={d.id} draft={d} onResume={onResume} onChanged={onChanged} />
+        ))}
+      </ul>
+    </section>
+  )
+}
+
+/**
+ * One report waiting on this phone, drawn as the city's own cards are so
+ * that the tab reads as one list — but with "Draft" where a status word goes,
+ * because there is no status: nobody has it but this phone.
+ *
+ * Deleting takes two taps. The photographs are the part that cannot be got
+ * back from anywhere else, and a single mis-tap on a phone would take them.
+ */
+function DraftReport({
+  draft,
+  onResume,
+  onChanged,
+}: {
+  draft: SavedReport
+  onResume: (d: SavedReport) => void
+  onChanged: () => Promise<void>
+}) {
+  const [open, setOpen] = useState(false)
+  const [sure, setSure] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const remove = async () => {
+    try {
+      const { dropReport } = await import('./saved')
+      await dropReport(draft.id)
+      await onChanged()
+    } catch (err) {
+      setError(messageOf(err))
+      setSure(false)
+    }
+  }
+
+  return (
+    <li class="report">
+      <div class="reporttop">
+        <button type="button" class="reporthead" aria-expanded={open} onClick={() => setOpen(!open)}>
+          <span class="status kept">Draft</span>
+          <span class="title">{draft.description}</span>
+          <span class="meta">
+            {CATEGORY_LABELS[draft.category] ?? 'Kind of problem not picked'} · Kept {whenText(draft.at)}
+          </span>
+        </button>
+      </div>
+      {open && (
+        <div class="reportbody">
+          {draft.address && <p class="hint">Where: {draft.address}</p>}
+          {draft.photos.length > 0 && (
+            <ul class="thumbs">
+              {draft.photos.map((f, i) => (
+                <li key={`${f.name}-${i}`}>
+                  <Thumb group={draft.photos} at={i} />
+                </li>
+              ))}
+            </ul>
+          )}
+          {error && <ErrorMessage onDismiss={() => setError(null)}>{error}</ErrorMessage>}
+          <button class="primary" type="button" onClick={() => onResume(draft)}>
+            Open it and send
+          </button>
+          {sure ? (
+            <p class="sure">
+              Delete this report and its photos from this phone?{' '}
+              <button type="button" class="linky danger" onClick={() => void remove()}>
+                Delete
+              </button>{' '}
+              <button type="button" class="linky" onClick={() => setSure(false)}>
+                Keep it
+              </button>
+            </p>
+          ) : (
+            <button class="secondary wide" type="button" onClick={() => setSure(true)}>
+              Delete this draft
+            </button>
+          )}
+        </div>
+      )}
+    </li>
+  )
+}
+
+function CityReports({
   past,
   onLoad,
   withSession,
@@ -1037,15 +1401,26 @@ function LocationField({
   draft,
   set,
   fromPhotos,
+  pinKept,
 }: {
   draft: Draft
   set: <K extends keyof Draft>(key: K, value: Draft[K]) => void
   /** Where the attached photos say the problem is. */
   fromPhotos: Place | null
+  /**
+   * Whether the pin arrived with the report rather than from the photos this
+   * form has just read. A report kept on the phone stored the place its pin
+   * was left on, and that may be one the reporter moved by hand; nothing
+   * here can tell the two apart afterwards. Treating a kept pin as theirs
+   * keeps a nudge that was made yesterday, at the cost of a re-read photo no
+   * longer being able to move a pin that was the photos' own. Only one of
+   * those two is a loss the reporter would notice.
+   */
+  pinKept: boolean
 }) {
   const [street, setStreet] = useState<Street | null>(null)
   const [naming, setNaming] = useState(false)
-  const [byReporter, setByReporter] = useState(false)
+  const [byReporter, setByReporter] = useState(pinKept)
   const [picking, setPicking] = useState(false)
   const map = useMapChunk()
   const MapHere = map.module?.MapHere

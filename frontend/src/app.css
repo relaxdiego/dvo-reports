@@ -573,6 +573,60 @@ h2 {
   border-top: 1px solid var(--line);
 }
 
+/* The reports tab holds two lists: what is still on this phone, and what the
+   city has. The headings are drawn only when both are there — with no drafts
+   the tab is the city's list and needs nothing said over it. */
+.listhead {
+  font-size: 1.05rem;
+  margin: 1.5rem 0 0.35rem;
+}
+
+.drafts .listhead {
+  margin-top: 0;
+}
+
+/* "Draft" where the city's status word goes, and deliberately not in the
+   accent colour. The accent means the city has said something; about this
+   one it has said nothing at all. */
+.reporthead .status.kept {
+  color: var(--muted);
+}
+
+/* A draft's card carries its own actions, under what they act on. */
+.reportbody > button {
+  margin-top: 0.75rem;
+}
+
+/* The second tap before a delete. It is a plain sentence rather than another
+   wide button: it has to be reachable, not inviting, and the photographs it
+   would take are not anywhere else. */
+.sure {
+  margin: 0.75rem 0 0;
+  font-size: 0.9rem;
+}
+
+.linky.danger {
+  color: var(--danger);
+}
+
+/* The offer to keep a report the city would not take, drawn under the error
+   that explains why. Boxed like .note, so it reads as part of the answer to
+   that error rather than as one more control on the form. */
+.keep {
+  margin: 0.75rem 0 0;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.keep > p:first-child {
+  margin: 0 0 0.75rem;
+}
+
+.keep .hint {
+  margin: 0.6rem 0 0;
+}
+
 .steps {
   margin: 0.75rem 0 0;
   padding-left: 1.1rem;

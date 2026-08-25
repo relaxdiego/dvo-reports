@@ -82,6 +82,7 @@ frontend/
   src/image.ts         shrinking photos in the browser
   src/api.ts           talking to the backend
   src/session.ts       the city session, kept in this browser only
+  src/saved.ts         a report the city refused, kept on the reporter's phone
   src/validate.ts      the backend's rules, mirrored for early warnings
   src/street.ts        asking OpenStreetMap what street the photos were taken on
   src/map.tsx          drawing the place the photos carry, on an OpenStreetMap map
@@ -118,6 +119,16 @@ title back, and that title is built from the first 100 characters of your
 description. So a report that *fails* can leave a short piece of your own words
 in a log. A report that succeeds does not. See
 [docs/upstream.md](docs/upstream.md).
+
+**One thing is kept, and it is kept on your phone, not here.** The city's site
+goes down for hours at a time. When sending fails, the site offers to keep the
+report — the words, the place, and the photos — in your own browser's storage,
+and nothing is kept unless you tap to accept. It never leaves your phone, and
+this project's servers never see it. It survives closing the tab and restarting
+the phone, and waits under "My reports", marked as a draft, until you send it or
+delete it. Two things follow from that: anyone else using this
+browser on this phone can open it, so do not keep a report on a borrowed phone;
+and a phone short of storage can throw it away without asking.
 
 **Photos carry more than the picture.** A phone writes the camera model, the
 software version, every exposure setting, a private block from the

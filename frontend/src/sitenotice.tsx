@@ -61,8 +61,21 @@ export function SiteNotice() {
           <strong>What you are still writing:</strong> While you write a report, the words you have
           typed are kept in your own browser, on your own phone, so that leaving for your camera
           app does not lose them. They are not sent anywhere, and they are not kept here. Your
-          photos are never kept, not even in your browser. What you typed goes when you send the
-          report, and it goes when you close this tab.
+          photos are not kept at this stage. What you typed goes when you send the report, and it
+          goes when you close this tab.
+        </p>
+        <p>
+          <strong>A report you could not send:</strong> The city's site is sometimes down for hours
+          or days. When sending fails, this site offers to keep the report on your phone. Nothing
+          is kept unless you tap to accept. What you keep is the whole report — the words, the
+          place, and the photos — in your own browser, on your own phone. It is not sent anywhere,
+          and this site never sees it. Unlike what you are still writing, it survives closing the
+          tab and restarting the phone, and it stays until you send it or delete it. You will find
+          it under "My reports", marked as a draft. Two things to know before you keep one. Anyone
+          else who uses this browser on this phone can open it and see your photos, so do not keep
+          a report on a phone you have borrowed or lent. And a phone short of storage can throw it
+          away without asking, so a kept report is not a promise. Delete it when you no longer
+          need it.
         </p>
         <p>
           <strong>Your sign-in:</strong> You sign in with the e-mail address on your city account.
