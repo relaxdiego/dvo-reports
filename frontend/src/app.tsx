@@ -81,6 +81,19 @@ const emptyDraft: Draft = {
 type Tab = 'report' | 'past'
 
 /**
+ * Why a report was written to the phone, which is what decides how the
+ * reporter is let go afterwards.
+ *
+ * 'put-away' is a report the city would not take. It is finished; keeping it
+ * is the last thing done to it, so the form is cleared.
+ *
+ * 'still-writing' is the button under `Send report`, pressed at any moment.
+ * That report is not finished — the whole point of pressing it is to be able
+ * to stop and come back — so the form is left exactly as it is.
+ */
+type KeptWhen = 'put-away' | 'still-writing'
+
+/**
  * Runs something that needs the city's session, asking the reporter for a
  * code when there is none. Returns null if they closed the sign-in instead.
  */
@@ -381,7 +394,7 @@ function ReportTab({
     it again. What they need to be told is the one thing the form cannot
     show: that it is not sent, and where it is waiting.
   */
-  const [kept, setKept] = useState(false)
+  const [kept, setKept] = useState<KeptWhen | null>(null)
   // The only place the home screen offer is made. See addtohome.tsx for why
   // it is at the foot of the form and not in the header.
   const [showAddToHome, setShowAddToHome] = useState(false)
@@ -485,14 +498,20 @@ function ReportTab({
   }
 
   /** Puts this report on the phone, or writes over the copy it came from. */
-  const keep = async () => {
+  const keep = async (when: KeptWhen) => {
     setKeeping(true)
     try {
       const { saveReport } = await import('./saved')
-      await saveReport(draft, keptAs)
+      const id = await saveReport(draft, keptAs)
       setKeepError(null)
       await onDraftsChanged()
-      setKept(true)
+      /*
+        Held on to only when the reporter is carrying on. The next press then
+        writes over this copy instead of leaving a second card behind. After
+        a report is put away the form is cleared, and `startAgain` drops it.
+      */
+      if (when === 'still-writing') setKeptAs(id)
+      setKept(when)
     } catch (err) {
       // Only on the way out. A reporter told the report is safe when it is
       // not is the one failure here that cannot be taken back.
@@ -511,7 +530,7 @@ function ReportTab({
     front of them with no way to tell which is which.
   */
   const startAgain = () => {
-    setKept(false)
+    setKept(null)
     setDraft(emptyDraft)
     setKeptAs(undefined)
     setUnsent(false)
@@ -598,7 +617,7 @@ function ReportTab({
             keptAs={keptAs}
             keeping={keeping}
             error={keepError}
-            onKeep={() => void keep()}
+            onKeep={() => void keep('put-away')}
             onDismissError={() => setKeepError(null)}
           />
         )}
@@ -627,6 +646,34 @@ function ReportTab({
         <button class="primary" type="submit" disabled={sending}>
           {sending ? 'Sending…' : 'Send report'}
         </button>
+        {/*
+          Keeping the report without trying to send it first, for a reporter
+          who has to stop — the battery, the jeepney, somebody waiting.
+
+          Only once there is a photograph. The words on their own already
+          survive leaving for the camera app, in sessionStorage; what a
+          photograph adds is the thing that cannot be got back by reopening
+          the tab, and it is also what the report is built on. Before there
+          is one there is nothing here worth a place on the phone.
+
+          It is hidden while the offer above is up. That block explains a
+          failure and carries the same action, and two buttons doing one
+          thing on one screen is a reporter deciding which of them is the
+          real one.
+        */}
+        {draft.photos.length > 0 && !unsent && (
+          <button
+            class="secondary wide"
+            type="button"
+            disabled={sending || keeping}
+            onClick={() => void keep('still-writing')}
+          >
+            {keeping ? 'Keeping…' : keptAs === undefined ? 'Keep it on this phone' : 'Keep the changes'}
+          </button>
+        )}
+        {keepError && !unsent && (
+          <ErrorMessage onDismiss={() => setKeepError(null)}>{keepError}</ErrorMessage>
+        )}
       </form>
       {/*
         Under the send button and outside the form, at the foot of the page.
@@ -649,6 +696,8 @@ function ReportTab({
       {showAddToHome && <AddToHome onClose={() => setShowAddToHome(false)} />}
       {kept && (
         <KeptReport
+          when={kept}
+          onStay={() => setKept(null)}
           onClose={startAgain}
           onShowDrafts={() => {
             startAgain()
@@ -718,8 +767,28 @@ function KeepOnPhone({
  * read as a success, and the success it is easiest to assume is the wrong
  * one. Only then does it say where to look, and it offers to go there
  * rather than only naming the tab.
+ *
+ * The way out depends on why it went up. A report the city refused is
+ * finished, so the form is cleared behind it. A report kept mid-writing is
+ * not — the reporter pressed the button in order to be able to stop, and the
+ * commonest next thing is to carry straight on — so that ending leaves the
+ * form untouched and says so.
  */
-function KeptReport({ onShowDrafts, onClose }: { onShowDrafts: () => void; onClose: () => void }) {
+function KeptReport({
+  when,
+  onShowDrafts,
+  onStay,
+  onClose,
+}: {
+  when: KeptWhen
+  onShowDrafts: () => void
+  /** Back to the form, exactly as it was. Only offered mid-writing. */
+  onStay: () => void
+  /** Done with it: the form is cleared. */
+  onClose: () => void
+}) {
+  const writing = when === 'still-writing'
+
   return (
     <div class="sheet" role="dialog" aria-modal="true" aria-label="Where this report is now">
       <div class="sheetbody">
@@ -730,16 +799,37 @@ function KeptReport({ onShowDrafts, onClose }: { onShowDrafts: () => void; onClo
         </p>
         <p>
           It is waiting at the top of <strong>My reports</strong>, marked <strong>Draft</strong>.
-          Open it there and send it when the city's site is answering again.
+          Open it there to carry on, or to send it when you are ready.
         </p>
-        <button class="primary" type="button" onClick={onShowDrafts}>
-          Show me where
-        </button>
-        <button class="secondary wide" type="button" onClick={onClose}>
-          Close
-        </button>
+        {/*
+          The way out that leaves the report alone comes first when the
+          reporter is still writing: they pressed this to be able to stop,
+          not to be moved somewhere else, and the commonest next thing is to
+          carry straight on.
+        */}
+        {writing ? (
+          <>
+            <button class="primary" type="button" onClick={onStay}>
+              Keep writing
+            </button>
+            <button class="secondary wide" type="button" onClick={onShowDrafts}>
+              Show me where it is
+            </button>
+          </>
+        ) : (
+          <>
+            <button class="primary" type="button" onClick={onShowDrafts}>
+              Show me where it is
+            </button>
+            <button class="secondary wide" type="button" onClick={onClose}>
+              Close
+            </button>
+          </>
+        )}
         <p class="hint">
-          The form is empty again, ready for another report. Nothing you wrote has been lost.
+          {writing
+            ? 'The form is as you left it. If you add more, press the button again to keep the changes.'
+            : 'The form is empty again, ready for another report. Nothing you wrote has been lost.'}
         </p>
       </div>
     </div>

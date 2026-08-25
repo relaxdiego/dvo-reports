@@ -120,10 +120,12 @@ description. So a report that *fails* can leave a short piece of your own words
 in a log. A report that succeeds does not. See
 [docs/upstream.md](docs/upstream.md).
 
-**One thing is kept, and it is kept on your phone, not here.** The city's site
-goes down for hours at a time. When sending fails, the site offers to keep the
-report — the words, the place, and the photos — in your own browser's storage,
-and nothing is kept unless you tap to accept. It never leaves your phone, and
+**One thing is kept, and it is kept on your phone, not here.** You can put a
+report away on your own phone at any point — the button sits under
+`Send report`. The site also offers to keep it when sending fails, and the
+city's site can fail for hours at a time. What is kept is the whole report — the
+words, the place, and the photos — in the browser's own storage, and nothing
+is kept unless you tap the button yourself. It never leaves your phone, and
 this project's servers never see it. It survives closing the tab and restarting
 the phone, and waits under "My reports", marked as a draft, until you send it or
 delete it. Two things follow from that: anyone else using this

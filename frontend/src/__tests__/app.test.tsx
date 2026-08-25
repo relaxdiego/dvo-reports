@@ -1964,7 +1964,7 @@ describe('a report the city would not take', () => {
     await fillAndSend()
     click('Keep it on this phone')
     await until(() => root.querySelector('[role="dialog"]') !== null, 'the sheet')
-    click('Show me where')
+    click('Show me where it is')
     await until(() => root.querySelector('.status.kept') !== null, 'the kept report')
 
     expect(root.querySelector('.status.kept')?.textContent).toBe('Draft')
@@ -2100,6 +2100,108 @@ describe('a report the city would not take', () => {
     await until(() => root.querySelector('.status.kept') === null, 'the card to go')
 
     expect(root.textContent).not.toContain('Not sent yet')
+  })
+
+  /*
+    Keeping a report without trying to send it first, for the reporter who
+    simply has to stop. Waiting for a failure meant the only way to put a
+    half-written report somewhere safe was to press Send and hope it broke.
+  */
+  describe('keeping one before any send', () => {
+    /** Every button offering to keep this report, wherever it is drawn. */
+    function keepButtons() {
+      return [...root.querySelectorAll('button')].filter((b) =>
+        /^Keep (it on this phone|the changes)$/.test(b.textContent?.trim() ?? ''),
+      )
+    }
+
+    // Before a photograph there is nothing here worth a place on the phone:
+    // the words alone already survive leaving for the camera app.
+    it('is not offered until there is a photograph', async () => {
+      cityDown()
+      act(() => render(<App />, root))
+      expect(keepButtons()).toHaveLength(0)
+
+      await attachPhotos(jpegPhoto())
+
+      expect(keepButtons()).toHaveLength(1)
+    })
+
+    it('keeps the report without a send being tried at all', async () => {
+      const fetchMock = cityDown()
+      await attachPhotos(jpegPhoto())
+      await streetNamed()
+      click('Garbage')
+      const description = root.querySelector<HTMLTextAreaElement>('#description')!
+      description.value = 'Half written, and I have to go.'
+      act(() => { description.dispatchEvent(new Event('input', { bubbles: true })) })
+
+      click('Keep it on this phone')
+      await until(() => root.querySelector('[role="dialog"]') !== null, 'the sheet')
+
+      expect(fetchMock.mock.calls.some(([u]) => String(u).endsWith('/api/reports'))).toBe(false)
+      await openDrafts()
+      expect(root.textContent).toContain('Half written, and I have to go.')
+    })
+
+    // The reporter pressed it in order to be able to stop, not to be moved
+    // somewhere else. Clearing the form here would be taking the report away
+    // from somebody who was still writing it.
+    it('leaves the form alone, unlike putting a refused report away', async () => {
+      cityDown()
+      await attachPhotos(jpegPhoto())
+      await streetNamed()
+      const description = root.querySelector<HTMLTextAreaElement>('#description')!
+      description.value = 'Still writing this one.'
+      act(() => { description.dispatchEvent(new Event('input', { bubbles: true })) })
+
+      click('Keep it on this phone')
+      await until(() => root.querySelector('[role="dialog"]') !== null, 'the sheet')
+      click('Keep writing')
+      await settle()
+
+      expect(root.querySelector('[role="dialog"]')).toBeNull()
+      expect(root.querySelector<HTMLTextAreaElement>('#description')?.value).toBe('Still writing this one.')
+      expect(root.querySelectorAll('.photorow')).toHaveLength(1)
+    })
+
+    // Pressing it again is the same report, further along.
+    it('writes over its own card as the report grows', async () => {
+      cityDown()
+      await attachPhotos(jpegPhoto())
+      await streetNamed()
+      const description = root.querySelector<HTMLTextAreaElement>('#description')!
+      description.value = 'First half.'
+      act(() => { description.dispatchEvent(new Event('input', { bubbles: true })) })
+      click('Keep it on this phone')
+      await until(() => root.querySelector('[role="dialog"]') !== null, 'the sheet')
+      click('Keep writing')
+      await settle()
+
+      description.value = 'First half, and the second.'
+      act(() => { description.dispatchEvent(new Event('input', { bubbles: true })) })
+      expect(keepButtons()[0].textContent?.trim()).toBe('Keep the changes')
+      click('Keep the changes')
+      await until(() => root.querySelector('[role="dialog"]') !== null, 'the sheet')
+      click('Keep writing')
+      await settle()
+
+      await openDrafts()
+      expect(root.querySelectorAll('.status.kept')).toHaveLength(1)
+      expect(root.textContent).toContain('First half, and the second.')
+    })
+
+    // Two buttons doing one thing on one screen is a reporter deciding which
+    // of them is the real one.
+    it('gives way to the offer a failed send puts up', async () => {
+      cityDown()
+      await attachPhotos(jpegPhoto())
+      await fillAndSend()
+
+      const buttons = keepButtons()
+      expect(buttons).toHaveLength(1)
+      expect(buttons[0].closest('.keep')).not.toBeNull()
+    })
   })
 
   /*

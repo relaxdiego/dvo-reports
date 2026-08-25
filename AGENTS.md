@@ -215,9 +215,13 @@ at build time; name the environment you deployed to alongside them.
 - `frontend/src/saved.ts` — a whole report kept on the reporter's phone
   because the city's site would not take it. **This is the only place in the
   project that keeps a photograph**, and every part of that is narrow on
-  purpose: nothing is written unless the reporter taps the button on the
-  failed send, it goes no further than their own browser, and sending or
-  deleting the draft ends it. `sitenotice.tsx` says all of it to the
+  purpose: nothing is written unless the reporter taps a button, it goes no
+  further than their own browser, and sending or deleting the draft ends it.
+  There are two such buttons and they are the same action — one under `Send
+  report`, live from the moment a photograph is attached, and one in the
+  offer a failed send puts up. Only ever draw one of them at a time: two
+  buttons doing one thing on one screen is a reporter deciding which is the
+  real one. `sitenotice.tsx` says all of it to the
   reporter, including the two unflattering parts — that somebody else holding
   the phone can open it, and that a phone short of storage may throw it away.
   Change what is kept and change that notice in the same commit.
@@ -240,7 +244,11 @@ at build time; name the environment you deployed to alongside them.
   is told — unlike `draft.ts`, a failure here cannot be quiet, because they
   are about to close the page believing their photographs are safe.
 
-  **Keeping a report raises a sheet and empties the form.** Writing it down
+  **Keeping a report raises a sheet, and what happens next depends on why.**
+  A report the city refused is finished, so the form is cleared behind it. A
+  report kept part-written is not — the reporter pressed the button in order
+  to be able to stop — so that ending leaves the form exactly as it was.
+  Writing it down
   changed nothing a reporter could see — the same notice, the same button —
   so pressing it read as pressing nothing, on the one action where they are
   deciding whether their photographs are safe to walk away from. The sheet
@@ -425,8 +433,8 @@ at build time; name the environment you deployed to alongside them.
 - Go: standard library only. Adding a dependency to the backend needs a
   reason in the commit message.
 - Frontend: Preact, no UI framework, no component library. The bundle
-  everybody downloads is about 24.0 kB gzipped, and `make size` fails above
-  24.5 kB — CI runs it, so growing the first page load means raising the budget
+  everybody downloads is about 24.4 kB gzipped, and `make size` fails above
+  25.5 kB — CI runs it, so growing the first page load means raising the budget
   in `frontend/scripts/check-size.mjs` and saying in the commit message what
   the bytes buy a reporter. Leaflet sits outside that number because it is in
   the map's own chunk — keep new weight behind a dynamic `import()` the same

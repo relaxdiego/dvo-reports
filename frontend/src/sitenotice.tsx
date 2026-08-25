@@ -65,11 +65,12 @@ export function SiteNotice() {
           goes when you close this tab.
         </p>
         <p>
-          <strong>A report you could not send:</strong> The city's site is sometimes down for hours
-          or days. When sending fails, this site offers to keep the report on your phone. Nothing
-          is kept unless you tap to accept. What you keep is the whole report — the words, the
-          place, and the photos — in your own browser, on your own phone. It is not sent anywhere,
-          and this site never sees it. Unlike what you are still writing, it survives closing the
+          <strong>A report you keep on your phone:</strong> You can put a report away on your
+          phone whenever you like — there is a button under <strong>Send report</strong>. This site
+          also offers to keep it when sending fails, and the city's site can fail for hours at a
+          time. Nothing is kept unless you tap the button yourself. What you keep is the whole
+          report — the words, the place, and the photos — in your own browser, on your own phone.
+          It is not sent anywhere, and this site never sees it. Unlike what you are still writing, it survives closing the
           tab and restarting the phone, and it stays until you send it or delete it. You will find
           it under "My reports", marked as a draft. Two things to know before you keep one. Anyone
           else who uses this browser on this phone can open it and see your photos, so do not keep
