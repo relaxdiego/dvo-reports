@@ -668,7 +668,7 @@ function ReportTab({
             disabled={sending || keeping}
             onClick={() => void keep('still-writing')}
           >
-            {keeping ? 'Keeping…' : keptAs === undefined ? 'Keep it on this phone' : 'Keep the changes'}
+            {keeping ? 'Saving…' : keptAs === undefined ? 'Save draft on this phone' : 'Save the changes'}
           </button>
         )}
         {keepError && !unsent && (
@@ -738,15 +738,15 @@ function KeepOnPhone({
     <div class="keep">
       <p>
         {keptAs === undefined
-          ? 'The city’s site did not take this report. You can keep it on this phone, and send it when their site is answering again.'
-          : 'The city’s site did not take this report. An older copy of it is already on this phone, under My reports. What you have changed since is not in that copy yet.'}
+          ? 'The city’s site did not take this report. You can save it as a draft on this phone, and send it when their site is answering again.'
+          : 'The city’s site did not take this report. An older draft of it is already on this phone, under My reports. What you have changed since is not in that draft yet.'}
       </p>
       {error && <ErrorMessage onDismiss={onDismissError}>{error}</ErrorMessage>}
       <button class="secondary wide" type="button" disabled={keeping} onClick={onKeep}>
-        {keeping ? 'Keeping…' : keptAs === undefined ? 'Keep it on this phone' : 'Keep the changes'}
+        {keeping ? 'Saving…' : keptAs === undefined ? 'Save draft on this phone' : 'Save the changes'}
       </button>
       <p class="hint">
-        This keeps the words, the place, and the photos in this browser, on this phone. Nothing is
+        This saves the words, the place, and the photos in this browser, on this phone. Nothing is
         sent anywhere. Anyone else using this browser can open it.
       </p>
     </div>
@@ -792,7 +792,7 @@ function KeptReport({
   return (
     <div class="sheet" role="dialog" aria-modal="true" aria-label="Where this report is now">
       <div class="sheetbody">
-        <h2>Kept on this phone</h2>
+        <h2>Draft saved on this phone</h2>
         <p>
           <strong>This report has not been sent.</strong> The city has not seen it, and it has no
           reference number yet.
@@ -828,7 +828,7 @@ function KeptReport({
         )}
         <p class="hint">
           {writing
-            ? 'The form is as you left it. If you add more, press the button again to keep the changes.'
+            ? 'The form is as you left it. If you add more, press the button again to save the changes.'
             : 'The form is empty again, ready for another report. Nothing you wrote has been lost.'}
         </p>
       </div>
@@ -918,7 +918,7 @@ function Drafts({
 
   return (
     <section class="drafts">
-      <h3 class="listhead">Not sent yet</h3>
+      <h3 class="listhead">Drafts on this phone</h3>
       <p class="hint">
         These are on this phone only. The city has not seen them, and they have no reference
         number. Open one to send it.
@@ -971,7 +971,7 @@ function DraftReport({
           <span class="status kept">Draft</span>
           <span class="title">{draft.description}</span>
           <span class="meta">
-            {CATEGORY_LABELS[draft.category] ?? 'Kind of problem not picked'} · Kept {whenText(draft.at)}
+            {CATEGORY_LABELS[draft.category] ?? 'Kind of problem not picked'} · Saved {whenText(draft.at)}
           </span>
         </button>
       </div>

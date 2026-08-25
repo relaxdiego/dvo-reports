@@ -120,17 +120,17 @@ description. So a report that *fails* can leave a short piece of your own words
 in a log. A report that succeeds does not. See
 [docs/upstream.md](docs/upstream.md).
 
-**One thing is kept, and it is kept on your phone, not here.** You can put a
-report away on your own phone at any point — the button sits under
-`Send report`. The site also offers to keep it when sending fails, and the
-city's site can fail for hours at a time. What is kept is the whole report — the
-words, the place, and the photos — in the browser's own storage, and nothing
-is kept unless you tap the button yourself. It never leaves your phone, and
-this project's servers never see it. It survives closing the tab and restarting
-the phone, and waits under "My reports", marked as a draft, until you send it or
-delete it. Two things follow from that: anyone else using this
-browser on this phone can open it, so do not keep a report on a borrowed phone;
-and a phone short of storage can throw it away without asking.
+**One thing is saved, and it is saved on your phone, not here.** You can save a
+report as a draft on your own phone at any point — the button sits under
+`Send report`. The site also offers it when sending fails, and the city's site
+can fail for hours at a time. A draft is the whole report — the words, the
+place, and the photos — in your browser's own storage, and nothing is saved
+unless you tap the button yourself. It never leaves your phone, and this
+project's servers never see it. It survives closing the tab and restarting the
+phone, and waits under "My reports", marked as a draft, until you send it or
+delete it. Two things follow from that: anyone else using this browser on this
+phone can open it, so do not save a draft on a borrowed phone; and a phone
+short of storage can throw it away without asking.
 
 **Photos carry more than the picture.** A phone writes the camera model, the
 software version, every exposure setting, a private block from the

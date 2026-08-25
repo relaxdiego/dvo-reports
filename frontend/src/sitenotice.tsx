@@ -65,17 +65,17 @@ export function SiteNotice() {
           goes when you close this tab.
         </p>
         <p>
-          <strong>A report you keep on your phone:</strong> You can put a report away on your
-          phone whenever you like — there is a button under <strong>Send report</strong>. This site
-          also offers to keep it when sending fails, and the city's site can fail for hours at a
-          time. Nothing is kept unless you tap the button yourself. What you keep is the whole
-          report — the words, the place, and the photos — in your own browser, on your own phone.
-          It is not sent anywhere, and this site never sees it. Unlike what you are still writing, it survives closing the
-          tab and restarting the phone, and it stays until you send it or delete it. You will find
-          it under "My reports", marked as a draft. Two things to know before you keep one. Anyone
-          else who uses this browser on this phone can open it and see your photos, so do not keep
-          a report on a phone you have borrowed or lent. And a phone short of storage can throw it
-          away without asking, so a kept report is not a promise. Delete it when you no longer
+          <strong>A draft you save on your phone:</strong> You can save a report as a draft on
+          your phone whenever you like — there is a button under <strong>Send report</strong>. This
+          site also offers it when sending fails, and the city's site can fail for hours at a time.
+          Nothing is saved unless you tap the button yourself. A draft is the whole report — the
+          words, the place, and the photos — in your own browser, on your own phone. It is not sent
+          anywhere, and this site never sees it. Unlike what you are still writing, it survives
+          closing the tab and restarting the phone, and it stays until you send it or delete it.
+          You will find it under "My reports", marked as a draft. Two things to know before you
+          save one. Anyone else who uses this browser on this phone can open it and see your
+          photos, so do not save a draft on a phone you have borrowed or lent. And a phone short of storage can throw it
+          away without asking, so a saved draft is not a promise. Delete it when you no longer
           need it.
         </p>
         <p>

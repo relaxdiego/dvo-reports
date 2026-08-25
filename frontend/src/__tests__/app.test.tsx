@@ -1891,13 +1891,13 @@ describe('a report the city would not take', () => {
     cityDown()
     await attachPhotos(jpegPhoto())
     await fillAndSend()
-    click('Keep it on this phone')
+    click('Save draft on this phone')
     await settle()
 
     await openDrafts()
 
     expect(root.querySelector('.status.kept')?.textContent).toBe('Draft')
-    expect(root.textContent).toContain('Not sent yet')
+    expect(root.textContent).toContain('Drafts on this phone')
     expect(root.textContent).toContain('Rubbish left on the pavement.')
     // The city's half of the tab failed, as it would on the day this matters,
     // and the card above it is there all the same.
@@ -1909,7 +1909,7 @@ describe('a report the city would not take', () => {
     cityDown()
     await attachPhotos(jpegPhoto())
     await fillAndSend()
-    click('Keep it on this phone')
+    click('Save draft on this phone')
     await settle()
     await openDrafts()
 
@@ -1931,7 +1931,7 @@ describe('a report the city would not take', () => {
     cityDown()
     await attachPhotos(jpegPhoto())
     await fillAndSend()
-    click('Keep it on this phone')
+    click('Save draft on this phone')
     await until(() => root.querySelector('[role="dialog"]') !== null, 'the sheet')
 
     const sheet = root.querySelector('[role="dialog"]')!
@@ -1946,7 +1946,7 @@ describe('a report the city would not take', () => {
     cityDown()
     await attachPhotos(jpegPhoto())
     await fillAndSend()
-    click('Keep it on this phone')
+    click('Save draft on this phone')
     await until(() => root.querySelector('[role="dialog"]') !== null, 'the sheet')
     click('Close')
     await settle()
@@ -1962,7 +1962,7 @@ describe('a report the city would not take', () => {
     cityDown()
     await attachPhotos(jpegPhoto())
     await fillAndSend()
-    click('Keep it on this phone')
+    click('Save draft on this phone')
     await until(() => root.querySelector('[role="dialog"]') !== null, 'the sheet')
     click('Show me where it is')
     await until(() => root.querySelector('.status.kept') !== null, 'the kept report')
@@ -1976,7 +1976,7 @@ describe('a report the city would not take', () => {
     cityDown()
     await attachPhotos(jpegPhoto())
     await fillAndSend()
-    click('Keep it on this phone')
+    click('Save draft on this phone')
     await until(() => root.querySelector('[role="dialog"]') !== null, 'the sheet')
     click('Close')
     await settle()
@@ -1993,8 +1993,8 @@ describe('a report the city would not take', () => {
     act(() => { root.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })) })
     await settle()
 
-    expect(root.querySelector('.keep')?.textContent).toContain('An older copy')
-    click('Keep the changes')
+    expect(root.querySelector('.keep')?.textContent).toContain('An older draft')
+    click('Save the changes')
     await until(() => root.querySelector('[role="dialog"]') !== null, 'the sheet')
     click('Close')
     await settle()
@@ -2015,7 +2015,7 @@ describe('a report the city would not take', () => {
     cityDown()
     await attachPhotos(jpegPhoto())
     await fillAndSend()
-    click('Keep it on this phone')
+    click('Save draft on this phone')
     await until(() => root.querySelector('[role="dialog"]') !== null, 'the sheet')
     click('Close')
     await settle()
@@ -2036,7 +2036,7 @@ describe('a report the city would not take', () => {
         // Put it away again without sending, the way a reporter would.
         act(() => { root.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })) })
         await settle()
-        click('Keep the changes')
+        click('Save the changes')
         await until(() => root.querySelector('[role="dialog"]') !== null, 'the sheet')
         click('Close')
         await settle()
@@ -2048,7 +2048,7 @@ describe('a report the city would not take', () => {
     cityDown()
     await attachPhotos(jpegPhoto())
     await fillAndSend()
-    click('Keep it on this phone')
+    click('Save draft on this phone')
     await settle()
     await openDrafts()
     act(() => root.querySelector<HTMLButtonElement>('.reporthead')!.click())
@@ -2084,7 +2084,7 @@ describe('a report the city would not take', () => {
     cityDown()
     await attachPhotos(jpegPhoto())
     await fillAndSend()
-    click('Keep it on this phone')
+    click('Save draft on this phone')
     await settle()
     await openDrafts()
     act(() => root.querySelector<HTMLButtonElement>('.reporthead')!.click())
@@ -2099,7 +2099,7 @@ describe('a report the city would not take', () => {
     click('Delete')
     await until(() => root.querySelector('.status.kept') === null, 'the card to go')
 
-    expect(root.textContent).not.toContain('Not sent yet')
+    expect(root.textContent).not.toContain('Drafts on this phone')
   })
 
   /*
@@ -2111,7 +2111,7 @@ describe('a report the city would not take', () => {
     /** Every button offering to keep this report, wherever it is drawn. */
     function keepButtons() {
       return [...root.querySelectorAll('button')].filter((b) =>
-        /^Keep (it on this phone|the changes)$/.test(b.textContent?.trim() ?? ''),
+        /^Save (draft on this phone|the changes)$/.test(b.textContent?.trim() ?? ''),
       )
     }
 
@@ -2136,7 +2136,7 @@ describe('a report the city would not take', () => {
       description.value = 'Half written, and I have to go.'
       act(() => { description.dispatchEvent(new Event('input', { bubbles: true })) })
 
-      click('Keep it on this phone')
+      click('Save draft on this phone')
       await until(() => root.querySelector('[role="dialog"]') !== null, 'the sheet')
 
       expect(fetchMock.mock.calls.some(([u]) => String(u).endsWith('/api/reports'))).toBe(false)
@@ -2155,7 +2155,7 @@ describe('a report the city would not take', () => {
       description.value = 'Still writing this one.'
       act(() => { description.dispatchEvent(new Event('input', { bubbles: true })) })
 
-      click('Keep it on this phone')
+      click('Save draft on this phone')
       await until(() => root.querySelector('[role="dialog"]') !== null, 'the sheet')
       click('Keep writing')
       await settle()
@@ -2173,15 +2173,15 @@ describe('a report the city would not take', () => {
       const description = root.querySelector<HTMLTextAreaElement>('#description')!
       description.value = 'First half.'
       act(() => { description.dispatchEvent(new Event('input', { bubbles: true })) })
-      click('Keep it on this phone')
+      click('Save draft on this phone')
       await until(() => root.querySelector('[role="dialog"]') !== null, 'the sheet')
       click('Keep writing')
       await settle()
 
       description.value = 'First half, and the second.'
       act(() => { description.dispatchEvent(new Event('input', { bubbles: true })) })
-      expect(keepButtons()[0].textContent?.trim()).toBe('Keep the changes')
-      click('Keep the changes')
+      expect(keepButtons()[0].textContent?.trim()).toBe('Save the changes')
+      click('Save the changes')
       await until(() => root.querySelector('[role="dialog"]') !== null, 'the sheet')
       click('Keep writing')
       await settle()
