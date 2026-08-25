@@ -67,3 +67,52 @@
     color: var(--accent);
   }
 }
+
+/* The map that stands in for a place nobody knows yet. Only the pictures are
+   drained of colour, not the box: the words and the button over them are the
+   part that has to be read, and OpenStreetMap's credit in the corner has to
+   stay legible whatever is done to the tiles above it. */
+.mapwrap.unknown .leaflet-tile-pane {
+  filter: grayscale(1);
+  opacity: 0.55;
+}
+
+/* Above Leaflet's panes, which stop at 400, and below its controls at 1000 so
+   the credit in the corner is still a link. It covers the whole frame but
+   catches nothing: only the button inside it takes a tap. */
+.mapask {
+  position: absolute;
+  inset: 0;
+  z-index: 600;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  pointer-events: none;
+  text-align: center;
+}
+
+.mapask > * {
+  pointer-events: auto;
+}
+
+/* The words sit on a plate of the page's own background rather than straight
+   on the map. Grey streets under grey text is the one thing that would make
+   this box harder to read than the sentence it replaced. */
+.mapask .unknownplace {
+  margin: 0;
+  padding: 0.3rem 0.7rem;
+  border-radius: var(--radius);
+  background: var(--bg);
+  font-weight: 600;
+}
+
+/* Narrower than a form button, because it sits on a picture rather than in
+   the column of controls, and a full-width button here reads as the bottom of
+   the form rather than as part of the map. */
+.mapask .share {
+  width: auto;
+  margin: 0;
+}

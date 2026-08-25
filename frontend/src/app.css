@@ -1077,3 +1077,31 @@ button.primary.waiting .spinner {
 .keeplist .hint {
   margin-top: 0.35rem;
 }
+
+/* The same question as the one on the grey map, for the build where Leaflet
+   would not load or has not arrived yet. The box keeps the map's own shape so
+   the field does not jump when the picture appears behind it. */
+.unknownplain {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  height: 15rem;
+  margin-top: 0.5rem;
+  padding: 1rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--line);
+  text-align: center;
+}
+
+.unknownplain .unknownplace {
+  margin: 0;
+  font-weight: 600;
+}
+
+.unknownplain .share {
+  width: auto;
+  margin: 0;
+}

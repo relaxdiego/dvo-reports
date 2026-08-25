@@ -981,95 +981,46 @@ describe('the photo field', () => {
     expect(rows[0].textContent).toContain('2025')
   })
 
-  // The rule the whole form rests on. The place is not typed and not picked
-  // off a map, so a photograph that does not carry one cannot be part of a
-  // report, and it is turned away where it is chosen rather than at the end.
-  it('turns away a photo that does not say where it was taken', async () => {
+  // A photograph that says nothing about where it was taken used to be turned
+  // away here, and the reporter with it: a camera with its location switched
+  // off is ordinary. It is kept now, and the place is asked for below.
+  it('keeps a photo that does not say where it was taken', async () => {
     await attach(jpegPhoto({ gps: false }))
-
-    expect(root.querySelectorAll('.photorow')).toHaveLength(0)
-    const refused = root.querySelector('[role="alert"]')
-    expect(refused?.textContent).toContain('has no location')
-    // The advice has to name the camera app: the commonest way to reach a
-    // photo with no place is to take one through the page, and no setting
-    // fixes that one.
-    expect(refused?.textContent).toContain('Open your camera app')
-    // And the hint saying the same thing steps aside while it is up, rather
-    // than repeating it in different words directly underneath.
-    expect(root.textContent).not.toContain('Take the photo with your camera app first')
-    // The photo itself is in the message, so "which one?" is answered without
-    // reading. Its name is the alt text: a phone calls them all image.jpg, so
-    // it is no use on the screen, and a screen reader has nothing else.
-    const shown = refused?.querySelectorAll('.thumbs img')
-    expect(shown).toHaveLength(1)
-    expect(shown?.[0].getAttribute('alt')).toBe('photo.jpg')
-    // One photo, so the message is about one photo throughout.
-    expect(refused?.textContent).toContain('This photo has no location')
-    expect(refused?.textContent).toContain('Pick the photo you just took')
-    // One photo can have come from the camera the page opened, so this is the
-    // reporter who is asked about the taps they have just made.
-    expect(refused?.textContent).toContain('Did you take it just now')
-  })
-
-  // Picking several at once is ordinary — the phone offers the whole library.
-  // Every one that is turned away is shown, and the message reads as being
-  // about all of them rather than about one.
-  it('shows every photo it turns away, and says so in the plural', async () => {
-    await attach(jpegPhoto({ gps: false }), jpegPhoto({ gps: false }), jpegPhoto({ gps: false }))
-
-    expect(root.querySelectorAll('.photorow')).toHaveLength(0)
-    const refused = root.querySelector('[role="alert"]')
-    expect(refused?.querySelectorAll('.thumbs img')).toHaveLength(3)
-    expect(refused?.textContent).toContain('These photos have no location, so they were not added')
-    expect(refused?.textContent).toContain('Take the photos there')
-    expect(refused?.textContent).toContain('Pick the photos you just took')
-  })
-
-  // Neither phone hands back more than one photo from its camera, so several
-  // at once came from the library. Asking this reporter whether they took them
-  // just now describes taps they did not make.
-  it('does not blame the page camera when several photos are turned away', async () => {
-    await attach(jpegPhoto({ gps: false }), jpegPhoto({ gps: false }))
-
-    const refused = root.querySelector('[role="alert"]')
-    expect(refused?.textContent).not.toContain('Did you take them just now')
-    expect(refused?.textContent).toContain('A photo already on your phone has no location')
-  })
-
-  // A reporter who picks four and gets one in has to see the one that landed
-  // before the red box, or they read the box as being about all four.
-  it('puts the refusal below the photos that did get in', async () => {
-    await attach(jpegPhoto(), jpegPhoto({ gps: false }))
-
-    const list = root.querySelector('.photolist')
-    const refused = root.querySelector('[role="alert"]')
-    expect(list).not.toBeNull()
-    expect(refused?.textContent).toContain('has no location')
-    // DOCUMENT_POSITION_FOLLOWING: the box comes after the list, not before.
-    expect(list!.compareDocumentPosition(refused!) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(
-      Node.DOCUMENT_POSITION_FOLLOWING,
-    )
-  })
-
-  // The steps cannot help a reporter whose browser is inside another app: the
-  // place was there and that app took it out. Both messages say so.
-  it('names the in-app browser in both messages', async () => {
-    await attach(jpegPhoto({ gps: false }))
-    expect(root.querySelector('[role="alert"]')?.textContent).toContain(
-      'Opening this page inside another app',
-    )
-
-    await attach(jpegPhoto({ gps: false }), jpegPhoto({ gps: false }))
-    expect(root.querySelector('[role="alert"]')?.textContent).toContain(
-      'Opening this page inside another app',
-    )
-  })
-
-  it('keeps the photos that do carry a place and refuses the rest', async () => {
-    await attach(jpegPhoto(), jpegPhoto({ gps: false }))
 
     expect(root.querySelectorAll('.photorow')).toHaveLength(1)
-    expect(root.querySelector('[role="alert"]')?.textContent).toContain('has no location')
+    expect(root.querySelector('[role="alert"]')).toBeNull()
+    // The row still says the photo carries nothing, so nobody is misled about
+    // what the city is being sent.
+    expect(root.querySelector('.photorow')?.textContent).toContain('No place recorded.')
+  })
+
+  // The hint before the first photo asks for a camera-app photo rather than
+  // requiring one: that place is the problem's own, and it saves the reporter
+  // the second step below.
+  it('still asks for a camera-app photo before the first one', async () => {
+    act(() => render(<App />, root))
+    expect(root.textContent).toContain('Take the photo with your camera app first')
+
+    await attach(jpegPhoto({ gps: false }))
+    // Said once. By the second photo they have done it and know how.
+    expect(root.textContent).not.toContain('Take the photo with your camera app first')
+  })
+
+  // A pick of several, none of which carries a place, is now an ordinary pick.
+  it('keeps every photo when none of them carries a place', async () => {
+    await attach(jpegPhoto({ gps: false }), jpegPhoto({ gps: false }), jpegPhoto({ gps: false }))
+
+    expect(root.querySelectorAll('.photorow')).toHaveLength(3)
+    expect(root.querySelector('[role="alert"]')).toBeNull()
+  })
+
+  // One photo with a place among several without is still what sets the pin:
+  // the camera's answer beats no answer, and beats the reporter's own.
+  it('takes the place from whichever photo carries one', async () => {
+    await attach(jpegPhoto(), jpegPhoto({ gps: false }))
+
+    expect(root.querySelectorAll('.photorow')).toHaveLength(2)
+    expect(root.textContent).not.toContain('Location unknown')
   })
 
   // Opening a new tab loses a half-written report, so a plain tap shows the
@@ -1188,33 +1139,6 @@ describe('the photo field', () => {
     expect(counted()).toBe('2 of 2')
   })
 
-  // The refused photos are where "which one?" is asked hardest: several
-  // pictures of the same street are one picture at this size.
-  it('opens a refused photo over the page too', async () => {
-    await attach(jpegPhoto({ gps: false }))
-
-    const thumb = root.querySelector<HTMLButtonElement>('[role="alert"] .thumbtap')!
-    act(() => thumb.click())
-    await settle()
-
-    expect(root.querySelector('.lightbox img')?.getAttribute('alt')).toBe('photo.jpg')
-  })
-
-  // "Which ones?" is a question about all of them, so the refused photos are
-  // a group to swipe through as well.
-  it('swipes along the refused photos', async () => {
-    await attach(jpegPhoto({ gps: false }), jpegPhoto({ gps: false, date: false }))
-    expect(root.querySelectorAll('[role="alert"] .thumbtap')).toHaveLength(2)
-
-    act(() => root.querySelector<HTMLButtonElement>('[role="alert"] .thumbtap')!.click())
-    await settle()
-    expect(counted()).toBe('1 of 2')
-
-    swipe(root.querySelector('.lightbox')!, -120)
-    await settle()
-    expect(counted()).toBe('2 of 2')
-  })
-
   // The way to add another sits under what is already attached, so a reporter
   // adding a third photo does not have to look back past the first two.
   it('keeps the button under the photos it adds to', async () => {
@@ -1252,7 +1176,7 @@ describe('the photo field', () => {
   // A message that has been read and acted on is only in the way of the
   // photos below it.
   it('lets the reporter put an error away', async () => {
-    await attach(jpegPhoto({ gps: false }))
+    await attach(...Array.from({ length: MAX_PHOTOS + 1 }, () => jpegPhoto()))
 
     const alert = root.querySelector('[role="alert"]')!
     const x = alert.querySelector<HTMLButtonElement>('.dismiss')!
@@ -1457,6 +1381,95 @@ describe('the map on the form', () => {
     expect(warning?.textContent).toContain('outside Davao City')
     // Said, not enforced: the reporter can still file it.
     expect(root.querySelector('button.primary')?.hasAttribute('disabled')).toBe(false)
+  })
+
+  // A photograph without a place used to be turned away, which turned away
+  // the reporter as well. Now the field asks for one instead, and it asks in
+  // the box the answer will appear in: a grey map of the city, with the words
+  // and the button on it.
+  it('asks for a location when no photo carries one', async () => {
+    await attachPhotos(jpegPhoto({ gps: false }))
+    await waitFor('the grey map standing in for the place', '.mapwrap.unknown .leaflet-container')
+
+    expect(root.textContent).toContain('Location unknown')
+    expect(root.textContent).toContain('None of your photos say where they were taken')
+    // No pin: there is nothing yet to put one on. What the report cannot be
+    // sent without is checked in validate.test.ts.
+    expect(root.querySelector('.mapwrap.unknown .mappin-drop')).toBeNull()
+  })
+
+  // The second way a place reaches a report: the phone in the reporter's own
+  // hand, asked only because they pressed the button.
+  it('files at the place the phone gives when the button is pressed', async () => {
+    const ask = vi.fn((ok: PositionCallback) =>
+      ok({ coords: { latitude: 7.087654321, longitude: 125.612345678 } } as GeolocationPosition),
+    )
+    vi.stubGlobal('navigator', Object.create(navigator, {
+      geolocation: { value: { getCurrentPosition: ask } },
+    }))
+
+    await attachPhotos(jpegPhoto({ gps: false }))
+    await waitFor('the grey map standing in for the place', '.mapwrap.unknown')
+    click('Share your location')
+    await settle()
+
+    expect(ask).toHaveBeenCalled()
+    // The grey map is replaced by the real one, on the place the phone gave.
+    expect(root.querySelector('.mapwrap.unknown')).toBeNull()
+    expect(root.textContent).not.toContain('Location unknown')
+
+    // Rounded the way a photograph's coordinates are, so a place from here
+    // and a place from a camera are written to the same precision.
+    const body = await fileAndRead()
+    expect(body.get('lat')).toBe('7.08765')
+    expect(body.get('lon')).toBe('125.61235')
+  })
+
+  // A phone that will not answer leaves the report where it was. The reporter
+  // is told what to do about it and the button stays, because trying again is
+  // the only way through: nobody types a place on this form.
+  it('says what to do when the phone refuses', async () => {
+    vi.stubGlobal('navigator', Object.create(navigator, {
+      geolocation: {
+        value: {
+          getCurrentPosition: (_ok: PositionCallback, fail: PositionErrorCallback) =>
+            fail({ code: 1, message: 'denied' } as GeolocationPositionError),
+        },
+      },
+    }))
+
+    await attachPhotos(jpegPhoto({ gps: false }))
+    await waitFor('the grey map standing in for the place', '.mapwrap.unknown')
+    click('Share your location')
+    await settle()
+
+    expect(root.querySelector('[role="alert"]')?.textContent).toContain(
+      'Allow location for this site',
+    )
+    expect(root.textContent).toContain('Location unknown')
+    expect(root.textContent).toContain('Share your location')
+  })
+
+  // Taking the photos out takes the shared place with it, the same way it
+  // takes a photograph's own place and a pin the reporter nudged.
+  it('forgets a shared place when the photos go', async () => {
+    vi.stubGlobal('navigator', Object.create(navigator, {
+      geolocation: {
+        value: {
+          getCurrentPosition: (ok: PositionCallback) =>
+            ok({ coords: { latitude: 7.0876, longitude: 125.6123 } } as GeolocationPosition),
+        },
+      },
+    }))
+
+    await attachPhotos(jpegPhoto({ gps: false }))
+    await waitFor('the grey map standing in for the place', '.mapwrap.unknown')
+    click('Share your location')
+    await settle()
+
+    act(() => root.querySelector<HTMLButtonElement>('.photorow .remove')!.click())
+    await settle()
+    expect(root.querySelector('form')!.textContent).not.toContain('Location')
   })
 
   // A geocoder that is down must not stop anybody filing anything.

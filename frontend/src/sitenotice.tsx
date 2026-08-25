@@ -105,12 +105,15 @@ export function SiteNotice() {
           sent, so uploads are fast. A photo can carry the place and the time it was taken. Only
           those two things go on to the city. Everything else the camera wrote — its model, its
           settings, the identifiers it puts on each photograph — is removed before your report
-          leaves this site. Your report is filed at the place your photo carries: you cannot type an
-          address here, but you can move the pin on the map if the camera put it a street out. To put
-          a street name on your report, your phone sends the photo's coordinates — and nothing
-          else — to OpenStreetMap. OpenStreetMap therefore sees your phone and where it is
-          connected from. The small map is drawn with pictures from OpenStreetMap too, asked for
-          by your phone at the same moment, so it already knew which area you are looking at.
+          leaves this site. Your report is filed at the place your photo carries. If none of your
+          photos carries one, this site asks your phone where it is, and only after you tap the
+          button that says so — your browser asks your permission first. You cannot type an address
+          here, but you can move the pin on the map if it is a street out. To put a street name on
+          your report, your phone sends those coordinates — and nothing else — to OpenStreetMap.
+          OpenStreetMap therefore sees your phone and where it is connected from. The small map is
+          drawn with pictures from OpenStreetMap too, asked for by your phone at the same moment,
+          so it already knew which area you are looking at. Before you have any place at all, that
+          map shows the whole of Davao in grey, which says nothing about where you are.
           When OpenStreetMap does not know the street, this site asks Microsoft's Azure Maps
           instead. That question is sent by this site and not by your phone, so Microsoft never
           sees your phone or where it is connected from.

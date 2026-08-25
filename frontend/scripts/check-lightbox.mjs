@@ -8,10 +8,12 @@
  * the place sheet, and whether the picture is actually bigger than the
  * thumbnail that opened it.
  *
- * Both thumbnails are checked. The one on a photo's row sits next to a
- * Leaflet map; the one in the refusal message sits inside the error box,
- * which is positioned, and a picture that rose only as far as its own box
- * would look like a broken thumbnail rather than a photograph.
+ * The thumbnail is checked against both maps the form can be showing. Beside
+ * a photo that carries its own place there is the real map; beside one that
+ * carries none there is `MapUnknown`, the grey map that asks for a location,
+ * which is the same Leaflet with the same numbering plus a box of its own
+ * laid over it. A picture that opened under either would look like a broken
+ * thumbnail rather than a photograph.
  *
  * Then a real finger. Moving between photographs is a touch gesture, and the
  * unit tests drive it with events they build themselves — which proves the
@@ -156,48 +158,61 @@ try {
     console.log('pass  the cross puts the photo away and the form is back')
   }
 
-  // 2. The same, from the message listing photos that were turned away. It is
-  // inside the error box, which is positioned; a picture that rose only as
-  // far as that box would be trapped in a red rectangle.
+  // 2. The same, on the form that a photo carrying no place produces: the
+  // grey map asking for a location, with its own box laid over Leaflet's
+  // panes. That box is positioned, and a picture rising only as far as it
+  // would be trapped behind the words and the button.
   const second = await visit()
   const picker = await second.waitForSelector('#photos')
   await picker.uploadFile(placeless)
-  await second.waitForSelector('[role="alert"] .thumbtap', { timeout: 15000 })
-  await second.evaluate(() => document.querySelector('[role="alert"] .thumbtap').click())
+  await second.waitForSelector('.mapwrap.unknown .leaflet-container', { timeout: 15000 })
+  await second.evaluate(() => {
+    document.querySelector('.mapwrap.unknown').scrollIntoView({ block: 'center' })
+  })
+  await new Promise((r) => setTimeout(r, 300))
+  await second.screenshot({ path: `${shots}/lightbox-3-noplace-form.png` })
+
+  // The button has to be reachable, which is the whole point of the box: it
+  // is the only way a place reaches a report the photographs said nothing
+  // about. Something else answering at its middle is something the reporter
+  // would press instead.
+  const onButton = await second.evaluate(() => {
+    const b = document.querySelector('.mapask .share')
+    if (!b) return 'no share button on the grey map'
+    const box = b.getBoundingClientRect()
+    const el = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2)
+    return el && b.contains(el) ? null : `${el?.className || el?.tagName} is over the button`
+  })
+  if (onButton) {
+    console.log(`FAIL  ${onButton}`)
+    fail.push('the share button cannot be pressed')
+  } else {
+    console.log('pass  the share button on the grey map takes the tap')
+  }
+
+  await second.evaluate(() => document.querySelector('.photorow .thumbtap').click())
   await second.waitForSelector('.lightbox img', { timeout: 5000 })
   await withPixels(second)
   await new Promise((r) => setTimeout(r, 300))
-  await second.screenshot({ path: `${shots}/lightbox-3-refused.png` })
+  await second.screenshot({ path: `${shots}/lightbox-4-noplace-open.png` })
 
   const held = await second.evaluate(() => {
     const box = document.querySelector('.lightbox').getBoundingClientRect()
     return { w: Math.round(box.width), h: Math.round(box.height), vw: window.innerWidth, vh: window.innerHeight }
   })
   if (held.w < held.vw || held.h < held.vh) {
-    console.log(`FAIL  the refused photo opens in a ${held.w}x${held.h} box on a ${held.vw}x${held.vh} screen`)
-    fail.push('the refused photo does not cover the page')
+    console.log(`FAIL  the photo opens in a ${held.w}x${held.h} box on a ${held.vw}x${held.vh} screen`)
+    fail.push('the photo does not cover the page')
   } else {
-    console.log('pass  the refused photo covers the page, not just the error box')
-  }
-
-  const shown = await second.evaluate(() => {
-    const thumb = document.querySelector('[role="alert"] .thumbtap img').getBoundingClientRect()
-    const big = document.querySelector('.lightbox img').getBoundingClientRect()
-    return { thumb: Math.round(thumb.width), big: Math.round(big.width) }
-  })
-  if (shown.big <= shown.thumb * 2) {
-    console.log(`FAIL  the refused photo opens ${shown.big}px wide, next to a ${shown.thumb}px thumbnail`)
-    fail.push('the refused photo is barely larger than its thumbnail')
-  } else {
-    console.log(`pass  the refused photo opens ${shown.big}px wide, from a ${shown.thumb}px thumbnail`)
+    console.log('pass  the photo covers the page, over the grey map as well')
   }
 
   const bleed2 = await covered(second)
   if (bleed2.length) {
-    console.log(`FAIL  the form paints over the refused photo at ${bleed2.length} points, first is ${bleed2[0].what}`)
-    fail.push('the form covers the refused photo')
+    console.log(`FAIL  the form paints over the photo at ${bleed2.length} points, first is ${bleed2[0].what}`)
+    fail.push('the grey map covers the open photo')
   } else {
-    console.log('pass  nothing from the form paints over the refused photo')
+    console.log('pass  nothing from the form, grey map included, paints over the open photo')
   }
 
   // 3. A finger moving across the open photograph, with two attached. The

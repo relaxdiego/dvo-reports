@@ -186,9 +186,9 @@ at build time; name the environment you deployed to alongside them.
   `suburb` is the district above it. Both this package and `street.ts` read
   `quarter` first; they build the same line and have to keep agreeing.
 - `backend/internal/photo` — **the only place photo metadata is decided.** It
-  also answers whether a photograph says where it was taken, which is what
-  `report.Validate` refuses a report on. It keeps a named few fields and
-  drops everything else, by rebuilding the
+  also answers whether a photograph says where it was taken, which is how the
+  frontend starts the pin; `report.Validate` no longer refuses a report on it.
+  It keeps a named few fields and drops everything else, by rebuilding the
   metadata from nothing rather than deleting from what arrived, so a tag
   survives only because that file names it. Do not add a second filter
   anywhere, and do not strip in the frontend: `frontend/src/image.ts` carries
@@ -197,26 +197,42 @@ at build time; name the environment you deployed to alongside them.
 - `frontend/src/validate.ts` — mirrors the backend rules so the reporter
   learns about a problem before uploading photos. If you change one, change
   both, and remember the backend's answer is the one that counts. A report
-  needs at least one photo and a pair of coordinates.
+  needs at least one photo and a pair of coordinates. Neither side cares where
+  the coordinates came from.
 
-  **The coordinates start at the photograph, and a report cannot begin
-  without one.** A photo that does not carry its own place is refused where
-  it is chosen, in `PhotoField` in `app.tsx`; `backend/internal/report`
-  refuses it again with `photo.HasLocation`, and that is the copy that is
-  trusted. Nobody types an address, and there is no way to open a map before
-  a photograph has put a place on it. This is deliberate and it turns people
-  away: a camera with its location switched off is ordinary, and that
-  reporter is told to switch it on rather than being allowed to say where
-  they think they were. Do not add a way around that without being asked.
+  **A report needs a photograph and a place, and the place has two sources.**
+  The photographs are asked first: `placeOfPhotos` in `exif.ts` puts the pin
+  where they were taken, and that is the better answer, because it is where
+  the problem is rather than where the reporter is standing. A photograph that
+  carries nothing is still kept — it used to be turned away in `PhotoField`,
+  and `report.Validate` used to refuse it again with `photo.HasLocation`, and
+  both of those refused the reporter along with the photo. A camera with its
+  location switched off is ordinary.
+
+  When none of the photographs says anything, `LocationField` draws a grey map
+  of Davao with `Location unknown` on it and one button, and that button asks
+  `navigator.geolocation`. Nothing is asked before it is pressed; the
+  browser's own permission prompt then arrives as an answer to something the
+  reporter did.
+
+  **Nobody types a place, and there is still no map to drop a pin on before
+  one exists.** Every place on a report was measured by a device — a camera or
+  the phone in the reporter's hand. When the phone refuses, the reporter is
+  told how to switch location on and the button stays; they are not offered a
+  map of the city to guess on. A guessed place sends a city crew to a street
+  nobody photographed. Do not add a way around that without being asked.
 
   **The pin can then be nudged, from the `Adjust` link beside the street
-  name.** It opens `MapPicker` on the place the photographs gave, so an
-  adjustment starts from the photograph rather than from nowhere. Once the
-  reporter has moved it, it is theirs: `byReporter` in `LocationField` stops
-  another photo dragging it back. Taking the last photo out still takes the
-  place with it and forgets what they chose — with no photograph there is
-  nothing to file and nowhere to file it. `Draft.address` is the street
-  looked up from whatever the pin ends on, and an empty one is fine.
+  name.** It opens `MapPicker` on the place already set, so an adjustment
+  starts from that rather than from nowhere. Once the reporter has moved it —
+  or shared it, which is the same thing — it is theirs: `byReporter` in
+  `LocationField` stops another photo dragging it back. Taking the last photo
+  out still takes the place with it and forgets what they chose — with no
+  photograph there is nothing to file and nowhere to file it. That is why
+  `LocationField` is told `hasPhotos` as well as `fromPhotos`: a report with
+  photographs and no place is now an ordinary state, and only an empty one
+  clears the field. `Draft.address` is the street looked up from whatever the
+  pin ends on, and an empty one is fine.
 - `frontend/src/config.ts` — what this copy is and where its backend lives,
   read off the `<html>` tag when the page loads rather than baked into the
   bundle. One build is published to both staging and production, so neither
@@ -429,15 +445,24 @@ at build time; name the environment you deployed to alongside them.
   It is behind a dynamic `import()`, like the map and for the same reason:
   nothing can be looked up before a photo is attached, so none of it belongs
   in the first page load.
-- `frontend/src/map.tsx` — three maps out of one chunk: the small one drawn
+- `frontend/src/map.tsx` — four maps out of one chunk: the small one drawn
   on the form, the same one opened over it when a reporter taps the
-  coordinates on a photo, and the picker behind the `Adjust` link. The first
-  two only draw the place the photographs carry; the picker is the one thing
-  in the app that moves it, and only because the reporter opened it to do
-  that. It is the only code that talks to a third party, and it is loaded
-  with a dynamic `import()`. Do not import it from anywhere eagerly: Leaflet
-  is fetched once there is a place to draw, which means after a photo is
-  attached, and never on the first page load.
+  coordinates on a photo, the picker behind the `Adjust` link, and
+  `MapUnknown`, the grey one that stands in the same box when the report has
+  no place yet. The first two only draw the place the photographs carry;
+  `MapUnknown` draws no place at all and carries no pin, because there is none
+  to draw; the picker is the one thing in the app that moves it, and only
+  because the reporter opened it to do that. It is the only code that talks to
+  a third party, and it is loaded with a dynamic `import()`. Do not import it
+  from anywhere eagerly: Leaflet is fetched once there is a photo, and never
+  on the first page load.
+
+  **`MapUnknown` costs a few tiles before the reporter has shared anything.**
+  They are of the whole city at zoom 12 and say nothing about where anyone is;
+  `sitenotice.tsx` and `README.md` both say they are asked for. Keep it that
+  way round — it is grey and pinless so it cannot be read as a place, and the
+  words and the button sit on it because the box the answer will appear in is
+  where the question belongs.
 
   **The map on the form does not move under a finger.** `MapHere` passes
   `still`, which switches off every one of Leaflet's handlers, and that is
@@ -554,10 +579,11 @@ place on a photo's row, which opens a map over the form, then the `Adjust`
 link, which opens the picker, and fails if anything from the form paints over
 either sheet. It also drags a finger up the map on the form and fails if that
 map moves or the page does not: that map is a picture, and a thumb on it is
-scrolling the form. It taps a photo's thumbnail — the one on
-its row, and one in the message listing photos that were turned away — and
-fails if the form paints over the picture that opens, or if the picture is
-drawn barely larger than the square it came from. With two photos attached it
+scrolling the form. It taps a photo's thumbnail, on a form showing the real
+map and again on one showing the grey map that asks for a location, and fails
+if either paints over the picture that opens, if the picture is drawn barely
+larger than the square it came from, or if anything sits over the share button
+on the grey map. With two photos attached it
 drags a real finger across the open one, and fails if the photograph waiting
 at the side shows before it is asked for, if the row does not move under a
 finger that is still down, or if the swipe closes the picture rather than

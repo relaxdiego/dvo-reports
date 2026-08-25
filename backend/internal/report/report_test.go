@@ -85,14 +85,6 @@ func TestValidateRejects(t *testing.T) {
 		"photo over the size": func(r *Report) {
 			r.Photos = []Photo{{Filename: "a.jpg", MediaType: "image/jpeg", Data: make([]byte, MaxPhotoBytes+1)}}
 		},
-		// The rule this project is opinionated about: the place comes from
-		// the photograph, so a photograph without one is not a report.
-		"photo with no place": func(r *Report) {
-			r.Photos = []Photo{{Filename: "a.jpg", MediaType: "image/jpeg", Data: []byte{0xFF, 0xD8, 0xFF, 0xD9}}}
-		},
-		"one photo of several with no place": func(r *Report) {
-			r.Photos = append(r.Photos, Photo{Filename: "b.jpg", MediaType: "image/jpeg", Data: []byte{0xFF, 0xD8, 0xFF, 0xD9}})
-		},
 	}
 	for name, mutate := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -102,6 +94,20 @@ func TestValidateRejects(t *testing.T) {
 				t.Fatal("want an error, got nil")
 			}
 		})
+	}
+}
+
+// A photograph that says nothing about where it was taken is still a
+// photograph. It used to be refused here, which refused the reporter whose
+// camera had its location switched off, or whose picture came from somebody
+// else. The place is now its own answer: the browser asks the reporter's
+// phone when the photographs give nothing, and Lat and Lon are what this
+// checks for.
+func TestValidateAcceptsAPhotoWithNoPlaceOfItsOwn(t *testing.T) {
+	r := valid()
+	r.Photos = []Photo{{Filename: "blind.jpg", MediaType: "image/jpeg", Data: []byte{0xFF, 0xD8, 0xFF, 0xD9}}}
+	if err := r.Validate(); err != nil {
+		t.Fatalf("want nil, got %v", err)
 	}
 }
 

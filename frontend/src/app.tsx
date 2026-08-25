@@ -1,6 +1,6 @@
 import type { ComponentChildren } from 'preact'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/hooks'
-import { ApiError, lookupPlace, myReports, reportHistory, sendCode, submitReport, verifyCode, type Place as Street } from './api'
+import { ApiError, lookupPlace, myReports, reportHistory, roundCoord, sendCode, submitReport, verifyCode, type Place as Street } from './api'
 import { forget, liveSession, needsWelcome, remember, rememberedEmail, welcomed } from './session'
 import { forgetDraft, saveDraft, savedDraft } from './draft'
 import type { SavedReport } from './saved'
@@ -56,9 +56,9 @@ function ErrorMessage({
   onDismiss: () => void
   children: ComponentChildren
 }) {
-  // A div rather than a p: the refused-photo message carries a list of the
-  // steps that work, and an ol inside a p is not valid HTML. Every other
-  // message here is a bare sentence and looks the same either way.
+  // A div rather than a p: a message here may carry a list or more than one
+  // paragraph, and neither is valid HTML inside a p. Every other message here
+  // is a bare sentence and looks the same either way.
   return (
     <div class="error" role="alert">
       {children}
@@ -816,7 +816,13 @@ function ReportTab({
           />
 
           <PhotoField photos={draft.photos} facts={facts} onChange={(p) => set('photos', p)} />
-          <LocationField draft={draft} set={set} fromPhotos={fromPhotos} pinKept={resumed !== null} />
+          <LocationField
+            draft={draft}
+            set={set}
+            hasPhotos={draft.photos.length > 0}
+            fromPhotos={fromPhotos}
+            pinKept={resumed !== null}
+          />
         </fieldset>
 
         {/*
@@ -1953,12 +1959,19 @@ function useMapChunk() {
 function LocationField({
   draft,
   set,
+  hasPhotos,
   fromPhotos,
   pinKept,
 }: {
   draft: Draft
   set: <K extends keyof Draft>(key: K, value: Draft[K]) => void
-  /** Where the attached photos say the problem is. */
+  /**
+   * Whether anything is attached at all. Not the same question as
+   * `fromPhotos`: a report can have photographs and still have no place,
+   * which is the whole reason the button below exists.
+   */
+  hasPhotos: boolean
+  /** Where the attached photos say the problem is, if any of them says. */
   fromPhotos: Place | null
   /**
    * Whether the pin arrived with the report rather than from the photos this
@@ -1975,40 +1988,55 @@ function LocationField({
   const [naming, setNaming] = useState(false)
   const [byReporter, setByReporter] = useState(pinKept)
   const [picking, setPicking] = useState(false)
+  /** True while the phone is being asked where it is. */
+  const [sharing, setSharing] = useState(false)
+  /** Why the phone did not answer, in words the reporter can act on. */
+  const [shareError, setShareError] = useState<string | null>(null)
   const map = useMapChunk()
   const MapHere = map.module?.MapHere
+  const MapUnknown = map.module?.MapUnknown
   const MapPicker = map.module?.MapPicker
 
-  // The place is the photographs' to give, and nobody's to type. Every photo
-  // attached carries one, because one that does not is turned away in the
-  // field above, so the pin starts where they were taken, and follows them as
-  // they are added and removed.
+  // The place is the photographs' to give first. A photo that carries one
+  // puts the pin where it was taken, and the pin follows the photos as they
+  // are added and removed.
   //
-  // The reporter may then move it themselves, and after that it is theirs:
-  // another photo does not drag it back. Taking out the last photo still
-  // takes the place with it, and forgets what they chose — with no
-  // photograph there is nothing to file and nowhere to file it.
+  // A photo need not carry one. When none of them does there is nothing here
+  // to start from, so the field asks the reporter's phone instead — see
+  // `share` below — and that answer counts as the reporter's own.
+  //
+  // Once it is theirs, by sharing or by nudging, another photo does not drag
+  // it back. Taking out the last photo still takes the place with it, and
+  // forgets what they chose — with no photograph there is nothing to file and
+  // nowhere to file it.
   useEffect(() => {
-    if (!fromPhotos) {
+    if (!hasPhotos) {
       setByReporter(false)
+      setShareError(null)
       set('lat', null)
       set('lon', null)
       return
     }
     if (byReporter) return
+    if (!fromPhotos) {
+      set('lat', null)
+      set('lon', null)
+      return
+    }
     set('lat', fromPhotos.lat)
     set('lon', fromPhotos.lon)
-  }, [fromPhotos, byReporter, set])
+  }, [hasPhotos, fromPhotos, byReporter, set])
 
   const placed = draft.lat !== null && draft.lon !== null
   const at = placed ? { lat: draft.lat as number, lon: draft.lon as number } : null
 
-  // Leaflet is fetched once there is a place to draw, not on first load: a
-  // reporter who has attached nothing never asks for it.
+  // Leaflet is fetched once there is a photo, not on first load: a reporter
+  // who has attached nothing never asks for it. A photo without a place needs
+  // it too — the grey map is where the place is asked for.
   useEffect(() => {
-    if (!placed || map.module || map.opening || map.failed) return
+    if (!hasPhotos || map.module || map.opening || map.failed) return
     void map.open()
-  }, [placed, map.module, map.opening, map.failed, map.open])
+  }, [hasPhotos, map.module, map.opening, map.failed, map.open])
 
   // The city's own form fills its location box from whatever the pin sits
   // on, so this one does too. The answer is shown rather than hidden: it is
@@ -2035,19 +2063,59 @@ function LocationField({
 
   const pick = (spot: { lat: number; lon: number }) => {
     setByReporter(true)
+    setShareError(null)
     set('lat', spot.lat)
     set('lon', spot.lon)
     setPicking(false)
   }
 
+  /*
+    Asking the phone where it is. This is the second way a place reaches a
+    report, and it is the reporter's own answer rather than the camera's: it
+    is where they are standing now, not where the photograph was taken. That
+    is worse, and it is offered only when the photographs gave nothing.
+
+    Nothing is asked before the button is pressed. The browser puts its own
+    permission prompt in front of this, and the reporter has already read what
+    the button is for, so the prompt arrives as an answer to something they
+    did rather than out of nowhere.
+
+    The coordinates are rounded the same way the photographs' are, so a place
+    that came from here and a place that came from a camera are written on the
+    report to the same precision.
+  */
+  const share = () => {
+    if (!navigator.geolocation) {
+      setShareError('This browser cannot share a location. Try Safari or Chrome.')
+      return
+    }
+    setSharing(true)
+    setShareError(null)
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setSharing(false)
+        pick({ lat: roundCoord(pos.coords.latitude), lon: roundCoord(pos.coords.longitude) })
+      },
+      (err) => {
+        setSharing(false)
+        setShareError(shareFailure(err))
+      },
+      // A phone that has to wake its GPS takes several seconds outdoors, and
+      // the reporter is outdoors. `enableHighAccuracy` is what asks for the
+      // GPS rather than for the network's guess at the neighbourhood, which
+      // is not good enough to name a street.
+      { enableHighAccuracy: true, timeout: 20_000, maximumAge: 0 },
+    )
+  }
+
   return (
     <>
       {/*
-        Nothing here until there is a photo. The pin comes off the
-        photograph, so before one is attached this section has no map to draw
+        Nothing here until there is a photo. A report is a photograph of a
+        problem, so before one is attached there is nothing to put a place on
         and nothing to say that the photo field has not already said.
       */}
-      {at && <label>Location</label>}
+      {hasPhotos && <label>Location</label>}
 
       {at && MapHere && <MapHere key={`${at.lat},${at.lon}`} at={at} />}
       {at && !MapHere && !map.failed && (
@@ -2055,6 +2123,49 @@ function LocationField({
           <span class="spinner" aria-hidden="true" />
           Drawing the map…
         </p>
+      )}
+      {/*
+        The photographs said nothing about where they were taken, so the
+        report has no place and cannot be sent. Rather than a sentence saying
+        so, the box the map will occupy is drawn now, in grey, with the words
+        and the button inside it: the reporter sees the shape of the answer
+        and where it is going to appear.
+
+        The button is the only way a place reaches a report that no camera
+        recorded. There is deliberately no way to type an address and no map
+        to drop a pin on — a place somebody guessed sends a city crew to a
+        street nobody photographed. Every place on a report is measured, by a
+        camera or by the phone in the reporter's hand.
+
+        A map that will not load must not take the button down with it, so the
+        same words and the same button are drawn without it. That is the one
+        case where the reporter has no picture to explain why they are being
+        asked, which is what the sentence underneath is for; it is written
+        once, outside both, because it is true either way.
+      */}
+      {hasPhotos && !at && (
+        <>
+          {MapUnknown ? (
+            <MapUnknown>
+              <p class="unknownplace">Location unknown</p>
+              <ShareButton sharing={sharing} onShare={share} />
+            </MapUnknown>
+          ) : (
+            <div class="unknownplain">
+              <p class="unknownplace">Location unknown</p>
+              <ShareButton sharing={sharing} onShare={share} />
+            </div>
+          )}
+          <p class="hint">
+            None of your photos say where they were taken, so this report has no place yet. Stand
+            where the problem is and share your location.
+          </p>
+          {shareError && (
+            <p class="note" role="alert">
+              {shareError}
+            </p>
+          )}
+        </>
       )}
       {at && naming && (
         <p class="hint waiting" role="status">
@@ -2135,9 +2246,49 @@ function LocationField({
   )
 }
 
-/** True when a photo says where it was taken, which is what lets it in. */
-function carriesPlace(snap: Snapshot | null): boolean {
-  return snap !== null && snap.lat !== null && snap.lon !== null
+/**
+ * The button that asks the phone where it is, and says so while it is asking.
+ *
+ * The wait is the reason it is a component rather than three lines inline: a
+ * GPS outdoors takes seconds, and a button that looks unpressed for four of
+ * them is a button the reporter presses again. It is written twice on the
+ * page — once on the grey map, once without it — and both have to say the
+ * same thing.
+ */
+function ShareButton({ sharing, onShare }: { sharing: boolean; onShare: () => void }) {
+  return (
+    <button
+      type="button"
+      class={sharing ? 'primary share waiting' : 'primary share'}
+      disabled={sharing}
+      onClick={onShare}
+    >
+      {sharing && <span class="spinner" aria-hidden="true" />}
+      {sharing ? 'Finding your location…' : 'Share your location'}
+    </button>
+  )
+}
+
+/**
+ * Why the phone did not answer, and what to do about it.
+ *
+ * Each of the three says what happened first and what to try second, because
+ * they are read standing in the street. Nothing here offers a way around the
+ * problem: without a place there is no report, and the answer is always to
+ * get the phone to give one.
+ *
+ * The codes are read off the error rather than compared against
+ * `GeolocationPositionError`, which is not on `globalThis` in every browser
+ * this runs in and is not worth a guard.
+ */
+function shareFailure(err: GeolocationPositionError): string {
+  if (err.code === 1) {
+    return 'Your phone did not share its location. Allow location for this site in your browser settings, then tap the button again.'
+  }
+  if (err.code === 3) {
+    return 'Your phone took too long to work out where it is. Step outside, away from buildings, and tap the button again.'
+  }
+  return 'Your phone could not work out where it is. Switch location on in your phone settings, then tap the button again.'
 }
 
 /** What each attached photo says about itself. Missing until it is read. */
@@ -2181,11 +2332,6 @@ function PhotoField({
 }) {
   const input = useRef<HTMLInputElement>(null)
   /*
-    The photos turned away, kept as the files themselves rather than their
-    names: the message shows each one, and a phone names them all image.jpg.
-  */
-  const [refused, setRefused] = useState<File[]>([])
-  /*
     How many photos the last pick had to leave behind. A file input cannot be
     told how many files the picker may choose, so a phone will happily offer
     ten. They are cut here instead, and the reporter is told, because a photo
@@ -2194,22 +2340,21 @@ function PhotoField({
   const [overflow, setOverflow] = useState(0)
 
   /*
-    A photo is read before it is accepted, and one that does not say where it
-    was taken is turned away. This is the whole rule the report rests on: the
-    place is not typed, not guessed, and not picked off a map — it is what the
-    camera wrote into the picture. A photograph without it cannot say where
-    the problem is, so it is not a report.
+    Every photo picked is kept. A photograph that does not say where it was
+    taken used to be turned away here, which turned away the reporter with it:
+    a camera with its location switched off is ordinary, and so is a photo
+    somebody sent them or one taken through this page. The place is asked for
+    in the field below instead — see LocationField — so a photograph is now
+    only ever a photograph, and the report still cannot be sent without a
+    place.
   */
-  const add = async (e: Event) => {
+  const add = (e: Event) => {
     const picked = Array.from((e.target as HTMLInputElement).files ?? [])
     // Let the same file be picked again after it is removed. Cleared now,
-    // because the reads below take a moment and the reporter may be quick.
+    // because the reporter may be quick.
     if (input.current) input.current.value = ''
-    const snaps = await Promise.all(picked.map(readSnapshot))
-    const kept = picked.filter((_, i) => carriesPlace(snaps[i]))
-    setRefused(picked.filter((_, i) => !carriesPlace(snaps[i])))
-    setOverflow(Math.max(0, photos.length + kept.length - MAX_PHOTOS))
-    if (kept.length > 0) onChange([...photos, ...kept].slice(0, MAX_PHOTOS))
+    setOverflow(Math.max(0, photos.length + picked.length - MAX_PHOTOS))
+    if (picked.length > 0) onChange([...photos, ...picked].slice(0, MAX_PHOTOS))
   }
 
   return (
@@ -2251,127 +2396,6 @@ function PhotoField({
           </p>
         </>
       )}
-      {/*
-        Below the photos that did get in, not above them. A reporter who
-        picks four and gets one in used to meet the red box first and read
-        it as being about all four — nothing above it said otherwise. Their
-        own photo row, with its coordinates on it, answers "did any of that
-        work?" better than a sentence can, so it goes first.
-
-        This costs nothing in the commonest case: when every photo was
-        turned away the list above is empty, so the box still sits directly
-        under the label. It costs something in the rare one — four kept and
-        one refused pushes it off the first screen. That is the better way
-        round. Not noticing one photo was dropped leaves a report that can
-        still be sent; believing all four failed makes somebody give up.
-        The box is on the way down to Send report either way.
-
-        It stays outside the block below, which disappears when the report
-        is full — that is exactly when the overflow message has something to
-        say. `role="alert"` is announced wherever the box sits in the
-        document, so a screen reader hears it first as it always did.
-
-        The verdict first, then the cause, then what to do about it. What was
-        here before spent its first two sentences explaining the site to
-        somebody standing in the street holding a phone.
-
-        The cause is written twice, because one pick and several picks cannot
-        have happened the same way. `refused` is replaced on every pick, so
-        what is shown here is always one trip to the picker. Neither phone
-        can bring back more than one photo from its camera: iOS takes one
-        shot and hands it over, and Android's camera answers the intent
-        Chrome sends it with a single file. So several at once means they
-        came from the phone, and the reporter who is asked "did you take
-        them just now?" is being asked about taps they did not make.
-
-        One photo asks that question, because it is by far the commonest way
-        to reach this message, and the reporter does not think of it as
-        anything but taking a photo: the camera opened, they pressed the
-        button. Told instead that "a picture taken inside this page" has no
-        place, they read a sentence about somebody else.
-
-        Several photos are told what is true of a photo already on the
-        phone instead: location was off, or it is a screenshot, or somebody
-        sent it. The steps below are the same either way, because taking
-        them again in the camera app is the answer to all of it.
-
-        The steps are numbered because they are followed with the phone in
-        one hand, and a hurried reader follows a list faster than a sentence
-        with three clauses in it. Location is named inside the step where
-        switching it on is the thing that works. It is not offered up front:
-        for the reporter who took the photo through the page, no setting
-        changes anything, and sending them to Settings costs them the trip
-        and leaves them back here.
-
-        The last line is for the reporter the steps cannot help. A page
-        opened inside another app — Facebook, Messenger — is in that app's
-        own browser, and it can hand a photo over with the place taken out.
-        Their location was on, their photo has it, and following the steps
-        leaves them here again. Naming the two apps is worth the words: it
-        is how somebody recognises where they are, since an in-app browser
-        does not say so itself.
-
-        The filename is gone. A phone names them all image.jpg, so it picked
-        nothing out, and the pictures below say which ones far better.
-
-        Several at once is the ordinary case, not the exception: a phone
-        offers the whole library and a reporter picks four. So the message
-        says "these photos" and shows every one of them, rather than
-        counting them at the reporter. The count is in front of them.
-      */}
-      {refused.length > 0 && (
-        <ErrorMessage onDismiss={() => setRefused([])}>
-          <strong>
-            {refused.length === 1
-              ? 'This photo has no location, so it was not added.'
-              : 'These photos have no location, so they were not added.'}
-          </strong>
-          {/*
-            Under the verdict, because "which one?" is the question the
-            verdict raises and a picture answers it without being read. It
-            earns its place when several were picked and only some got in:
-            the ones that did are in the list below, and these are the rest.
-            The name is the alt text rather than a line of its own — a
-            screen reader has nothing else to tell one file from another,
-            and on the screen the picture says it better.
-          */}
-          <ul class="thumbs">
-            {refused.map((f, i) => (
-              <li key={`${f.name}-${i}`}>
-                <Thumb group={refused} at={i} alt={f.name} />
-              </li>
-            ))}
-          </ul>
-          {refused.length === 1 ? (
-            <p>
-              Did you take it just now, after tapping Add photos? A photo taken that way never
-              has a location, and no setting on your phone changes that.
-            </p>
-          ) : (
-            <p>
-              A photo already on your phone has no location if it was taken with location
-              switched off, if it is a screenshot, or if somebody sent it to you.
-            </p>
-          )}
-          <p>What works:</p>
-          <ol class="steps">
-            <li>Open your camera app.</li>
-            <li>
-              Take the {refused.length === 1 ? 'photo' : 'photos'} there, with location switched
-              on.
-            </li>
-            <li>Come back here and tap Add photos.</li>
-            <li>Pick the {refused.length === 1 ? 'photo' : 'photos'} you just took.</li>
-          </ol>
-          {refused.length === 1 && (
-            <p>Screenshots, and photos other people sent you, also have no location.</p>
-          )}
-          <p>
-            Opening this page inside another app, like Facebook or Messenger, can also remove
-            the location. Open the page in Safari or Chrome instead.
-          </p>
-        </ErrorMessage>
-      )}
       {overflow > 0 && (
         <ErrorMessage onDismiss={() => setOverflow(0)}>
           {overflow === 1 ? 'One photo was' : `${overflow} photos were`} not added: a report
@@ -2386,22 +2410,20 @@ function PhotoField({
       {photos.length < MAX_PHOTOS && (
         <>
           {/*
-            Said before the picker opens rather than only after a photo is
-            turned away, because the refusal above costs the reporter a
-            picture they have already taken. Only for the first one: by the
-            second they have done it once and know how.
+            Said before the picker opens rather than after, and only for the
+            first photo: by the second they have done it once and know how.
 
-            Gone while that refusal is on screen, which is exactly when it
-            used to appear: nothing is added after one, so both were shown
-            together, saying the same thing in different words directly
-            underneath each other. Two wordings of one instruction read as
-            two instructions, and the reporter goes looking for the
-            difference.
+            It asks rather than requires. A photo taken in the camera app
+            carries the place it was taken, and that place is the problem's
+            own — better than the one the reporter's phone gives afterwards,
+            which is only where they happen to be standing. A photo without
+            one is still accepted; it just leaves the field below with a
+            question to ask.
           */}
-          {photos.length === 0 && refused.length === 0 && (
+          {photos.length === 0 && (
             <p class="hint">
-              Take the photo with your camera app first, then add it here. A photo taken from this
-              page has no location, and the site needs one.
+              Take the photo with your camera app first, then add it here. A photo taken that way
+              carries the place it was taken, and the report is filed there.
             </p>
           )}
           <input

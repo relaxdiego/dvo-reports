@@ -1,3 +1,4 @@
+import type { ComponentChildren } from 'preact'
 import { useEffect, useRef, useState } from 'preact/hooks'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
@@ -23,6 +24,14 @@ export interface Spot {
 
 /** Close enough to see which side of a street something is on. */
 const START_ZOOM = 17
+
+/**
+ * Davao City, and far enough out to be read as the city rather than as a
+ * place. It is only ever the backdrop to `MapUnknown`, which is drawn when
+ * the report has no place yet: a pin on it would be a lie, so there is none.
+ */
+const DAVAO: Spot = { lat: 7.0707, lon: 125.6087 }
+const CITY_ZOOM = 12
 
 const TILES = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
 
@@ -123,6 +132,38 @@ export function MapHere({ at }: { at: Spot }) {
   )
 }
 
+/**
+ * The same box as `MapHere`, in the same place on the form, for a report that
+ * has no place yet — because none of the photographs carried one.
+ *
+ * It shows Davao, drained of its colour and with no pin, and holds whatever
+ * is handed to it: the words saying the place is unknown, and the button that
+ * asks the phone for one. A grey map with a hole where the answer goes says
+ * "something is missing here" without a sentence, and it says it in the box
+ * the answer will appear in, which is the point of drawing it at all.
+ *
+ * It costs a handful of tiles from OpenStreetMap before the reporter has
+ * agreed to share anything. Those tiles are of the whole city and say nothing
+ * about where the reporter is; `sitenotice.tsx` says they are asked for.
+ *
+ * Nothing about it moves — same reasoning as `MapHere`, and more so: there is
+ * nothing here to look around at.
+ */
+export function MapUnknown({ children }: { children: ComponentChildren }) {
+  return (
+    <div class="mapwrap inline unknown">
+      <Canvas start={DAVAO} zoom={CITY_ZOOM} still />
+      {/*
+        Over the map rather than under it, so the eye lands on the question
+        and the grey behind it is only the reason the question is being
+        asked. It lets taps through to everything it is not itself, which is
+        what keeps OpenStreetMap's credit in the corner clickable.
+      */}
+      <div class="mapask">{children}</div>
+    </div>
+  )
+}
+
 /** Escape closes a sheet, the way the rest of the browser behaves. */
 function useEscape(onClose: () => void) {
   useEffect(() => {
@@ -157,11 +198,14 @@ const PIN = `
  */
 function Canvas({
   start,
+  zoom = START_ZOOM,
   onMove,
   mark,
   still,
 }: {
   start: Spot
+  /** How close in it opens. The default is close enough to read a street. */
+  zoom?: number
   onMove?: (spot: Spot) => void
   mark?: boolean
   still?: boolean
@@ -176,7 +220,7 @@ function Canvas({
     // scrolling the page. The zoom buttons stay: they are taps, not drags.
     const map = L.map(el, {
       center: [start.lat, start.lon],
-      zoom: START_ZOOM,
+      zoom,
       dragging: !still,
       touchZoom: !still,
       scrollWheelZoom: !still,

@@ -154,7 +154,7 @@ func geoPhoto() []byte {
 	return append(out, 0xFF, 0xD9)
 }
 
-// blindPhoto is a JPEG that does not say where it was taken. No report may
+// blindPhoto is a JPEG that does not say where it was taken. A report may
 // carry one.
 var blindPhoto = []byte{0xFF, 0xD8, 0xFF, 0xD9}
 
@@ -222,12 +222,37 @@ func TestSubmitRejectsAnInvalidReport(t *testing.T) {
 	}
 }
 
-// The one rule this site is opinionated about. A photograph is where the
-// place comes from, so one that does not carry a place is refused, and the
-// report goes nowhere.
-func TestSubmitRefusesAPhotoThatDoesNotSayWhereItWasTaken(t *testing.T) {
+// A photograph that does not say where it was taken used to be refused here,
+// and with it the reporter whose camera had its location switched off. The
+// place is its own field now: the browser asks the reporter's phone when the
+// photographs say nothing, and what has to be present is coordinates, not
+// coordinates written inside a JPEG.
+func TestSubmitTakesAPhotoThatDoesNotSayWhereItWasTaken(t *testing.T) {
 	up := &fakeUpstream{}
 	ct, body := form(t, goodFields(), map[string][]byte{"blind.jpg": blindPhoto})
+
+	req := httptest.NewRequest("POST", "/api/reports", body)
+	req.Header.Set("Content-Type", ct)
+	req.Header.Set(sessionHeader, "tk-1")
+	rec := httptest.NewRecorder()
+	newTestHandler(up).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("status %d, want 201; body %s", rec.Code, rec.Body)
+	}
+	if up.got.Lat != 7.0731 || up.got.Lon != 125.6128 {
+		t.Errorf("filed at %g,%g, want the coordinates the form carried", up.got.Lat, up.got.Lon)
+	}
+}
+
+// The other half of that: no coordinates from anywhere, and the report is
+// refused however many photographs are attached.
+func TestSubmitRefusesAReportWithNoPlace(t *testing.T) {
+	up := &fakeUpstream{}
+	fields := goodFields()
+	delete(fields, "lat")
+	delete(fields, "lon")
+	ct, body := form(t, fields, onePhoto())
 
 	req := httptest.NewRequest("POST", "/api/reports", body)
 	req.Header.Set("Content-Type", ct)

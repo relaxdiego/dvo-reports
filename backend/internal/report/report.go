@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"strings"
 	"unicode/utf16"
-
-	"github.com/relaxdiego/dvo-reports/backend/internal/photo"
 )
 
 // MaxPhotos is the number of images one report may carry.
@@ -67,7 +65,10 @@ type Report struct {
 	// given, which a report cannot be filed without.
 	Lat, Lon float64
 	// Photos is what the citizen saw. A report needs at least one: it is
-	// what the city acts on, and what the place is usually read from.
+	// what the city acts on, and what the place is read from when the camera
+	// recorded one. A photograph that recorded none is still accepted — the
+	// browser then asks the reporter's phone where it is, and Lat and Lon
+	// come from there instead.
 	Photos []Photo
 }
 
@@ -131,14 +132,6 @@ func (r Report) Validate() error {
 		}
 		if len(p.Data) > MaxPhotoBytes {
 			return fmt.Errorf("photo %q is %d bytes, limit is %d", p.Filename, len(p.Data), MaxPhotoBytes)
-		}
-		// The place on a report is the one its photographs recorded. Nobody
-		// types it and nobody drags a pin, so a photograph that does not
-		// carry one leaves the report saying nothing about where the problem
-		// is. The browser turns such a photo away before it is uploaded;
-		// this is the copy of that rule that is trusted.
-		if !photo.HasLocation(p.Data) {
-			return fmt.Errorf("photo %q does not record where it was taken", p.Filename)
 		}
 	}
 	return nil

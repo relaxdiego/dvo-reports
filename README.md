@@ -145,14 +145,14 @@ settings, the thumbnail, the manufacturer's private block, and every other
 embedded block are dropped. The list lives in `backend/internal/photo`, and the backend
 is the only place it is applied.
 
-**Your photos must say where they were taken.** This site starts your report
-at the place written inside the photograph. You cannot type an address, and a
-photo taken with the camera's location switched off is refused: you are asked
-to switch it on and take the picture again. That is a deliberate choice — a
-report the city can act on has to say where the problem is, and the camera is
-the only thing here that knows. Once a photo has put the pin down, `Adjust`
-beside the street name lets you move it, for the times the camera was a street
-out.
+**A report needs a place, and you cannot type one.** This site starts your
+report at the place written inside the photograph, which is the best answer
+there is: it is where the problem is, not where you happen to be standing. If
+none of your photos carries one — the camera had location switched off, or
+somebody sent you the picture — the form shows a grey map of Davao and asks
+your phone where it is, once you tap the button that says so. Either way the
+place was measured by a device rather than guessed, which is the point. Once
+the pin is down, `Adjust` beside the street name lets you move it.
 
 **Two things reach a third party, and both of them are only a place.**
 
@@ -160,7 +160,9 @@ out.
 and your browser asks
 [OpenStreetMap](https://www.openstreetmap.org/copyright) for the squares of
 map around that spot. Those requests go straight from your phone to their
-servers, so they reveal roughly where the photograph was taken.
+servers, so they reveal roughly where the photograph was taken. Before there
+is any place to draw, the same map shows the whole of Davao in grey, which
+says nothing about where you are.
 
 *The street name.* To put a street on your report, your browser sends the
 photo's coordinates, and nothing else, to OpenStreetMap's Nominatim. That

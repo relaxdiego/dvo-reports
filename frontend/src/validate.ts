@@ -29,12 +29,10 @@ export function descriptionLength(s: string): number {
  * time and mobile data uploading photos.
  *
  * A photo is required: a report the city can act on shows the problem. So is
- * the place written inside that photo. Nobody types an address here — a
- * photograph that does not say where it was taken is turned away when it is
- * attached, so the coordinates start as the camera's own. The reporter may
- * nudge the pin off them afterwards, from the map that photograph put on the
- * screen. The check below is what is left of that rule: a draft with photos
- * but no place should not exist.
+ * a place, and nobody types one. It comes from the photographs when they
+ * carry it, and from the reporter's own phone when they do not — see
+ * LocationField in app.tsx. Either way it was measured by a device, and the
+ * reporter may nudge the pin off it afterwards from the map on the form.
  */
 export function validate(d: Draft): string | null {
   if (!d.category) return 'Pick what kind of problem this is.'
@@ -43,6 +41,6 @@ export function validate(d: Draft): string | null {
   if (desc > MAX_DESCRIPTION) return `The description is too long (limit ${MAX_DESCRIPTION} characters).`
   if (d.photos.length === 0) return 'Add at least one photo of the problem.'
   if (d.photos.length > MAX_PHOTOS) return `You can attach at most ${MAX_PHOTOS} photos.`
-  if (d.lat === null || d.lon === null) return 'Your photos do not say where they were taken.'
+  if (d.lat === null || d.lon === null) return 'Add the location: tap Share your location.'
   return null
 }
