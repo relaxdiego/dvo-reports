@@ -69,7 +69,9 @@ type History struct {
 	// Reference is the control number the history belongs to. The city calls
 	// it the transaction number.
 	Reference string `json:"reference"`
-	// Steps are the status changes, newest first.
+	// Steps are the status changes in the order the city sends them, which
+	// is oldest first: the step still running is the last one, and it is the
+	// one the city leaves without an end date. Nothing here reorders them.
 	Steps []Step `json:"steps"`
 	// Note is the city's reason for a status that needs one — a report it
 	// marked INVALID, or one it wants filed again. Empty otherwise.
