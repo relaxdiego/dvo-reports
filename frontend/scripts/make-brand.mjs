@@ -212,14 +212,14 @@ try {
         background: ${GOLD};
       }
       p { margin: 0; font-size: 27px; line-height: 1.4; }
-      .plain { color: ${NAVY}; font-weight: 600; margin-bottom: 10px; }
+      .lead { color: ${NAVY}; font-weight: 600; margin-bottom: 10px; }
     </style>
     <img src="${square}" alt="">
     <div>
       <h1>Bantay<br>Dabaw</h1>
       <hr>
-      <p class="plain">Unofficial — not run by the city government</p>
-      <p>A faster way to send a report to reports.davaocity.gov.ph</p>
+      <p class="lead">Report garbage, broken lights, illegal parking — fast.</p>
+      <p>Unofficial, run by volunteers. It sends your report to reports.davaocity.gov.ph.</p>
     </div>
   `)
   await page.evaluate(() => document.fonts.ready)
