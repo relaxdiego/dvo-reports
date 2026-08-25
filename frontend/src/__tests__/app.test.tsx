@@ -2301,7 +2301,23 @@ describe('keeping the list on this phone', () => {
 
     expect(root.textContent).toContain('Road damage: J. P. Laurel Avenue')
     expect(listCalls(fetchMock)).toBe(0)
-    expect(root.textContent).toContain('Kept on this phone')
+    // A day less the minute it has been on the phone.
+    expect(root.textContent).toContain('List will auto refresh in 23h 59m')
+  })
+
+  // The line vanished for the rest of the visit every time a refresh
+  // succeeded, because the list written back carried no due time.
+  it('still says when it next checks, after a refresh has replaced the list', async () => {
+    await onThePhone(KEPT, Date.now() - 60_000)
+    vi.stubGlobal('fetch', cityAnswering())
+
+    act(() => render(<App />, root))
+    click('My reports')
+    await settle()
+    click('Refresh list')
+    await settle()
+
+    expect(root.textContent).toContain('List will auto refresh in 24h 0m')
   })
 
   // Stale is still worth reading. The new one arrives behind it.

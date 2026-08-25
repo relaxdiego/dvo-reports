@@ -109,14 +109,16 @@ type Past =
   | { at: 'unopened' }
   | { at: 'loading'; step: string }
   /**
-   * `kept` is when the city said this, set only when the list came off this
-   * phone rather than off the wire. `refreshing` is a list being replaced
-   * while the reporter reads it — shown rather than spinnered, because the
-   * list they already have is worth more than the wait. `error` is a
-   * refresh that failed under a list that is still good, which is why it
-   * lives here rather than replacing the whole state.
+   * `dueAt` is when this list goes stale — set whenever it is on the phone,
+   * whether it was read from there or just written there. It is the moment
+   * rather than the age, so nothing outside `mylist.ts` has to know how long
+   * a day is. `refreshing` is a list being replaced while the reporter reads
+   * it — shown rather than spinnered, because the list they already have is
+   * worth more than the wait. `error` is a refresh that failed under a list
+   * that is still good, which is why it lives here rather than replacing the
+   * whole state.
    */
-  | { at: 'ready'; reports: Filed[]; kept?: number; refreshing?: boolean; error?: string }
+  | { at: 'ready'; reports: Filed[]; dueAt?: number; refreshing?: boolean; error?: string }
   /** The reporter closed the sign-in. Do not keep asking. */
   | { at: 'declined' }
   | { at: 'error'; error: string }
@@ -278,8 +280,14 @@ export function App() {
         setPast({ at: 'ready', reports: newestFirst(list) })
         if (keeping) {
           try {
-            const { keepList } = await import('./mylist')
-            await keepList(list, Date.now())
+            const { keepList, STALE_AFTER } = await import('./mylist')
+            const at = Date.now()
+            await keepList(list, at)
+            // The list that was just written is due at the same moment as
+            // one read off the phone. Without this the line saying when it
+            // next checks disappeared for the rest of the visit, every time
+            // a refresh succeeded.
+            setPast((p) => (p.at === 'ready' ? { ...p, dueAt: at + STALE_AFTER } : p))
           } catch {
             // No room, or storage refused. The list is on the screen either
             // way, and the only cost is that the next visit asks the city
@@ -312,7 +320,12 @@ export function App() {
         const kept = await keptList()
         if (kept) {
           const stale = Date.now() - kept.at > STALE_AFTER
-          setPast({ at: 'ready', reports: newestFirst(kept.reports), kept: kept.at, refreshing: stale })
+          setPast({
+            at: 'ready',
+            reports: newestFirst(kept.reports),
+            dueAt: kept.at + STALE_AFTER,
+            refreshing: stale,
+          })
           if (stale) void fetchPast('behind')
           return
         }
@@ -342,7 +355,7 @@ export function App() {
    */
   const setKeep = useCallback(
     async (on: boolean) => {
-      const { startKeeping, stopKeeping, keepList } = await import('./mylist')
+      const { startKeeping, stopKeeping, keepList, STALE_AFTER } = await import('./mylist')
       if (!on) {
         await stopKeeping()
         setKeeping(false)
@@ -356,7 +369,7 @@ export function App() {
       const at = Date.now()
       try {
         await keepList(now.reports, at)
-        setPast({ at: 'ready', reports: now.reports, kept: at })
+        setPast({ at: 'ready', reports: now.reports, dueAt: at + STALE_AFTER })
       } catch (err) {
         // Out of room, most likely. This one has to be said: they pressed a
         // button meaning their reports would be here next time, and they
@@ -1332,7 +1345,8 @@ function KeepList({
     }
   }
 
-  const kept = past.at === 'ready' ? past.kept : undefined
+  const dueAt = past.at === 'ready' ? past.dueAt : undefined
+  const refreshing = past.at === 'ready' && past.refreshing === true
 
   return (
     <div class="keeplist">
@@ -1341,8 +1355,13 @@ function KeepList({
         promises and only the first one is being made, so the second is not
         left to be assumed.
       */}
-      {keeping && kept !== undefined && (
-        <p class="meta">Kept on this phone, as the city had it {agoText(kept)}.</p>
+      {/*
+        Not while a refresh is running: the button already says that is
+        happening, and a countdown to the next one beside it reads as a
+        second, different thing going on.
+      */}
+      {keeping && dueAt !== undefined && !refreshing && (
+        <p class="meta">List will auto refresh in {leftText(dueAt)}.</p>
       )}
       {error && <ErrorMessage onDismiss={() => setError(null)}>{error}</ErrorMessage>}
       <button class="linky" type="button" disabled={busy} onClick={() => void flip(!keeping)}>
@@ -2708,20 +2727,18 @@ function copyDateText(s: string): string {
 }
 
 /**
- * How long ago the kept list was taken, in the words somebody would say.
+ * How long until the kept list is asked about again.
  *
- * Not `whenText`, which reads the city's own timestamps and gives a date:
- * this list is at most a day old in the ordinary case, and "25 August 2026"
- * on 25 August answers nothing. Days appear anyway, because a city that has
- * been down for three of them is exactly when the reporter needs telling.
+ * The hours are dropped in the last hour rather than written as `0h 14m`: a
+ * leading zero is a thing to read past, and this line is the least important
+ * one on the screen.
+ *
+ * Rounded up, so it never reads `0m` while there is still time on it.
  */
-function agoText(at: number): string {
-  const minutes = Math.floor((Date.now() - at) / 60_000)
-  if (minutes < 1) return 'just now'
-  if (minutes < 60) return `${minutes} minute${minutes === 1 ? '' : 's'} ago`
+function leftText(dueAt: number): string {
+  const minutes = Math.max(0, Math.ceil((dueAt - Date.now()) / 60_000))
   const hours = Math.floor(minutes / 60)
-  if (hours < 48) return `${hours} hour${hours === 1 ? '' : 's'} ago`
-  return `${Math.floor(hours / 24)} days ago`
+  return hours > 0 ? `${hours}h ${minutes % 60}m` : `${minutes}m`
 }
 
 function whenText(s: string): string {
