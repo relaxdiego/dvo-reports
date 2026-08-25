@@ -106,7 +106,7 @@ jobs:
       # production gate before GitHub cancels it. An artifact that expired
       # first would leave an approval that cannot be acted on.
       - name: Keep the site for the deploys
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: site
           path: frontend/dist
@@ -192,7 +192,7 @@ jobs:
           flyctl deploy --config fly.staging.toml --image "$IMAGE"
 
       - name: Fetch the site
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: site
           path: dist
@@ -281,7 +281,7 @@ jobs:
           flyctl deploy --config fly.production.toml --image "$IMAGE"
 
       - name: Fetch the site
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: site
           path: dist
