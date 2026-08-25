@@ -367,6 +367,31 @@ function ReportTab({
     saveDraft(draft)
   }, [draft.category, draft.description])
 
+  /*
+    Fetch saved.ts as soon as there is a photograph, rather than when it is
+    wanted.
+
+    The moment it is wanted is a send that has just failed, and one of the
+    ways a send fails is a phone that has lost signal — which is the same
+    phone that cannot fetch a chunk. Waiting until the button was pressed
+    meant the offer to keep a report worked for every reporter except the one
+    who most needed it. It is fetched here instead, while the page is being
+    filled in and the network is still answering.
+
+    A photograph is the right moment. Nothing can be kept before there is
+    one, so this never runs for somebody who is only looking at the page, and
+    attaching one has already cost more network than this does. Nothing is
+    opened on the phone by the import itself: saved.ts touches IndexedDB only
+    inside the calls that read or write a report.
+  */
+  useEffect(() => {
+    if (draft.photos.length === 0) return
+    void import('./saved').catch(() => {
+      // Only a head start. If the chunk is still missing when the button is
+      // pressed, that press is what says so.
+    })
+  }, [draft.photos.length])
+
   const set = useCallback(
     <K extends keyof Draft>(key: K, value: Draft[K]) => setDraft((d) => ({ ...d, [key]: value })),
     [],
