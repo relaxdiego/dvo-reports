@@ -2349,6 +2349,65 @@ describe('keeping the list on this phone', () => {
     expect(root.querySelector('[role="alert"]')).toBeNull()
   })
 
+  /*
+    The line says the list refreshes itself, so it has to, on a reporter who
+    is doing nothing but reading it. Before this, the countdown reached zero
+    and stopped there until the tab was opened again.
+
+    Fake timers with `shouldAdvanceTime` so that `settle`'s own setTimeout
+    still fires: without it the render never settles and the test hangs.
+  */
+  it('refreshes a list that goes stale while the reporter is reading it', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    try {
+      // Half a minute short of a day: fresh when the tab opens, stale a
+      // minute later.
+      await onThePhone(KEPT, Date.now() - (24 * 60 * 60 * 1000 - 30_000))
+      const fetchMock = cityAnswering()
+      vi.stubGlobal('fetch', fetchMock)
+
+      act(() => render(<App />, root))
+      click('My reports')
+      await settle()
+      expect(listCalls(fetchMock)).toBe(0)
+
+      await act(async () => { await vi.advanceTimersByTimeAsync(60_000) })
+      await settle()
+
+      expect(listCalls(fetchMock)).toBe(1)
+      expect(root.textContent).toContain('Report number 1')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  /*
+    Not while they are writing a report. The city's session can be dead by
+    now, and asking for it raises the sign-in sheet — over the form, that is
+    a sheet nobody asked for.
+  */
+  it('does not refresh behind a reporter who is on the form', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    try {
+      await onThePhone(KEPT, Date.now() - (24 * 60 * 60 * 1000 - 30_000))
+      const fetchMock = cityAnswering()
+      vi.stubGlobal('fetch', fetchMock)
+
+      act(() => render(<App />, root))
+      click('My reports')
+      await settle()
+      click('Report a problem')
+      await settle()
+
+      await act(async () => { await vi.advanceTimersByTimeAsync(60_000) })
+      await settle()
+
+      expect(listCalls(fetchMock)).toBe(0)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   // Off by default: this is the rule saved.ts keeps, and the reason a list
   // of somebody's reports is allowed on their phone at all.
   it('keeps nothing until the reporter taps the button', async () => {

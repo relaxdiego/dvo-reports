@@ -177,6 +177,13 @@ export function App() {
   */
   const pastRef = useRef(past)
   pastRef.current = past
+  /*
+    Held only to draw the countdown again. The line under a kept list counts
+    down to the moment the city is next asked, and a number that was worked
+    out when the tab opened is an hour wrong to anyone still reading an hour
+    later. See the interval under `refreshPast`, which is what sets it.
+  */
+  const [, setMinute] = useState(0)
 
   /*
     The reports this phone is holding because the city would not take them.
@@ -344,6 +351,35 @@ export function App() {
    * fetch a copy of it, and on a slow day that is ten seconds of nothing.
    */
   const refreshPast = useCallback(() => fetchPast('asked'), [fetchPast])
+
+  /**
+   * What makes the line under the list true. It says the list refreshes
+   * itself, and until this nothing did: `loadPast` looks at the day only
+   * when the tab is opened, so a reporter who left it open watched the
+   * countdown run down to zero and sit there.
+   *
+   * A minute at a time, rather than one timer set for tomorrow. A browser
+   * throttles the timers of a tab nobody is looking at and a sleeping phone
+   * fires none at all, so a timer a day out is not a promise this can keep;
+   * a minute late, once a day, is. A minute is also what the line is written
+   * in, so the same beat moves the countdown as it reads it.
+   *
+   * Only while the list is the thing on the screen. The city's session dies
+   * on its own, and asking raises the sign-in sheet: over the form, at a
+   * reporter halfway through writing a report, that is a sheet nobody asked
+   * for. On this tab it is the sheet they would have got by opening it.
+   */
+  useEffect(() => {
+    if (!keeping || tab !== 'past') return
+    const id = setInterval(() => {
+      setMinute(Date.now())
+      const p = pastRef.current
+      if (p.at === 'ready' && p.dueAt !== undefined && !p.refreshing && Date.now() >= p.dueAt) {
+        void fetchPast('behind')
+      }
+    }, 60_000)
+    return () => clearInterval(id)
+  }, [keeping, tab, fetchPast])
 
   /**
    * Turning it on or off. Off deletes what was kept.
