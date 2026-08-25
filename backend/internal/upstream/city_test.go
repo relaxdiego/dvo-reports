@@ -511,3 +511,31 @@ func TestMyReportsUnescapesWhatTheCityStored(t *testing.T) {
 		t.Errorf("description %q", got[0].Description)
 	}
 }
+
+// TestTransportErrorKeepsTheTokenOutOfTheError is the whole point of scrub.
+// net/http quotes the address it called, and every read puts the reporter's
+// session token in that address. The error is what api logs when a call
+// fails, so the token must not reach it.
+func TestTransportErrorKeepsTheTokenOutOfTheError(t *testing.T) {
+	// A server that is not listening: Do fails before any reply, which is
+	// the only path that carries a *url.Error.
+	srv := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
+	srv.Close()
+
+	const token = "session-token-that-must-not-be-logged"
+	c := &City{BaseURL: srv.URL}
+	_, err := c.MyReports(context.Background(), token)
+	if err == nil {
+		t.Fatal("want an error from a closed server, got nil")
+	}
+	if strings.Contains(err.Error(), token) {
+		t.Errorf("the session token reached the error: %v", err)
+	}
+	if strings.Contains(err.Error(), srv.URL) {
+		t.Errorf("the full URL reached the error: %v", err)
+	}
+	// The path is deliberately kept: it is how a failure is told apart.
+	if !strings.Contains(err.Error(), "reportController") {
+		t.Errorf("the path was lost from the error: %v", err)
+	}
+}

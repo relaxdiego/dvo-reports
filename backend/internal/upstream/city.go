@@ -365,8 +365,9 @@ func (c *City) do(req *http.Request, out any) error {
 	}
 	resp, err := client.Do(req)
 	if err != nil {
-		// Path only. The query carries the session token on every read.
-		return fmt.Errorf("calling the city site at %s: %w", req.URL.Path, err)
+		// Path only, and scrubbed: the query carries the session token on
+		// every read, and net/http quotes the whole address it called.
+		return fmt.Errorf("calling the city site at %s: %w", req.URL.Path, scrub(err))
 	}
 	defer resp.Body.Close()
 
@@ -516,4 +517,15 @@ func (f *flexString) UnmarshalJSON(b []byte) error {
 	}
 	*f = flexString(s)
 	return nil
+}
+
+// scrub drops the URL from an HTTP error. do names the path itself; letting
+// the wrapped *url.Error print puts the query back, and the query holds the
+// reporter's session token on every read and their address on a verify.
+func scrub(err error) error {
+	var uerr *url.Error
+	if errors.As(err, &uerr) {
+		return uerr.Err
+	}
+	return err
 }

@@ -303,3 +303,37 @@ func TestFallbackReportsTheFirstFailureWhenBothFail(t *testing.T) {
 		t.Errorf("address %q, want empty", got.Address)
 	}
 }
+
+// TestTransportErrorKeepsTheCoordinatesOutOfTheError covers both clients.
+// api logs this error as "reverse geocode failed", and net/http quotes the
+// address it called — which holds the pin the citizen's photograph put down.
+func TestTransportErrorKeepsTheCoordinatesOutOfTheError(t *testing.T) {
+	// A server that is not listening: Do fails before any reply, which is
+	// the only path that carries a *url.Error.
+	srv := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
+	srv.Close()
+
+	// A pin whose digits are distinctive enough to spot in any wording.
+	const lat, lon = 7.0731123, 125.6128456
+	for _, tc := range []struct {
+		name string
+		rev  interface {
+			Reverse(context.Context, float64, float64) (Place, error)
+		}
+	}{
+		{"nominatim", NewNominatim(srv.URL)},
+		{"azure", NewAzure("key-that-must-not-be-logged", srv.URL)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := tc.rev.Reverse(context.Background(), lat, lon)
+			if err == nil {
+				t.Fatal("want an error from a closed server, got nil")
+			}
+			for _, secret := range []string{"7.0731123", "125.6128456", srv.URL, "key-that-must-not-be-logged"} {
+				if strings.Contains(err.Error(), secret) {
+					t.Errorf("%q reached the error: %v", secret, err)
+				}
+			}
+		})
+	}
+}

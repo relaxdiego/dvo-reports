@@ -31,6 +31,7 @@ package place
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -143,7 +144,7 @@ func (c *Nominatim) Reverse(ctx context.Context, lat, lon float64) (Place, error
 
 	res, err := c.http.Do(req)
 	if err != nil {
-		return Place{}, err
+		return Place{}, scrub(err)
 	}
 	defer res.Body.Close()
 	if res.StatusCode != http.StatusOK {
@@ -234,4 +235,16 @@ func join(vals ...string) string {
 		}
 	}
 	return strings.Join(out, ", ")
+}
+
+// scrub drops the URL from an HTTP error. Both services are asked for a
+// street with the citizen's coordinates in the query string, and an error
+// from net/http quotes the address it called. Nothing in this package may
+// hand a caller an error that carries where somebody was standing.
+func scrub(err error) error {
+	var uerr *url.Error
+	if errors.As(err, &uerr) {
+		return uerr.Err
+	}
+	return err
 }

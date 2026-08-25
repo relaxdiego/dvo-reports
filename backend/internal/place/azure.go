@@ -60,7 +60,7 @@ func (a *Azure) Reverse(ctx context.Context, lat, lon float64) (Place, error) {
 
 	res, err := a.http.Do(req)
 	if err != nil {
-		return Place{}, err
+		return Place{}, scrub(err)
 	}
 	defer res.Body.Close()
 	if res.StatusCode != http.StatusOK {
