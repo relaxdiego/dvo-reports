@@ -1948,7 +1948,7 @@ describe('a report the city would not take', () => {
     await fillAndSend()
     click('Save draft on this phone')
     await until(() => root.querySelector('[role="dialog"]') !== null, 'the sheet')
-    click('Close')
+    click('Start a new report')
     await settle()
 
     expect(root.querySelector('[role="dialog"]')).toBeNull()
@@ -1978,7 +1978,7 @@ describe('a report the city would not take', () => {
     await fillAndSend()
     click('Save draft on this phone')
     await until(() => root.querySelector('[role="dialog"]') !== null, 'the sheet')
-    click('Close')
+    click('Start a new report')
     await settle()
 
     // Back to it, changed, and the city is still not taking it.
@@ -1996,7 +1996,7 @@ describe('a report the city would not take', () => {
     expect(root.querySelector('.keep')?.textContent).toContain('An older draft')
     click('Save the changes')
     await until(() => root.querySelector('[role="dialog"]') !== null, 'the sheet')
-    click('Close')
+    click('Start a new report')
     await settle()
     await openDrafts()
 
@@ -2017,7 +2017,7 @@ describe('a report the city would not take', () => {
     await fillAndSend()
     click('Save draft on this phone')
     await until(() => root.querySelector('[role="dialog"]') !== null, 'the sheet')
-    click('Close')
+    click('Start a new report')
     await settle()
 
     for (const go of [1, 2]) {
@@ -2038,7 +2038,7 @@ describe('a report the city would not take', () => {
         await settle()
         click('Save the changes')
         await until(() => root.querySelector('[role="dialog"]') !== null, 'the sheet')
-        click('Close')
+        click('Start a new report')
         await settle()
       }
     }

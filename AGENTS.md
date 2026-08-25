@@ -247,7 +247,10 @@ at build time; name the environment you deployed to alongside them.
   **Keeping a report raises a sheet, and what happens next depends on why.**
   A report the city refused is finished, so the form is cleared behind it. A
   report kept part-written is not — the reporter pressed the button in order
-  to be able to stop — so that ending leaves the form exactly as it was.
+  to be able to stop — so that ending leaves the form exactly as it was. Each
+  way out says what it does to the form, in its own label: the form is behind
+  the sheet and cannot be seen from there, and a line of explanation under
+  the buttons is read after the reporter has already pressed one.
   Writing it down
   changed nothing a reporter could see — the same notice, the same button —
   so pressing it read as pressing nothing, on the one action where they are

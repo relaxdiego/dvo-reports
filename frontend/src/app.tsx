@@ -802,6 +802,13 @@ function KeptReport({
           Open it there to carry on, or to send it when you are ready.
         </p>
         {/*
+          Each way out says what it does to the form, because the form is
+          behind this sheet and cannot be seen from here. There used to be a
+          line under these buttons explaining it instead: below the controls
+          it described, about something not on the screen, and referring to
+          "the button" while sitting under two others. Nobody could have read
+          it in the order that made it make sense.
+
           The way out that leaves the report alone comes first when the
           reporter is still writing: they pressed this to be able to stop,
           not to be moved somewhere else, and the commonest next thing is to
@@ -822,15 +829,10 @@ function KeptReport({
               Show me where it is
             </button>
             <button class="secondary wide" type="button" onClick={onClose}>
-              Close
+              Start a new report
             </button>
           </>
         )}
-        <p class="hint">
-          {writing
-            ? 'The form is as you left it. If you add more, press the button again to save the changes.'
-            : 'The form is empty again, ready for another report. Nothing you wrote has been lost.'}
-        </p>
       </div>
     </div>
   )
