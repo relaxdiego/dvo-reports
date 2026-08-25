@@ -1,7 +1,7 @@
 {
   "name": "Bantay Dabaw",
   "short_name": "Bantay Dabaw",
-  "description": "An unofficial, faster way to report a city issue to reports.davaocity.gov.ph.",
+  "description": "Unofficial, run by volunteers. A faster way to send a photo of garbage, a broken light or illegal parking in Davao City to reports.davaocity.gov.ph.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
