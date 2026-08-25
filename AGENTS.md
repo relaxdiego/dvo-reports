@@ -41,13 +41,23 @@ is the system of record. This project stores nothing.
   `upstream.Echo`, for local development, and `upstream.NoSubmit`, which is
   the real client with filing turned off and is what staging runs so that
   practice reports stay out of the city's queue. Both say in the reference
-  itself that nothing was filed. The page also names the build it is: every
-  frontend build not told it is production carries a bar over the form saying
-  which environment it was built for. That bar used to carry the promise as
+  itself that nothing was filed. The page also names the copy it is: every
+  published copy not named production carries a bar over the form saying
+  which environment it is. That bar used to carry the promise as
   well and no longer does, so the reference number is now the only place a
-  reporter reads it — if a build like this is ever put in front of citizens
+  reporter reads it — if a copy like this is ever put in front of citizens
   rather than testers, put the sentence back on the bar. See `NotTheRealSite`
   in `frontend/src/app.tsx`. Production runs neither.
+
+  **The bar is decided when the page loads, not when it is built.** One build
+  is published to both environments, so `frontend/src/config.ts` reads the
+  environment off the `<html>` tag that
+  `.github/scripts/name-environment.sh` wrote into that copy. What keeps
+  production honest is the default: a copy that says nothing is not
+  production and gets the bar. Do not make the default the other way round,
+  and do not reach for the hostname instead — the attribute is what the
+  deploy job also gives `wrangler --branch`, so the bar and the Cloudflare
+  branch cannot disagree.
 - **A failed submission leaves no trace but its log line.** Nothing is
   stored, so `upstream submit failed` in `internal/api` is the whole record.
   Keep it carrying the city's own reply and everything about the attempt
@@ -207,6 +217,22 @@ at build time; name the environment you deployed to alongside them.
   place with it and forgets what they chose — with no photograph there is
   nothing to file and nowhere to file it. `Draft.address` is the street
   looked up from whatever the pin ends on, and an empty one is fine.
+- `frontend/src/config.ts` — what this copy is and where its backend lives,
+  read off the `<html>` tag when the page loads rather than baked into the
+  bundle. One build is published to both staging and production, so neither
+  value can be a build-time constant any more; `.github/scripts/name-environment.sh`
+  writes both into the copy it publishes, and `docs/deploy.md` explains why
+  the same bytes go to both.
+
+  **Both defaults are the safe ones.** No `data-env` means `development`,
+  which shows the bar saying this is not the real site. No `data-api` means
+  the empty string, which is what a developer wants — Vite proxies `/api` to
+  the local Go server — and which the deploy script refuses to publish, so a
+  misconfigured environment fails the deploy instead of shipping a page that
+  asks an origin serving no API. Costs 69 bytes gzipped against the budget in
+  `frontend/scripts/check-size.mjs`, measured; the bar it stopped minifying
+  away is most of that.
+
 - `frontend/src/draft.ts` — keeps what the reporter has typed *while they are
   writing*, in `sessionStorage`, so an app switch does not lose it. The other
   half of this is `saved.ts`, which is what a report reaches when the city
@@ -442,11 +468,16 @@ at build time; name the environment you deployed to alongside them.
   away to nothing by 16 pixels, and the grid becomes noise. Two identical icons on one phone are two icons a
   maintainer cannot tell apart, and only one of them files a real report.
   Those files are deliberately not in `frontend/public`, which every build
-  copies: `blueprintTiles` in `frontend/vite.config.ts` lays them over the
-  built ones whenever `DEPLOY_ENV` is not `production`, so `index.html` and
-  `site.webmanifest` never have to know which build they are in. It runs on
-  a build only — `npm run dev` serves `public/` straight from disk and shows
-  the production tile.
+  copies to the root: a file at the root is a file Cloudflare would serve, and
+  the real tile has to stay the one that is there by default.
+  `blueprintTiles` in `frontend/vite.config.ts` carries them into every build
+  under `dist/blueprint/` without using them, and
+  `.github/scripts/name-environment.sh` lays them over the built ones at
+  deploy time for anything that is not production — so `index.html` and
+  `site.webmanifest` never have to know which copy they are in. One build is
+  published to both environments, which is why this is a deploy-time choice
+  and no longer a build-time one. The plugin runs on a build only — `npm run
+  dev` serves `public/` straight from disk and shows the production tile.
 
   **The card carries the word "unofficial" in the picture itself.** A link
   shared in a group chat is read by people who never open the page, so the

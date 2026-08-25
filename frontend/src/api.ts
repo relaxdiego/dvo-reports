@@ -1,13 +1,7 @@
 import type { Draft, Filed, History, Receipt } from './types'
 import type { Session } from './session'
 import { shrink } from './image'
-
-/**
- * Where the backend lives. Empty in development, where Vite proxies /api to
- * the local Go server. Set VITE_API_BASE for the deployed frontend, which is
- * served from a different origin than the backend.
- */
-const API_BASE: string = import.meta.env.VITE_API_BASE ?? ''
+import { API_BASE } from './config'
 
 /** The header the backend reads the city's session token from. */
 const SESSION_HEADER = 'X-City-Session'

@@ -8,6 +8,7 @@ import { validate, descriptionLength, MAX_DESCRIPTION, MAX_PHOTOS } from './vali
 import { osmLink, placeOfPhotos, readSnapshot, type Place, type Snapshot } from './exif'
 import { Disclaimer } from './disclaimer'
 import { SOURCE } from './sitenotice'
+import { ENVIRONMENT } from './config'
 import { Welcome } from './welcome'
 import { AddToHome, offerHomeScreen } from './addtohome'
 import {
@@ -437,7 +438,7 @@ export function App() {
 
   return (
     <main>
-      {__ENVIRONMENT__ !== 'production' && <NotTheRealSite />}
+      {ENVIRONMENT !== 'production' && <NotTheRealSite />}
       <Header onDisclaimer={() => setShowDisclaimer(true)} />
       <Tabs tab={tab} onChange={setTab} />
       {tab === 'report' ? (
@@ -1809,14 +1810,16 @@ function SignIn({ onDone }: { onDone: (token: string | null) => void }) {
  * is no longer said before the report is written. If this build is ever put
  * in front of citizens rather than testers, put the sentence back.
  *
- * It is never in what production serves: `__ENVIRONMENT__` is a build-time
- * constant, so the comparison above is `"production" !== "production"` there
- * and the minifier drops this and the branch that calls it.
+ * One build is published to both staging and production, so this can no
+ * longer be minified away: the bar ships to production too and is decided
+ * when the page loads, by what the deploy job wrote into the `<html>` tag.
+ * See `config.ts`. What guards production is that the default is not
+ * production — a copy that says nothing gets the bar.
  */
 function NotTheRealSite() {
   return (
     <p class="testbanner">
-      {__ENVIRONMENT__[0].toUpperCase() + __ENVIRONMENT__.slice(1)}
+      {ENVIRONMENT[0].toUpperCase() + ENVIRONMENT.slice(1)}
     </p>
   )
 }

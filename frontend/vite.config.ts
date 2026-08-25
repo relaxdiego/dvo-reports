@@ -1,9 +1,13 @@
 import { execFileSync } from 'node:child_process'
-import { copyFileSync, readdirSync } from 'node:fs'
+import { copyFileSync, mkdirSync, readdirSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { join } from 'node:path'
 import { defineConfig, type Plugin } from 'vitest/config'
 import preact from '@preact/preset-vite'
+
+// Where the blueprint tiles ride along in the build. The deploy job knows
+// this name too; it is the one thing the two have to agree on.
+const BLUEPRINT_DIR = 'blueprint'
 
 // Stamped onto the page so a bug report can say which build it came from.
 // There is no other way to tell: the site stores nothing and the bundle's
@@ -20,28 +24,20 @@ try {
   // Left as 'unknown'.
 }
 
-// Which deployment this bundle is built for, so one that is not production
-// can say so on the page. The deploy job passes the same matrix value it
-// gives `wrangler --branch`, so the bar on the page and the Cloudflare branch
-// cannot disagree.
-//
-// Unset means a local build, or a checkout with no CI around it. Neither is
-// production, and the default says so rather than staying quiet: a build that
-// does not know what it is must not pass for the real site.
-const environment = process.env.DEPLOY_ENV || 'development'
-
 /**
- * Gives a build that is not production the blueprint home screen tile.
+ * Carries the blueprint home screen tile into the build, without using it.
  *
  * Staging and production are the same site to look at, and a maintainer with
  * both added to one phone has two identical icons and no way to tell which
  * one files a real report. The blueprint says "this is the drawing, not the
  * building" without a word on it.
  *
- * The blueprint files are not in public/, because public/ is copied into
- * every build including the real one. They sit in brand/staging under the
- * names they are replacing and are laid over the top afterwards, so nothing
- * in index.html or site.webmanifest has to know which build this is.
+ * One build is published to both, so which tile a copy gets is no longer a
+ * build-time question: the deploy job lays these over the top for staging and
+ * deletes them for production. They land in a directory of their own rather
+ * than in public/, which every build copies to the root — a file at the root
+ * is a file Cloudflare would serve, and the real tile has to stay the one
+ * that is there by default.
  *
  * Only a build. `npm run dev` serves public/ straight from disk and shows
  * the production tile; nobody adds a dev server to their home screen.
@@ -55,14 +51,13 @@ function blueprintTiles(): Plugin {
     configResolved(config) {
       outDir = config.build.outDir
     },
-    // After writeBundle, which is when Vite copies public/ across. Running
-    // any earlier means public/ lands on top of these again.
+    // After writeBundle, so the directory survives Vite writing the build.
     closeBundle() {
-      if (environment === 'production') return
+      const to = join(outDir, BLUEPRINT_DIR)
+      mkdirSync(to, { recursive: true })
       for (const name of readdirSync(from)) {
-        copyFileSync(join(from, name), join(outDir, name))
+        copyFileSync(join(from, name), join(to, name))
       }
-      console.log(`  ${environment}: home screen tiles replaced with the blueprint`)
     },
   }
 }
@@ -73,7 +68,6 @@ export default defineConfig({
   define: {
     __BUILD_TIME__: JSON.stringify(buildTime),
     __BUILD_SHA__: JSON.stringify(buildSha),
-    __ENVIRONMENT__: JSON.stringify(environment),
   },
   server: {
     // In development the Go backend runs on 8080, so /api is same-origin

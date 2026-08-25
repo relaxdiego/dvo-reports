@@ -22,27 +22,52 @@ project, which is why it is used here rather than GitHub Pages: Pages gives a
 repository one site and one custom domain, so a staging site would have meant
 a second repository.
 
-`.github/workflows/ci.yml` runs the checks first, then picks the deploy
-targets from what triggered it. The Cloudflare branch and the Fly app are
-both named after the environment.
+`.github/workflows/ci.yml` checks, builds once, then walks one run through
+both environments in order. The Cloudflare branch and the Fly app are both
+named after the environment.
 
-| Trigger                        | Environments |
-| ------------------------------ | ------------ |
-| Push to `main`                 | `staging`    |
-| Manual run, `staging` chosen   | `staging`    |
-| Manual run, `production` chosen| `production` |
-
-A run deploys one environment, never two. Staging follows `main` on its own.
-Production is not reached by merging anything: you start the run and name it,
-
-```sh
-gh workflow run ci.yml -f environment=production
+```
+check -> build -> staging -> [reviewer gate] -> production
 ```
 
-and the run then waits at the `production` Environment's reviewer gate, so
-two deliberate acts stand between a commit and a citizen. A push to `main`
-deploys staging and only staging, before launch and after: there is nothing to
-remember on launch day and no flag to flip.
+Every push to `main` does all of it. Staging is reached on its own; production
+waits at the `production` Environment's reviewer gate until somebody approves
+the job, and **approving is the one deliberate act between a commit and a
+citizen.** There is nothing to dispatch by hand, nothing to remember on launch
+day, and no flag to flip.
+
+GitHub cancels a run that nobody approves within 30 days.
+
+**One build serves both.** The `build` job builds the backend image and the
+site once, and staging and production publish those same bytes. Nothing about
+an environment is baked into either half any more:
+
+- The backend image is pushed to this repository's container registry and
+  both deploys name it **by digest**, so production runs the bytes staging was
+  tested with. `ALLOWED_ORIGINS` and `UPSTREAM` come from
+  `backend/fly.<environment>.toml` and are applied to the machine at deploy
+  time.
+- The site is built with no `DEPLOY_ENV` and no `VITE_API_BASE`. Each deploy
+  writes `data-env` and `data-api` into the `<html>` tag of the copy it
+  publishes, and lays the blueprint tiles over the real ones for anything
+  that is not production. `.github/scripts/name-environment.sh` does both, and
+  is the one piece the two deploy jobs share; `frontend/src/config.ts` reads
+  the two attributes when the page loads.
+
+This is worth the indirection because a rebuild of the same commit is not the
+same artifact — a base image moves, a dependency resolves differently — and
+the only environment that matters is the one nobody tested.
+
+**More than one run can be waiting at the gate.** Push twice and there are two
+pending approvals, and the newest is not always the one an approver opens.
+Approving a superseded run would quietly put an older commit in front of
+citizens, so the production job refuses to deploy when `main` has moved past
+the commit it built. That check is skipped on a manual run, which is how an
+older commit is deliberately put back:
+
+```sh
+gh workflow run ci.yml --ref <sha-or-branch>
+```
 
 **There is no release tag.** The footer of the page carries the build time
 and the commit sha, which says what is live more precisely than a version
@@ -53,8 +78,8 @@ deployment URL and never the stamp, so a run cannot tell you whether the
 bundle it published actually replaced the old one.
 
 To redeploy production without a new commit — after a `fly secrets set`, or a
-publish that half-failed — start the same run again on the same ref. Nothing
-has to be tagged or bumped.
+publish that half-failed — start the same run again on the same ref, or
+re-run the finished run's production job. Nothing has to be tagged or bumped.
 
 ### Which build is running
 
@@ -69,9 +94,10 @@ curl https://dvo-reports-api-staging.fly.dev/healthz
 # ok 8c63670
 ```
 
-The sha reaches the binary through `--build-arg BUILD_SHA=...` on the
-`flyctl deploy` line, which the Dockerfile passes to the linker with
-`-ldflags -X main.buildSHA`. There is no `.git` in the `backend/` build
+The sha reaches the binary through `--build-arg BUILD_SHA=...` in the
+`build` job, which the Dockerfile passes to the linker with
+`-ldflags -X main.buildSHA`. It is baked into the image, so both environments
+report the same sha — which is the point: they are running the same image. There is no `.git` in the `backend/` build
 context, so the toolchain cannot find it on its own. A `docker build` with no
 argument, or a `go build` on a laptop, says `ok unknown` — which is honest,
 and is what `make build` produces.
@@ -115,14 +141,17 @@ it cannot reach citizens.
    *Account · Cloudflare Pages · Edit*.
 
 3. **GitHub Environments** named `production` and `staging`. Give
-   each a variable `VITE_API_BASE` holding its backend URL. The frontend is
-   baked at build time, so changing one needs a new deploy.
+   each a variable `VITE_API_BASE` holding its backend URL. It is written
+   into the copy that is published, not into the build, so changing one needs
+   a new deploy but not a new build.
 
-   Nothing else needs setting here. The build is also told which environment
-   it is for, by `DEPLOY_ENV` in the deploy job, but that comes from the same
-   matrix value the job gives `wrangler --branch` — it is not a variable to
-   add, and adding one would let the two disagree. Any build not told
-   `production` shows a bar naming the environment it was built for.
+   Give `production` a **required reviewer**. That gate is the only thing
+   standing between a push to `main` and a citizen.
+
+   Nothing else needs setting here. Which environment a copy is gets written
+   from the same place the job gives `wrangler --branch`, so the bar on the
+   page and the Cloudflare branch cannot disagree — it is not a variable to
+   add. Any copy not named `production` shows a bar naming the environment.
 
 4. **Custom domains — not done, not decided, and deliberately deferred.**
    Everything in this step is still ahead of the project, including picking
@@ -194,12 +223,32 @@ repository.
    org token for both. Environment-scoped is the safer of the two: a staging
    deploy then cannot touch production.
 
-3. **Push to `main`.** CI builds the image and deploys it. The staging app
+3. **Make the container image public.** The `build` job pushes the backend
+   image to `ghcr.io/relaxdiego/dvo-reports-api`, and both deploys pull it
+   from there by digest. A package starts private, and Fly has no credentials
+   for this registry, so **the first run after this is set up will fail at the
+   staging deploy**: the package does not exist until that run's `build` job
+   pushes it, and it cannot be made public before it exists. Let the run fail,
+   set the package's visibility to public in its settings on GitHub, then
+   re-run the failed jobs. This is a one-time step.
+
+   Public is right rather than merely convenient: the repository is public and
+   the image holds nothing but a binary built from that source. Nothing
+   secret reaches it — see the rule about this repository in `AGENTS.md`.
+
+   The image is not in the Fly registry, which is where a `flyctl deploy`
+   would put it, because a Fly registry repository belongs to one app. The
+   deploy tokens above are scoped to one app each on purpose, so the
+   production app cannot pull from the staging app's repository. A neutral
+   registry keeps that separation and still lets both deploy the same bytes.
+
+4. **Push to `main`.** CI builds the image and deploys it. The staging app
    answers at `https://dvo-reports-api-staging.fly.dev/healthz`.
 
-4. **Set `VITE_API_BASE`** on the matching GitHub Environment to the backend
-   for that environment, then redeploy the frontend. It is baked in at build
-   time.
+5. **Set `VITE_API_BASE`** on the matching GitHub Environment to the backend
+   for that environment, then redeploy. The deploy job writes it into the
+   page; a deploy with it unset fails rather than publishing a site that asks
+   an origin serving no API.
 
 ### Environment
 

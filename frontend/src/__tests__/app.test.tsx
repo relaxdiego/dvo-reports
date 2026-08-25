@@ -196,11 +196,10 @@ async function fileAndRead(): Promise<FormData> {
   return filed[1]?.body as FormData
 }
 
-// The bar is guarded by __ENVIRONMENT__, a build-time constant. These tests
-// run without DEPLOY_ENV set, so they see the same 'development' build a
-// developer gets, and that is the case worth pinning: a build not told it is
-// production says so. The production case is the constant being 'production',
-// which no test can reach without a second build.
+// The bar is guarded by `ENVIRONMENT`, read from the `<html>` tag when the
+// page loads. jsdom renders that tag without the attribute, so these tests
+// see the 'development' default, and that is the case worth pinning: a copy
+// not told what it is says so rather than passing for the real site.
 describe('the bar saying this is not the real site', () => {
   it('names the environment, and nothing else', () => {
     act(() => render(<App />, root))
