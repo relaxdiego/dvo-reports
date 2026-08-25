@@ -58,12 +58,16 @@ This is worth the indirection because a rebuild of the same commit is not the
 same artifact — a base image moves, a dependency resolves differently — and
 the only environment that matters is the one nobody tested.
 
-**More than one run can be waiting at the gate.** Push twice and there are two
-pending approvals, and the newest is not always the one an approver opens.
-Approving a superseded run would quietly put an older commit in front of
-citizens, so the production job refuses to deploy when `main` has moved past
-the commit it built. That check is skipped on a manual run, which is how an
-older commit is deliberately put back:
+**Only the newest run waits at the gate.** Every push leaves a job there, and
+a job waiting for approval holds its concurrency group — so a newer push
+cancels the older waiting one rather than queueing behind it. Without that,
+the oldest unapproved run blocks every newer one from reaching the gate and
+the only approval on offer is the stalest.
+
+The production job also refuses to deploy when `main` has moved past the
+commit it built, as a second line against approving a superseded run. That
+check is skipped on a manual run, which is how an older commit is
+deliberately put back:
 
 ```sh
 gh workflow run ci.yml --ref <sha-or-branch>

@@ -162,6 +162,8 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: staging
+    # Queues rather than cancels: nothing waits for approval here, so a
+    # staging deploy is only ever a minute long and is worth finishing.
     concurrency:
       group: deploy-staging
       cancel-in-progress: false
@@ -223,9 +225,19 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: production
+    # Unlike staging's, this cancels rather than queues. Every push leaves a
+    # job here waiting to be approved, and a waiting job holds the group: with
+    # `false`, the oldest unapproved run blocks every newer one from even
+    # reaching the gate, so the approval an approver is offered is always the
+    # stalest. Cancelling means the newest run is the one waiting, which is
+    # the one worth approving.
+    #
+    # What this gives up is that a push landing while production is actually
+    # deploying will cancel that deploy. The window is the minute or two after
+    # an approval, against a queue that jammed on every second push.
     concurrency:
       group: deploy-production
-      cancel-in-progress: false
+      cancel-in-progress: true
     steps:
       - uses: actions/checkout@v7
 
