@@ -79,6 +79,21 @@ export function SiteNotice() {
           need it.
         </p>
         <p>
+          <strong>Your reports, kept on this phone:</strong> Under "My reports" you can tap{' '}
+          <strong>Keep my reports on this phone</strong>. The city sends your whole list in one
+          go — every report you have ever filed — so the more you report, the longer that wait
+          gets. Keeping the list means it opens at once, and this site checks with the city for
+          anything new once a day. Nothing is kept unless you tap that button. What is kept is
+          what you wrote, where each report was filed, its status, and links to your photos on
+          the city's site — the photos themselves stay with the city, so they will not show
+          without a signal. It stays in this browser until you tap{' '}
+          <strong>Stop keeping my reports on this phone</strong>, which deletes it. Two things to
+          know. Anyone else who uses this browser on this phone can read your reports, so do not
+          turn this on for a phone you have borrowed or lent. And a phone short of storage can
+          throw it away without asking; if that happens the list simply comes from the city
+          again, and you lose nothing but the speed.
+        </p>
+        <p>
           <strong>Your sign-in:</strong> You sign in with the e-mail address on your city account.
           The city then sends a one-time code by text message, to the phone number registered with
           that account. The key that keeps you signed in is kept in your own browser, and this site

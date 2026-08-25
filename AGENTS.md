@@ -20,13 +20,22 @@ is the system of record. This project stores nothing.
   that prints a report body, an address, a photo, or a contact detail. A
   report holds a real person's location and photographs.
 
-  This is about this project's own machines. There is one deliberate
-  exception on the reporter's own phone: `frontend/src/saved.ts` keeps a
-  whole report, photographs and all, when the city refuses it and the
-  reporter taps to accept. Nothing about it is sent anywhere and nothing here
-  ever sees it. Read that file before touching it, and read the two rules
-  about the notice below — the promise a reporter is shown has to keep
-  matching what the code does.
+  This is about this project's own machines. There are two deliberate
+  exceptions on the reporter's own phone, and both are written only when the
+  reporter taps a button:
+
+  - `frontend/src/saved.ts` keeps a whole report, photographs and all, when
+    the city refuses it and the reporter taps to accept. It is the only place
+    in the project that holds a photograph.
+  - `frontend/src/mylist.ts` keeps the list of reports the city has already
+    taken — the words, the place, the status, and the city's links to the
+    photographs, but never the pictures themselves. It is off until the
+    reporter turns it on and it is deleted when they turn it off.
+
+  Nothing about either is sent anywhere and nothing here ever sees them. Read
+  those files before touching them, and read the two rules about the notice
+  below — the promise a reporter is shown has to keep matching what the code
+  does.
 - **Never invent a reference number in production.** If the upstream
   submission fails, the citizen is told it failed. Two clients invent one:
   `upstream.Echo`, for local development, and `upstream.NoSubmit`, which is
@@ -276,6 +285,43 @@ at build time; name the environment you deployed to alongside them.
   city's site was not answering, and on that same day the list below them is
   an error message. A report reachable only through a section that cannot
   load is a report the reporter has lost.
+- `frontend/src/mylist.ts` — the reports the city has already taken, kept on
+  the reporter's phone so the tab opens at once. **Off until the reporter taps
+  it on, and deleted when they tap it off** — the same rule `saved.ts` keeps,
+  and it is not decoration: what this holds is a citizen's reports sitting in
+  a browser on a phone that `sitenotice.tsx` already warns is lent to people.
+  Change what is kept and change that notice in the same commit.
+
+  It exists because the city's list call has no paging. `getuserdetails`
+  answers with every report an account has ever filed, in one reply, so the
+  reporter this site is built for — the one who reports things, month after
+  month — waits longer every month, for a list that has barely moved. There
+  is no cheaper call to make: the city has no paging, no cursor, and no
+  "changed since". The only way to stop the reporter waiting is to not ask.
+
+  **The photographs are not kept, only the city's links to them.** So a kept
+  list read without a signal is words and broken images, and the links need a
+  live session to draw at all. Keeping the bytes would be the whole photo
+  library of somebody who reports often; `saved.ts` stays the only place in
+  the project that holds a photograph.
+
+  A day is the staleness limit (`STALE_AFTER`), because that is the rhythm the
+  thing being watched moves at — an office picks a report up in days. A stale
+  list is drawn at once and replaced behind the reporter; a refresh that fails
+  leaves yesterday's list on the screen rather than an error, because a list
+  the reporter is reading is worth more than a red sentence about the city
+  being down.
+
+  Its own database, not a second store in `saved.ts`'s. Two stores in one
+  database means both files agreeing on a version number for ever, and a
+  browser refuses to open one database at two versions — the tab that lost
+  that race would get an error where a draft should have been.
+
+  **In the UI it is "keep on this phone", never "cache".** This site already
+  says "kept on this phone" about a draft; one plain phrase for one idea beats
+  a precise word nobody outside this repository says. What it costs the
+  reporter is written beside the button, not behind a link.
+
 - `frontend/src/image.ts` — shrinking photos before upload. This is the main
   reason the client feels fast. Do not remove it. It also copies the
   original's metadata block onto the resized photo, unread: drawing to a

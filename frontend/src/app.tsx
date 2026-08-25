@@ -108,7 +108,13 @@ type WithSession = <T>(fn: (token: string) => Promise<T>) => Promise<T | null>
 type Past =
   | { at: 'unopened' }
   | { at: 'loading'; step: string }
-  | { at: 'ready'; reports: Filed[] }
+  /**
+   * `kept` is when the city said this, set only when the list came off this
+   * phone rather than off the wire. `refreshing` is a kept list being
+   * replaced behind the reporter — shown rather than spinnered, because a
+   * day-old list is worth reading while the new one arrives.
+   */
+  | { at: 'ready'; reports: Filed[]; kept?: number; refreshing?: boolean }
   /** The reporter closed the sign-in. Do not keep asking. */
   | { at: 'declined' }
   | { at: 'error'; error: string }
@@ -160,6 +166,13 @@ export function App() {
   )
 
   const [past, setPast] = useState<Past>({ at: 'unopened' })
+  /*
+    What `past` is right now, for `setKeep`. Reading it through state would
+    make the callback change on every list update, and it is handed to a
+    button under the list; a ref keeps the button still.
+  */
+  const pastRef = useRef(past)
+  pastRef.current = past
 
   /*
     The reports this phone is holding because the city would not take them.
@@ -206,23 +219,132 @@ export function App() {
     setTab('report')
   }, [])
 
+  /*
+    Whether this phone is keeping the list, and null until the phone has been
+    read. Null matters: it is what stops the tab firing the city's slow call
+    before finding out there was a list here all along, and what stops the
+    control below the list saying "keep" for a moment to somebody who is
+    already keeping. See `mylist.ts`.
+  */
+  const [keeping, setKeeping] = useState<boolean | null>(null)
+  useEffect(() => {
+    void (async () => {
+      try {
+        const { keepingList } = await import('./mylist')
+        setKeeping(keepingList())
+      } catch {
+        setKeeping(false)
+      }
+    })()
+  }, [])
+
+  /**
+   * Asks the city, and writes the answer down when this phone is keeping it.
+   *
+   * `quietly` is a refresh behind a list the reporter is already reading. It
+   * puts up no spinner and, more importantly, it does not replace what they
+   * are reading with an error: yesterday's reports beat a red sentence.
+   */
+  const fetchPast = useCallback(
+    async (quietly: boolean) => {
+      if (!quietly) setPast({ at: 'loading', step: 'Asking the city’s site for your reports.' })
+      // The city's site can take its time. Saying so beats a spinner that
+      // looks the same at one second and at twenty.
+      const slow = setTimeout(
+        () => setPast((p) => (p.at === 'loading' ? { at: 'loading', step: 'The city’s site is slow to answer. Still waiting.' } : p)),
+        5000,
+      )
+      try {
+        const list = await withSession((token) => myReports(token))
+        if (list === null) {
+          setPast((p) => (quietly && p.at === 'ready' ? { ...p, refreshing: false } : { at: 'declined' }))
+          return
+        }
+        setPast({ at: 'ready', reports: newestFirst(list) })
+        if (keeping) {
+          try {
+            const { keepList } = await import('./mylist')
+            await keepList(list, Date.now())
+          } catch {
+            // No room, or storage refused. The list is on the screen either
+            // way, and the only cost is that the next visit asks the city
+            // again. A reporter who is mid-read is not the person to stop
+            // with a message about storage.
+          }
+        }
+      } catch (err) {
+        setPast((p) =>
+          quietly && p.at === 'ready' ? { ...p, refreshing: false } : { at: 'error', error: messageOf(err) },
+        )
+      } finally {
+        clearTimeout(slow)
+      }
+    },
+    [withSession, keeping],
+  )
+
+  /**
+   * Opens the list: off this phone when it is kept there, off the city
+   * otherwise. A kept list past its day is drawn at once and replaced behind
+   * the reporter.
+   */
   const loadPast = useCallback(async () => {
-    setPast({ at: 'loading', step: 'Asking the city’s site for your reports.' })
-    // The city's site can take its time. Saying so beats a spinner that
-    // looks the same at one second and at twenty.
-    const slow = setTimeout(
-      () => setPast((p) => (p.at === 'loading' ? { at: 'loading', step: 'The city’s site is slow to answer. Still waiting.' } : p)),
-      5000,
-    )
-    try {
-      const list = await withSession((token) => myReports(token))
-      setPast(list === null ? { at: 'declined' } : { at: 'ready', reports: newestFirst(list) })
-    } catch (err) {
-      setPast({ at: 'error', error: messageOf(err) })
-    } finally {
-      clearTimeout(slow)
+    if (keeping) {
+      try {
+        const { keptList, STALE_AFTER } = await import('./mylist')
+        const kept = await keptList()
+        if (kept) {
+          const stale = Date.now() - kept.at > STALE_AFTER
+          setPast({ at: 'ready', reports: newestFirst(kept.reports), kept: kept.at, refreshing: stale })
+          if (stale) void fetchPast(true)
+          return
+        }
+      } catch {
+        // Nothing readable on the phone. Ask the city, as if it were off.
+      }
     }
-  }, [withSession])
+    await fetchPast(false)
+  }, [keeping, fetchPast])
+
+  /** The reporter asking for the city's newest, whatever is on the phone. */
+  const refreshPast = useCallback(() => fetchPast(false), [fetchPast])
+
+  /**
+   * Turning it on or off. Off deletes what was kept.
+   *
+   * On writes down the list already on the screen rather than waiting for
+   * the next fetch. The reporter just pressed a button meaning "these will
+   * be here next time"; leaving the phone empty until some later refresh
+   * would make that false for exactly as long as they were looking at it.
+   */
+  const setKeep = useCallback(
+    async (on: boolean) => {
+      const { startKeeping, stopKeeping, keepList } = await import('./mylist')
+      if (!on) {
+        await stopKeeping()
+        setKeeping(false)
+        setPast((p) => (p.at === 'ready' ? { at: 'ready', reports: p.reports } : p))
+        return
+      }
+      startKeeping()
+      setKeeping(true)
+      const now = pastRef.current
+      if (now.at !== 'ready') return
+      const at = Date.now()
+      try {
+        await keepList(now.reports, at)
+        setPast({ at: 'ready', reports: now.reports, kept: at })
+      } catch (err) {
+        // Out of room, most likely. This one has to be said: they pressed a
+        // button meaning their reports would be here next time, and they
+        // will not be.
+        await stopKeeping()
+        setKeeping(false)
+        throw err
+      }
+    },
+    [],
+  )
 
   return (
     <main>
@@ -247,10 +369,13 @@ export function App() {
         <PastTab
           past={past}
           onLoad={loadPast}
+          onRefresh={refreshPast}
           withSession={withSession}
           drafts={drafts}
           onLoadDrafts={loadDrafts}
           onResume={resume}
+          keeping={keeping}
+          onKeep={setKeep}
         />
       )}
       {ask && (
@@ -846,17 +971,24 @@ const PAGE = 20
 function PastTab({
   past,
   onLoad,
+  onRefresh,
   withSession,
   drafts,
   onLoadDrafts,
   onResume,
+  keeping,
+  onKeep,
 }: {
   past: Past
   onLoad: () => Promise<void>
+  onRefresh: () => Promise<void>
   withSession: WithSession
   drafts: SavedReport[]
   onLoadDrafts: () => Promise<void>
   onResume: (d: SavedReport) => void
+  /** null until this phone has been read. See the note in `App`. */
+  keeping: boolean | null
+  onKeep: (on: boolean) => Promise<void>
 }) {
   // Every time this tab is opened, not only the first: the reporter may have
   // kept a report on the other tab a moment ago. It reads this phone and
@@ -872,7 +1004,14 @@ function PastTab({
         over the whole of it says nothing a reporter did not already know.
       */}
       {drafts.length > 0 && <h3 class="listhead">Sent to the city</h3>}
-      <CityReports past={past} onLoad={onLoad} withSession={withSession} />
+      <CityReports
+        past={past}
+        onLoad={onLoad}
+        onRefresh={onRefresh}
+        withSession={withSession}
+        keeping={keeping}
+        onKeep={onKeep}
+      />
     </>
   )
 }
@@ -993,11 +1132,19 @@ function DraftReport({
 function CityReports({
   past,
   onLoad,
+  onRefresh,
   withSession,
+  keeping,
+  onKeep,
 }: {
   past: Past
   onLoad: () => Promise<void>
+  /** Asks the city for a new list, whatever is on the phone. */
+  onRefresh: () => Promise<void>
   withSession: WithSession
+  /** null until this phone has been read. */
+  keeping: boolean | null
+  onKeep: (on: boolean) => Promise<void>
 }) {
   const [query, setQuery] = useState('')
   const [showing, setShowing] = useState(PAGE)
@@ -1005,9 +1152,14 @@ function CityReports({
 
   // Only the first time the tab is opened. After that the list is reloaded
   // when the reporter asks for it, or when the page is loaded again.
+  //
+  // Not until this phone has been read, though. `onLoad` reads the kept list
+  // first and only asks the city when there is none, so firing it before
+  // `keeping` is known would be the slow call made in ignorance of a list
+  // that was here all along.
   useEffect(() => {
-    if (past.at === 'unopened') void onLoad()
-  }, [past.at, onLoad])
+    if (keeping !== null && past.at === 'unopened') void onLoad()
+  }, [keeping, past.at, onLoad])
 
   const reports = past.at === 'ready' ? past.reports : []
   const matching = useMemo(() => {
@@ -1045,6 +1197,7 @@ function CityReports({
     )
   }
   if (past.at === 'unopened') return <Loading step="Starting." />
+
   if (reports.length === 0) {
     return (
       <>
@@ -1092,8 +1245,84 @@ function CityReports({
           ? `${reports.length} ${reports.length === 1 ? 'report' : 'reports'}`
           : `${matching.length} of ${reports.length} reports`}
       </p>
-      <Refresh onClick={() => void onLoad()} />
+      <Refresh onClick={() => void onRefresh()} />
+      <KeepList past={past} keeping={keeping} onKeep={onKeep} />
     </>
+  )
+}
+
+/**
+ * The offer to keep the list on this phone, and the switch back.
+ *
+ * It sits under the list, not over it. A reporter who has just watched the
+ * city take eleven seconds knows what it is for; one who has not seen the
+ * list yet is being offered a fix for a problem they have not met, in
+ * exchange for their reports sitting in a browser.
+ *
+ * "Keep on this phone", not "cache" or "save offline": this site already
+ * says "kept on this phone" about a draft, and one plain phrase used for one
+ * idea is worth more than a precise word nobody outside this repository
+ * says. What it costs is written next to it rather than behind a link — it
+ * is two sentences, and this is the moment the reporter is deciding.
+ */
+function KeepList({
+  past,
+  keeping,
+  onKeep,
+}: {
+  past: Past
+  keeping: boolean | null
+  onKeep: (on: boolean) => Promise<void>
+}) {
+  const [error, setError] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+
+  // Nothing until this phone has been read: a control that says "keep" and
+  // flips to "stop keeping" a moment later has told the reporter the state
+  // of their own phone wrongly, on the one screen about what it holds.
+  if (keeping === null) return null
+
+  const flip = async (on: boolean) => {
+    setBusy(true)
+    setError(null)
+    try {
+      await onKeep(on)
+    } catch (err) {
+      setError(messageOf(err))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const kept = past.at === 'ready' ? past.kept : undefined
+  const refreshing = past.at === 'ready' && past.refreshing === true
+
+  return (
+    <div class="keeplist">
+      {/*
+        How old the copy is. "Opens at once" and "is current" are different
+        promises and only the first one is being made, so the second is not
+        left to be assumed.
+      */}
+      {keeping && kept !== undefined && (
+        <p class="meta" role="status">
+          {refreshing
+            ? 'Kept on this phone. Asking the city for anything new…'
+            : `Kept on this phone, as the city had it ${agoText(kept)}.`}
+        </p>
+      )}
+      {error && <ErrorMessage onDismiss={() => setError(null)}>{error}</ErrorMessage>}
+      <button class="linky" type="button" disabled={busy} onClick={() => void flip(!keeping)}>
+        {keeping ? 'Stop keeping my reports on this phone' : 'Keep my reports on this phone'}
+      </button>
+      {!keeping && (
+        <p class="hint">
+          They will open at once instead of waiting for the city, and this site will check for
+          anything new once a day. What you wrote, where it was, and links to your photos are kept
+          in this browser until you turn this off. Anyone else who uses this phone can read them.
+        </p>
+      )}
+    </div>
   )
 }
 
@@ -2443,6 +2672,23 @@ function copyDateText(s: string): string {
   const t = cityTime(s)
   if (Number.isNaN(t)) return s
   return new Date(t).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: '2-digit' })
+}
+
+/**
+ * How long ago the kept list was taken, in the words somebody would say.
+ *
+ * Not `whenText`, which reads the city's own timestamps and gives a date:
+ * this list is at most a day old in the ordinary case, and "25 August 2026"
+ * on 25 August answers nothing. Days appear anyway, because a city that has
+ * been down for three of them is exactly when the reporter needs telling.
+ */
+function agoText(at: number): string {
+  const minutes = Math.floor((Date.now() - at) / 60_000)
+  if (minutes < 1) return 'just now'
+  if (minutes < 60) return `${minutes} minute${minutes === 1 ? '' : 's'} ago`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 48) return `${hours} hour${hours === 1 ? '' : 's'} ago`
+  return `${Math.floor(hours / 24)} days ago`
 }
 
 function whenText(s: string): string {

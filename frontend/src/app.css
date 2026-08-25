@@ -1059,3 +1059,21 @@ button.primary.waiting .spinner {
 .build a {
   color: inherit;
 }
+
+/* The offer to keep the list on this phone, under the list it is about. It
+   is a plain link and a sentence rather than a switch: a switch says the
+   setting matters more than what it costs, and what it costs is the half a
+   reporter has to read. */
+.keeplist {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--line);
+}
+
+.keeplist .meta {
+  margin-bottom: 0.35rem;
+}
+
+.keeplist .hint {
+  margin-top: 0.35rem;
+}

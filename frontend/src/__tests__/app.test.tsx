@@ -2250,3 +2250,165 @@ describe('a report the city would not take', () => {
       .toContain('save it as a draft')
   })
 })
+
+/**
+ * The list kept on the phone.
+ *
+ * The city's list call has no paging — one reply carries every report an
+ * account ever filed — so these tests are mostly about what is *not* asked
+ * of the city, and about the button being telling the truth.
+ */
+describe('keeping the list on this phone', () => {
+  const KEPT = [
+    {
+      reference: '20260822133825088',
+      title: 'Road damage: J. P. Laurel Avenue',
+      description: 'A hole in the outer lane.',
+      location: 'J. P. Laurel Avenue',
+      status: 'ONGOING',
+      filed: '2026-08-22 13:38:25',
+    },
+  ]
+
+  /** Writes a list onto the phone, as the city having said it at `at`. */
+  async function onThePhone(reports: unknown[], at: number) {
+    localStorage.setItem('dvo-reports.keeplist', '1')
+    const { keepList } = await import('../mylist')
+    await keepList(reports as never, at)
+  }
+
+  const listCalls = (f: ReturnType<typeof vi.fn>) =>
+    f.mock.calls.filter(([u]) => String(u).endsWith('/api/reports')).length
+
+  function cityAnswering(reports = listOf(3)) {
+    return vi.fn<typeof fetch>(async () =>
+      new Response(JSON.stringify({ reports }), { status: 200 }))
+  }
+
+  beforeEach(() => {
+    localStorage.setItem('dvo-reports.session', JSON.stringify({ token: 'tk-1' }))
+  })
+
+  // The whole point: a reporter who turned it on does not wait for the city.
+  it('draws a fresh kept list without asking the city at all', async () => {
+    await onThePhone(KEPT, Date.now() - 60_000)
+    const fetchMock = cityAnswering()
+    vi.stubGlobal('fetch', fetchMock)
+
+    act(() => render(<App />, root))
+    click('My reports')
+    await settle()
+
+    expect(root.textContent).toContain('Road damage: J. P. Laurel Avenue')
+    expect(listCalls(fetchMock)).toBe(0)
+    expect(root.textContent).toContain('Kept on this phone')
+  })
+
+  // Stale is still worth reading. The new one arrives behind it.
+  it('draws a day-old list at once and refreshes it behind the reporter', async () => {
+    await onThePhone(KEPT, Date.now() - 25 * 60 * 60 * 1000)
+    const fetchMock = cityAnswering()
+    vi.stubGlobal('fetch', fetchMock)
+
+    act(() => render(<App />, root))
+    click('My reports')
+    await settle()
+
+    expect(listCalls(fetchMock)).toBe(1)
+    // The city's answer replaced it, and no spinner stood in for the wait.
+    expect(root.textContent).toContain('Report number 1')
+    expect(root.textContent).not.toContain('Loading past reports')
+  })
+
+  // A refresh behind a list must not replace it with a red sentence.
+  it('leaves a stale list on the screen when the refresh fails', async () => {
+    await onThePhone(KEPT, Date.now() - 25 * 60 * 60 * 1000)
+    vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => { throw new TypeError('offline') }))
+
+    act(() => render(<App />, root))
+    click('My reports')
+    await settle()
+
+    expect(root.textContent).toContain('Road damage: J. P. Laurel Avenue')
+    expect(root.querySelector('[role="alert"]')).toBeNull()
+  })
+
+  // Off by default: this is the rule saved.ts keeps, and the reason a list
+  // of somebody's reports is allowed on their phone at all.
+  it('keeps nothing until the reporter taps the button', async () => {
+    vi.stubGlobal('fetch', cityAnswering())
+
+    act(() => render(<App />, root))
+    click('My reports')
+    await settle()
+
+    const { keptList } = await import('../mylist')
+    expect(await keptList()).toBeNull()
+    expect([...root.querySelectorAll('button')].map((b) => b.textContent?.trim()))
+      .toContain('Keep my reports on this phone')
+  })
+
+  // Tapping it writes down the list already on the screen. Waiting for some
+  // later fetch would make the button's promise false while they looked at it.
+  it('writes down the list already on screen when the reporter taps', async () => {
+    vi.stubGlobal('fetch', cityAnswering())
+
+    act(() => render(<App />, root))
+    click('My reports')
+    await settle()
+    click('Keep my reports on this phone')
+    await settle()
+
+    const { keptList, keepingList } = await import('../mylist')
+    expect(keepingList()).toBe(true)
+    expect((await keptList())?.reports).toHaveLength(3)
+  })
+
+  // The other half of the promise on the button.
+  it('deletes the reports from the phone when the reporter stops', async () => {
+    await onThePhone(KEPT, Date.now() - 60_000)
+    vi.stubGlobal('fetch', cityAnswering())
+
+    act(() => render(<App />, root))
+    click('My reports')
+    await settle()
+    click('Stop keeping my reports on this phone')
+    await settle()
+
+    const { keptList, keepingList } = await import('../mylist')
+    expect(keepingList()).toBe(false)
+    expect(await keptList()).toBeNull()
+  })
+
+  // `Refresh list` is the reporter asking for the city's newest, so it goes
+  // past whatever is on the phone.
+  it('asks the city when the reporter presses refresh', async () => {
+    await onThePhone(KEPT, Date.now() - 60_000)
+    const fetchMock = cityAnswering()
+    vi.stubGlobal('fetch', fetchMock)
+
+    act(() => render(<App />, root))
+    click('My reports')
+    await settle()
+    expect(listCalls(fetchMock)).toBe(0)
+
+    click('Refresh list')
+    await settle()
+
+    expect(listCalls(fetchMock)).toBe(1)
+    expect(root.textContent).toContain('Report number 1')
+  })
+
+  // A reporter who has not turned it on sees exactly what they always saw.
+  it('changes nothing for a reporter who has not turned it on', async () => {
+    const fetchMock = cityAnswering()
+    vi.stubGlobal('fetch', fetchMock)
+
+    act(() => render(<App />, root))
+    click('My reports')
+    await settle()
+
+    expect(listCalls(fetchMock)).toBe(1)
+    expect(root.textContent).toContain('Report number 1')
+  })
+})
