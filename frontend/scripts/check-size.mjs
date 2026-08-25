@@ -36,7 +36,14 @@ import { join } from 'node:path'
 // 0.1 kB of. A budget that fails on the next unrelated line is a budget that
 // gets raised without being read, which is the one thing this file exists to
 // prevent.
-const BUDGET = 25_500
+//
+// And again to 26.0, for the same reason: the page had crept to within 0.03 kB
+// of 25.5, so the next line of any kind failed. The line that met it was a
+// report card learning to stop waiting when the reporter closes the sign-in
+// instead of asking the city for a code — before it, that card sat under
+// "Reading what happened…" for the rest of the visit. Shortening the sentence
+// bought 9 bytes of the 43 needed, so the cost is the branch, not the words.
+const BUDGET = 26_000
 
 const dist = process.argv[2] ?? 'dist'
 const html = readFileSync(join(dist, 'index.html'), 'utf8')

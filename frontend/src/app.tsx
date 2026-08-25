@@ -1542,24 +1542,35 @@ function FiledReport({ report, withSession }: { report: Filed; withSession: With
     request the moment the message was dismissed.
   */
   const [hidden, setHidden] = useState(false)
+  /*
+    The reporter closed the sign-in instead of asking the city for a code.
+    Nothing failed, so there is no message from the city to show — but the
+    wait has to end, or the report sits under “Reading what happened…” for
+    the rest of the visit, with nothing left running that could ever finish
+    it. It happens to a reporter reading a kept list, whose token died while
+    the list itself came off their own phone.
+  */
+  const [declined, setDeclined] = useState(false)
 
   // The history is a second call to the city, so it is only made for the
   // report the reporter actually opened, and only once.
   useEffect(() => {
-    if (!open || history || error) return
+    if (!open || history || error || declined) return
     let dropped = false
     void (async () => {
       try {
         const h = await withSession((token) =>
           reportHistory(report.reference, token),
         )
-        if (!dropped && h) setHistory(h)
+        if (dropped) return
+        if (h) setHistory(h)
+        else setDeclined(true)
       } catch (err) {
         if (!dropped) setError(messageOf(err))
       }
     })()
     return () => { dropped = true }
-  }, [open, history, error, report.reference, withSession])
+  }, [open, history, error, declined, report.reference, withSession])
 
   return (
     <li class="report">
@@ -1579,7 +1590,15 @@ function FiledReport({ report, withSession }: { report: Filed; withSession: With
           {report.location && <p class="hint">Where: {report.location}</p>}
           {report.photos && report.photos.length > 0 && <ReportPhotos srcs={report.photos} />}
           {error && !hidden && <ErrorMessage onDismiss={() => setHidden(true)}>{error}</ErrorMessage>}
-          {!history && !error && (
+          {declined && (
+            <p class="hint">
+              This report’s history can only be seen if you have a code from the city.{' '}
+              <button class="linky" type="button" onClick={() => setDeclined(false)}>
+                Show history
+              </button>
+            </p>
+          )}
+          {!history && !error && !declined && (
             <p class="hint waiting" role="status">
               <span class="spinner" aria-hidden="true" />
               Reading what happened…

@@ -515,6 +515,48 @@ describe('opening one report', () => {
     expect(waiting?.querySelector('.spinner')).not.toBeNull()
   })
 
+  /*
+    The list can be read off the phone while the city's token is dead, so
+    opening a report is the first thing to meet the sign-in. Closing that
+    sheet is not a failure and there is nothing to apologise for — but the
+    spinner has to stop, because nothing is left running that could ever
+    end it, and a report stuck on "Reading what happened…" reads as an app
+    that has hung.
+  */
+  it('stops waiting, and offers to ask again, when the sign-in is closed', async () => {
+    localStorage.setItem('dvo-reports.session', JSON.stringify({ token: 'tk-old' }))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn<typeof fetch>(async (input) => {
+        // The list is fine; only the second call meets the dead token.
+        if (String(input).endsWith('/api/reports')) {
+          return new Response(JSON.stringify({ reports: listOf(1) }), { status: 200 })
+        }
+        return new Response(JSON.stringify({ error: 'expired' }), { status: 401 })
+      }),
+    )
+
+    act(() => render(<App />, root))
+    click('My reports')
+    await settle()
+    act(() => root.querySelector<HTMLButtonElement>('.reporthead')!.click())
+    await settle()
+
+    expect(root.querySelector('[role="dialog"]')).not.toBeNull()
+    click('Not now')
+    await settle()
+
+    const body = root.querySelector('.reportbody')!
+    expect(body.textContent).not.toContain('Reading what happened')
+    expect(body.querySelector('.spinner')).toBeNull()
+    expect(body.textContent).toContain('a code from the city')
+
+    // And the way back: the same question, asked again.
+    click('Show history')
+    await settle()
+    expect(root.querySelector('[role="dialog"]')).not.toBeNull()
+  })
+
   // The three things somebody quotes when they write to the city about a
   // report. Copying them off a phone screen by hand is what this replaces,
   // so all three have to be there, each on a labelled line: pasted
