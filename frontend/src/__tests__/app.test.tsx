@@ -373,14 +373,14 @@ describe('reloading the list', () => {
     expect(root.textContent).toContain('Report number 1')
   })
 
-  it('asks again when the refresh button is used', async () => {
+  it('asks again when the refresh link is used', async () => {
     const fetchMock = stubList(1)
 
     act(() => render(<App />, root))
     click('My reports')
     await settle()
     const refresh = [...root.querySelectorAll('button')].filter(
-      (b) => b.textContent === 'Refresh list',
+      (b) => b.textContent === 'Refresh now',
     )
     // One, at the foot of the list.
     expect(refresh).toHaveLength(1)
@@ -2314,7 +2314,7 @@ describe('keeping the list on this phone', () => {
     act(() => render(<App />, root))
     click('My reports')
     await settle()
-    click('Refresh list')
+    click('Refresh now')
     await settle()
 
     expect(root.textContent).toContain('List will auto refresh in 24h 0m')
@@ -2455,7 +2455,7 @@ describe('keeping the list on this phone', () => {
     expect(await keptList()).toBeNull()
   })
 
-  // `Refresh list` is the reporter asking for the city's newest, so it goes
+  // `Refresh now` is the reporter asking for the city's newest, so it goes
   // past whatever is on the phone.
   it('asks the city when the reporter presses refresh', async () => {
     await onThePhone(KEPT, Date.now() - 60_000)
@@ -2467,7 +2467,7 @@ describe('keeping the list on this phone', () => {
     await settle()
     expect(listCalls(fetchMock)).toBe(0)
 
-    click('Refresh list')
+    click('Refresh now')
     await settle()
 
     expect(listCalls(fetchMock)).toBe(1)
@@ -2493,11 +2493,11 @@ describe('keeping the list on this phone', () => {
     await settle()
     expect(root.textContent).toContain('Report number 1')
 
-    click('Refresh list')
+    click('Refresh now')
     await settle()
 
-    // Still there, and the button says what is happening rather than the
-    // list being replaced by a spinner.
+    // Still there, and the line the link sat in says what is happening
+    // rather than the list being replaced by a spinner.
     expect(root.textContent).toContain('Report number 1')
     expect(root.textContent).not.toContain('Loading past reports')
     expect(root.textContent).toContain('Checking with the city')
@@ -2510,7 +2510,7 @@ describe('keeping the list on this phone', () => {
   })
 
   // A refresh nobody pressed stays silent when it fails. One the reporter
-  // pressed cannot: otherwise the button did nothing they can see, and they
+  // pressed cannot: otherwise the link did nothing they can see, and they
   // press it again.
   it('says a refresh the reporter asked for failed, and keeps the list', async () => {
     let first = true
@@ -2526,7 +2526,7 @@ describe('keeping the list on this phone', () => {
     act(() => render(<App />, root))
     click('My reports')
     await settle()
-    click('Refresh list')
+    click('Refresh now')
     await settle()
 
     expect(root.querySelector('[role="alert"]')).not.toBeNull()

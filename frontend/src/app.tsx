@@ -1274,10 +1274,12 @@ function CityReports({
     return (
       <>
         <p class="hint">The city has no reports under this account yet.</p>
-        <Refresh
-          onClick={() => void onRefresh()}
-          refreshing={past.at === 'ready' && past.refreshing === true}
-        />
+        <p class="meta">
+          <RefreshNow
+            onClick={() => void onRefresh()}
+            refreshing={past.at === 'ready' && past.refreshing === true}
+          />
+        </p>
       </>
     )
   }
@@ -1320,10 +1322,6 @@ function CityReports({
           ? `${reports.length} ${reports.length === 1 ? 'report' : 'reports'}`
           : `${matching.length} of ${reports.length} reports`}
       </p>
-      <Refresh
-        onClick={() => void onRefresh()}
-        refreshing={past.at === 'ready' && past.refreshing === true}
-      />
       {/*
         A refresh the reporter pressed for, that failed. It sits under the
         button rather than over the list, because the list is still good —
@@ -1333,7 +1331,7 @@ function CityReports({
       {past.at === 'ready' && past.error && (
         <p class="error" role="alert">{past.error}</p>
       )}
-      <KeepList past={past} keeping={keeping} onKeep={onKeep} />
+      <KeepList past={past} keeping={keeping} onKeep={onKeep} onRefresh={onRefresh} />
     </>
   )
 }
@@ -1356,10 +1354,12 @@ function KeepList({
   past,
   keeping,
   onKeep,
+  onRefresh,
 }: {
   past: Past
   keeping: boolean | null
   onKeep: (on: boolean) => Promise<void>
+  onRefresh: () => void
 }) {
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -1387,27 +1387,30 @@ function KeepList({
   return (
     <div class="keeplist">
       {/*
-        How old the copy is. "Opens at once" and "is current" are different
-        promises and only the first one is being made, so the second is not
-        left to be assumed.
+        When the city is next asked, and the way to ask now. "Opens at once"
+        and "is current" are different promises and only the first one is
+        being made, so the second is not left to be assumed — and the
+        reporter who wants the second one has the link in the same breath.
+
+        The countdown needs a kept list to count towards; the link does not,
+        so a reporter who keeps nothing can still ask again. While a refresh
+        is running this says so instead: it is the only sign there is, now
+        that there is no button to grey out, and a link that answered with
+        nothing visible is a link pressed twice.
       */}
-      {/*
-        Not while a refresh is running: the button already says that is
-        happening, and a countdown to the next one beside it reads as a
-        second, different thing going on.
-      */}
-      {keeping && dueAt !== undefined && !refreshing && (
-        <p class="meta">List will auto refresh in {leftText(dueAt)}.</p>
-      )}
+      <p class="meta">
+        {keeping && dueAt !== undefined && !refreshing && `List will auto refresh in ${leftText(dueAt)}. `}
+        <RefreshNow onClick={onRefresh} refreshing={refreshing} />
+      </p>
       {error && <ErrorMessage onDismiss={() => setError(null)}>{error}</ErrorMessage>}
       <button class="linky" type="button" disabled={busy} onClick={() => void flip(!keeping)}>
         {keeping ? 'Stop keeping my reports on this phone' : 'Keep my reports on this phone'}
       </button>
       {!keeping && (
         <p class="hint">
-          They will open at once instead of waiting for the city, and this site will check for
-          anything new once a day. What you wrote, where it was, and links to your photos are kept
-          in this browser until you turn this off. Anyone else who uses this phone can read them.
+          Keeping reports on this phone means they’re immediately readable the next time you open
+          this tab. It will check with the city once a day in case anything changed. Anyone who uses
+          this phone can read the list. You can clear the kept reports anytime.
         </p>
       )}
     </div>
@@ -1435,15 +1438,19 @@ function useEndOfList(onReach: () => void, armed: boolean) {
 }
 
 /**
- * Reloading the list, at the foot of it. It is as wide as the page because
- * it is the only thing to press there: a small square in a corner is a
- * target to hunt for on a phone, and a thumb has already reached the bottom
- * of the list by the time it is wanted.
+ * Asking the city again, inside the line that says when it would have been
+ * asked anyway. It was a button across the foot of the list, and a button
+ * that wide reads as the thing to press on a screen whose whole point is the
+ * list above it — a reporter refreshing a list they had only just been given.
+ *
+ * Nothing is left to grey out while it runs, so the words go instead: the
+ * line the link sat in is the only place the wait can be said.
  */
-function Refresh({ onClick, refreshing }: { onClick: () => void; refreshing: boolean }) {
+function RefreshNow({ onClick, refreshing }: { onClick: () => void; refreshing: boolean }) {
+  if (refreshing) return <>Checking with the city…</>
   return (
-    <button class="secondary wide" type="button" disabled={refreshing} onClick={onClick}>
-      {refreshing ? 'Checking with the city…' : 'Refresh list'}
+    <button class="linky" type="button" onClick={onClick}>
+      Refresh now
     </button>
   )
 }
