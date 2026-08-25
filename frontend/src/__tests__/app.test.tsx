@@ -2399,6 +2399,65 @@ describe('keeping the list on this phone', () => {
     expect(root.textContent).toContain('Report number 1')
   })
 
+  // Pressing Refresh must not take the list away to go and fetch a copy of
+  // it. On a slow day that is ten seconds of nothing where the thing the
+  // reporter came for used to be.
+  it('leaves the list on screen while a refresh the reporter asked for runs', async () => {
+    let answer: (r: Response) => void = () => {}
+    vi.stubGlobal('fetch', vi.fn<typeof fetch>(async (input) => {
+      if (!String(input).endsWith('/api/reports')) return new Response('{}', { status: 200 })
+      if (root.textContent?.includes('Report number 1')) {
+        // The second call is the refresh. Hold it open.
+        return new Promise<Response>((r) => { answer = r })
+      }
+      return new Response(JSON.stringify({ reports: listOf(3) }), { status: 200 })
+    }))
+
+    act(() => render(<App />, root))
+    click('My reports')
+    await settle()
+    expect(root.textContent).toContain('Report number 1')
+
+    click('Refresh list')
+    await settle()
+
+    // Still there, and the button says what is happening rather than the
+    // list being replaced by a spinner.
+    expect(root.textContent).toContain('Report number 1')
+    expect(root.textContent).not.toContain('Loading past reports')
+    expect(root.textContent).toContain('Checking with the city')
+
+    answer(new Response(JSON.stringify({ reports: listOf(5) }), { status: 200 }))
+    await settle()
+
+    expect(root.textContent).toContain('Report number 5')
+    expect(root.textContent).not.toContain('Checking with the city')
+  })
+
+  // A refresh nobody pressed stays silent when it fails. One the reporter
+  // pressed cannot: otherwise the button did nothing they can see, and they
+  // press it again.
+  it('says a refresh the reporter asked for failed, and keeps the list', async () => {
+    let first = true
+    vi.stubGlobal('fetch', vi.fn<typeof fetch>(async (input) => {
+      if (!String(input).endsWith('/api/reports')) return new Response('{}', { status: 200 })
+      if (first) {
+        first = false
+        return new Response(JSON.stringify({ reports: listOf(3) }), { status: 200 })
+      }
+      throw new TypeError('offline')
+    }))
+
+    act(() => render(<App />, root))
+    click('My reports')
+    await settle()
+    click('Refresh list')
+    await settle()
+
+    expect(root.querySelector('[role="alert"]')).not.toBeNull()
+    expect(root.textContent).toContain('Report number 1')
+  })
+
   // A reporter who has not turned it on sees exactly what they always saw.
   it('changes nothing for a reporter who has not turned it on', async () => {
     const fetchMock = cityAnswering()

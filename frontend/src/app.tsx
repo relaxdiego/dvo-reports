@@ -110,11 +110,13 @@ type Past =
   | { at: 'loading'; step: string }
   /**
    * `kept` is when the city said this, set only when the list came off this
-   * phone rather than off the wire. `refreshing` is a kept list being
-   * replaced behind the reporter — shown rather than spinnered, because a
-   * day-old list is worth reading while the new one arrives.
+   * phone rather than off the wire. `refreshing` is a list being replaced
+   * while the reporter reads it — shown rather than spinnered, because the
+   * list they already have is worth more than the wait. `error` is a
+   * refresh that failed under a list that is still good, which is why it
+   * lives here rather than replacing the whole state.
    */
-  | { at: 'ready'; reports: Filed[]; kept?: number; refreshing?: boolean }
+  | { at: 'ready'; reports: Filed[]; kept?: number; refreshing?: boolean; error?: string }
   /** The reporter closed the sign-in. Do not keep asking. */
   | { at: 'declined' }
   | { at: 'error'; error: string }
@@ -241,13 +243,24 @@ export function App() {
   /**
    * Asks the city, and writes the answer down when this phone is keeping it.
    *
-   * `quietly` is a refresh behind a list the reporter is already reading. It
-   * puts up no spinner and, more importantly, it does not replace what they
-   * are reading with an error: yesterday's reports beat a red sentence.
+   * Three ways in, and they differ only in what the reporter is looking at
+   * while it runs:
+   *
+   *   - `open` — there is nothing on the screen yet, so this is the wait.
+   *     Spinner, and a failure is the whole answer.
+   *   - `behind` — the day-old list is being replaced without being asked.
+   *     Nobody pressed anything, so a failure is not worth a word: they keep
+   *     reading the list they had.
+   *   - `asked` — the reporter pressed Refresh. The list stays on the screen
+   *     while the city is asked, but a failure has to be said, because
+   *     otherwise pressing the button did nothing visible and they will
+   *     press it again.
    */
   const fetchPast = useCallback(
-    async (quietly: boolean) => {
-      if (!quietly) setPast({ at: 'loading', step: 'Asking the city’s site for your reports.' })
+    async (how: 'open' | 'behind' | 'asked') => {
+      if (how === 'open') setPast({ at: 'loading', step: 'Asking the city’s site for your reports.' })
+      // Under a list that is staying put, the only sign is on the button.
+      else setPast((p) => (p.at === 'ready' ? { ...p, refreshing: true, error: undefined } : p))
       // The city's site can take its time. Saying so beats a spinner that
       // looks the same at one second and at twenty.
       const slow = setTimeout(
@@ -257,7 +270,9 @@ export function App() {
       try {
         const list = await withSession((token) => myReports(token))
         if (list === null) {
-          setPast((p) => (quietly && p.at === 'ready' ? { ...p, refreshing: false } : { at: 'declined' }))
+          // Closed the sign-in. Nothing to say about it under a list they
+          // can still read; only a reporter with nothing loses anything.
+          setPast((p) => (p.at === 'ready' ? { ...p, refreshing: false } : { at: 'declined' }))
           return
         }
         setPast({ at: 'ready', reports: newestFirst(list) })
@@ -274,7 +289,9 @@ export function App() {
         }
       } catch (err) {
         setPast((p) =>
-          quietly && p.at === 'ready' ? { ...p, refreshing: false } : { at: 'error', error: messageOf(err) },
+          how !== 'open' && p.at === 'ready'
+            ? { ...p, refreshing: false, error: how === 'asked' ? messageOf(err) : undefined }
+            : { at: 'error', error: messageOf(err) },
         )
       } finally {
         clearTimeout(slow)
@@ -296,18 +313,24 @@ export function App() {
         if (kept) {
           const stale = Date.now() - kept.at > STALE_AFTER
           setPast({ at: 'ready', reports: newestFirst(kept.reports), kept: kept.at, refreshing: stale })
-          if (stale) void fetchPast(true)
+          if (stale) void fetchPast('behind')
           return
         }
       } catch {
         // Nothing readable on the phone. Ask the city, as if it were off.
       }
     }
-    await fetchPast(false)
+    await fetchPast('open')
   }, [keeping, fetchPast])
 
-  /** The reporter asking for the city's newest, whatever is on the phone. */
-  const refreshPast = useCallback(() => fetchPast(false), [fetchPast])
+  /**
+   * The reporter asking for the city's newest, whatever is on the phone.
+   *
+   * The list they are reading stays where it is until the new one arrives.
+   * Blanking it for a spinner takes away the thing they came for in order to
+   * fetch a copy of it, and on a slow day that is ten seconds of nothing.
+   */
+  const refreshPast = useCallback(() => fetchPast('asked'), [fetchPast])
 
   /**
    * Turning it on or off. Off deletes what was kept.
@@ -1202,7 +1225,10 @@ function CityReports({
     return (
       <>
         <p class="hint">The city has no reports under this account yet.</p>
-        <Refresh onClick={() => void onLoad()} />
+        <Refresh
+          onClick={() => void onRefresh()}
+          refreshing={past.at === 'ready' && past.refreshing === true}
+        />
       </>
     )
   }
@@ -1245,7 +1271,19 @@ function CityReports({
           ? `${reports.length} ${reports.length === 1 ? 'report' : 'reports'}`
           : `${matching.length} of ${reports.length} reports`}
       </p>
-      <Refresh onClick={() => void onRefresh()} />
+      <Refresh
+        onClick={() => void onRefresh()}
+        refreshing={past.at === 'ready' && past.refreshing === true}
+      />
+      {/*
+        A refresh the reporter pressed for, that failed. It sits under the
+        button rather than over the list, because the list is still good —
+        this says the newest did not arrive, not that what they are reading
+        is wrong.
+      */}
+      {past.at === 'ready' && past.error && (
+        <p class="error" role="alert">{past.error}</p>
+      )}
       <KeepList past={past} keeping={keeping} onKeep={onKeep} />
     </>
   )
@@ -1295,7 +1333,6 @@ function KeepList({
   }
 
   const kept = past.at === 'ready' ? past.kept : undefined
-  const refreshing = past.at === 'ready' && past.refreshing === true
 
   return (
     <div class="keeplist">
@@ -1305,11 +1342,7 @@ function KeepList({
         left to be assumed.
       */}
       {keeping && kept !== undefined && (
-        <p class="meta" role="status">
-          {refreshing
-            ? 'Kept on this phone. Asking the city for anything new…'
-            : `Kept on this phone, as the city had it ${agoText(kept)}.`}
-        </p>
+        <p class="meta">Kept on this phone, as the city had it {agoText(kept)}.</p>
       )}
       {error && <ErrorMessage onDismiss={() => setError(null)}>{error}</ErrorMessage>}
       <button class="linky" type="button" disabled={busy} onClick={() => void flip(!keeping)}>
@@ -1352,10 +1385,10 @@ function useEndOfList(onReach: () => void, armed: boolean) {
  * target to hunt for on a phone, and a thumb has already reached the bottom
  * of the list by the time it is wanted.
  */
-function Refresh({ onClick }: { onClick: () => void }) {
+function Refresh({ onClick, refreshing }: { onClick: () => void; refreshing: boolean }) {
   return (
-    <button class="secondary wide" type="button" onClick={onClick}>
-      Refresh list
+    <button class="secondary wide" type="button" disabled={refreshing} onClick={onClick}>
+      {refreshing ? 'Checking with the city…' : 'Refresh list'}
     </button>
   )
 }
