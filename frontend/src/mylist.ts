@@ -140,6 +140,31 @@ export async function keepList(reports: Filed[], at: number): Promise<void> {
   }
 }
 
+/**
+ * Says the list on this phone is old, without throwing it away.
+ *
+ * A report the reporter has just filed is not in it, and the copy is a day
+ * fresh, so nothing would go and ask the city until tomorrow — the reporter
+ * would open their reports and not find the one they had just sent.
+ *
+ * Marked rather than deleted, so the next visit still draws the list at once
+ * and the refresh happens behind it. The reports already in it are not
+ * wrong; the list is only short of one.
+ *
+ * Quiet when there is nothing to mark. The reporter has just sent a report
+ * and is reading the reference number; nothing here is worth a word to them,
+ * and the cost of failing is that the list is a day late, which is what it
+ * was before this existed.
+ */
+export async function listIsOld(): Promise<void> {
+  try {
+    const kept = await keptList()
+    if (kept) await keepList(kept.reports, 0)
+  } catch {
+    // No database, or no room to write it back.
+  }
+}
+
 /** Deletes it. */
 export async function forgetList(): Promise<void> {
   try {

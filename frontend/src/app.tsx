@@ -382,6 +382,23 @@ export function App() {
   }, [keeping, tab, fetchPast])
 
   /**
+   * A report has just been filed, so every copy of the list is short of it.
+   *
+   * The one this visit has drawn goes back to unopened, so the tab fetches
+   * when it is next opened rather than showing what it had. The one on the
+   * phone is marked old, which is the half that outlives the visit: it is a
+   * day fresh and would otherwise be drawn, without the new report in it,
+   * until tomorrow.
+   *
+   * Only when the reporter keeps a list. Reaching into `mylist.ts` otherwise
+   * would open a database on the phone of somebody who never asked for one.
+   */
+  const onFiled = useCallback(() => {
+    setPast({ at: 'unopened' })
+    if (keeping) void import('./mylist').then((m) => m.listIsOld())
+  }, [keeping])
+
+  /**
    * Turning it on or off. Off deletes what was kept.
    *
    * On writes down the list already on the screen rather than waiting for
@@ -436,6 +453,7 @@ export function App() {
           resumed={resumed}
           onDraftsChanged={loadDrafts}
           onShowDrafts={() => setTab('past')}
+          onFiled={onFiled}
         />
       ) : (
         <PastTab
@@ -546,6 +564,7 @@ function ReportTab({
   resumed,
   onDraftsChanged,
   onShowDrafts,
+  onFiled,
 }: {
   withSession: WithSession
   onDisclaimer: () => void
@@ -555,6 +574,8 @@ function ReportTab({
   onDraftsChanged: () => Promise<void>
   /** Takes the reporter to the tab the kept report is waiting in. */
   onShowDrafts: () => void
+  /** Told when the city has taken a report, so the list of them is refetched. */
+  onFiled: () => void
 }) {
   /*
     Started from whatever was being written in this tab before. A reporter is
@@ -674,6 +695,7 @@ function ReportTab({
         // reference number on the next screen is the record now.
         forgetDraft()
         if (keptAs !== undefined) await drop(keptAs)
+        onFiled()
         setReceipt(sent)
         return
       }
@@ -1274,12 +1296,6 @@ function CityReports({
     return (
       <>
         <p class="hint">The city has no reports under this account yet.</p>
-        <p class="meta">
-          <RefreshNow
-            onClick={() => void onRefresh()}
-            refreshing={past.at === 'ready' && past.refreshing === true}
-          />
-        </p>
       </>
     )
   }
@@ -1392,16 +1408,20 @@ function KeepList({
         being made, so the second is not left to be assumed — and the
         reporter who wants the second one has the link in the same breath.
 
-        The countdown needs a kept list to count towards; the link does not,
-        so a reporter who keeps nothing can still ask again. While a refresh
-        is running this says so instead: it is the only sign there is, now
-        that there is no button to grey out, and a link that answered with
-        nothing visible is a link pressed twice.
+        Only over a kept list. A list fetched fresh when the tab was opened
+        is already the city's newest, and a link offering to go and get it
+        again is a control with nothing behind it.
+
+        While a refresh is running the line says so instead: it is the only
+        sign there is, now that there is no button to grey out, and a link
+        that answered with nothing visible is a link pressed twice.
       */}
-      <p class="meta">
-        {keeping && dueAt !== undefined && !refreshing && `List will auto refresh in ${leftText(dueAt)}. `}
-        <RefreshNow onClick={onRefresh} refreshing={refreshing} />
-      </p>
+      {keeping && dueAt !== undefined && (
+        <p class="meta">
+          {!refreshing && `List will auto refresh in ${leftText(dueAt)}. `}
+          <RefreshNow onClick={onRefresh} refreshing={refreshing} />
+        </p>
+      )}
       {error && <ErrorMessage onDismiss={() => setError(null)}>{error}</ErrorMessage>}
       <button class="linky" type="button" disabled={busy} onClick={() => void flip(!keeping)}>
         {keeping ? 'Stop keeping my reports on this phone' : 'Keep my reports on this phone'}

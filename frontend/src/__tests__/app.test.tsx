@@ -373,12 +373,30 @@ describe('reloading the list', () => {
     expect(root.textContent).toContain('Report number 1')
   })
 
+  // Only over a kept list: a list just fetched is already the city's newest,
+  // so there is nothing for the link to go and get.
+  it('offers no refresh link over a list fetched fresh', async () => {
+    stubList(1)
+
+    act(() => render(<App />, root))
+    click('My reports')
+    await settle()
+
+    expect(root.textContent).toContain('Report number 1')
+    expect([...root.querySelectorAll('button')].map((b) => b.textContent)).not.toContain('Refresh now')
+  })
+
   it('asks again when the refresh link is used', async () => {
+    localStorage.setItem('dvo-reports.keeplist', '1')
+    const { keepList } = await import('../mylist')
+    await keepList(listOf(1) as never, Date.now() - 60_000)
     const fetchMock = stubList(1)
 
     act(() => render(<App />, root))
     click('My reports')
     await settle()
+    // Nothing was asked for: the list came off the phone.
+    expect(fetchMock).toHaveBeenCalledTimes(0)
     const refresh = [...root.querySelectorAll('button')].filter(
       (b) => b.textContent === 'Refresh now',
     )
@@ -387,7 +405,7 @@ describe('reloading the list', () => {
     act(() => refresh[0].click())
     await settle()
 
-    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 
   // The city sends every report in one reply, so this only bounds how many
@@ -2478,14 +2496,12 @@ describe('keeping the list on this phone', () => {
   // it. On a slow day that is ten seconds of nothing where the thing the
   // reporter came for used to be.
   it('leaves the list on screen while a refresh the reporter asked for runs', async () => {
+    await onThePhone(listOf(3), Date.now() - 60_000)
     let answer: (r: Response) => void = () => {}
     vi.stubGlobal('fetch', vi.fn<typeof fetch>(async (input) => {
       if (!String(input).endsWith('/api/reports')) return new Response('{}', { status: 200 })
-      if (root.textContent?.includes('Report number 1')) {
-        // The second call is the refresh. Hold it open.
-        return new Promise<Response>((r) => { answer = r })
-      }
-      return new Response(JSON.stringify({ reports: listOf(3) }), { status: 200 })
+      // The only call is the refresh, and it is held open.
+      return new Promise<Response>((r) => { answer = r })
     }))
 
     act(() => render(<App />, root))
@@ -2509,17 +2525,46 @@ describe('keeping the list on this phone', () => {
     expect(root.textContent).not.toContain('Checking with the city')
   })
 
+  /*
+    A report just filed is not in the copy on the phone, and that copy is a
+    day fresh — so without this the reporter opens their reports and does not
+    find the one they just sent, until tomorrow.
+
+    Marked old rather than deleted: the list is still drawn at once, and the
+    refresh that fetches the new report happens behind it.
+  */
+  it('marks the kept list old once the city has taken a report', async () => {
+    await onThePhone(KEPT, Date.now() - 60_000)
+    const { keptList } = await import('../mylist')
+    expect((await keptList())?.at).toBeGreaterThan(0)
+
+    act(() => render(<App />, root))
+    await attachPhotos(await jpegPhoto())
+    await fileAndRead()
+
+    expect((await keptList())?.at).toBe(0)
+    // The reports it already had are still there. Only the age changed.
+    expect((await keptList())?.reports).toHaveLength(KEPT.length)
+  })
+
+  // Nobody who has not asked for one gets a database opened on their phone.
+  // `keptList` would open one to answer, so this asks the browser instead.
+  it('opens no database on a phone that keeps nothing', async () => {
+    act(() => render(<App />, root))
+    await attachPhotos(await jpegPhoto())
+    await fileAndRead()
+    await settle()
+
+    expect(await indexedDB.databases()).toEqual([])
+  })
+
   // A refresh nobody pressed stays silent when it fails. One the reporter
   // pressed cannot: otherwise the link did nothing they can see, and they
   // press it again.
   it('says a refresh the reporter asked for failed, and keeps the list', async () => {
-    let first = true
+    await onThePhone(listOf(3), Date.now() - 60_000)
     vi.stubGlobal('fetch', vi.fn<typeof fetch>(async (input) => {
       if (!String(input).endsWith('/api/reports')) return new Response('{}', { status: 200 })
-      if (first) {
-        first = false
-        return new Response(JSON.stringify({ reports: listOf(3) }), { status: 200 })
-      }
       throw new TypeError('offline')
     }))
 
