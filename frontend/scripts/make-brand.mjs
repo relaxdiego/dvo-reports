@@ -218,7 +218,7 @@ try {
     <div>
       <h1>Bantay<br>Dabaw</h1>
       <hr>
-      <p class="lead">Report garbage, broken lights, illegal parking — fast.</p>
+      <p class="lead">Report garbage, road hazards, broken lights and more — fast.</p>
       <p>Unofficial, run by volunteers. It sends your report to reports.davaocity.gov.ph.</p>
     </div>
   `)
