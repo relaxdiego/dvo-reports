@@ -216,7 +216,7 @@ try {
     </style>
     <img src="${square}" alt="">
     <div>
-      <h1>Davao Citizen<br>Reporter</h1>
+      <h1>Bantay<br>Dabaw</h1>
       <hr>
       <p class="plain">Unofficial — not run by the city government</p>
       <p>A faster way to send a report to reports.davaocity.gov.ph</p>

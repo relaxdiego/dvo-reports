@@ -1,6 +1,6 @@
 {
-  "name": "Davao Citizen Reporter",
-  "short_name": "Citizen Reporter",
+  "name": "Bantay Dabaw",
+  "short_name": "Bantay Dabaw",
   "description": "An unofficial, faster way to report a city issue to reports.davaocity.gov.ph.",
   "start_url": "/",
   "display": "standalone",
