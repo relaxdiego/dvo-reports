@@ -1,0 +1,12 @@
+# The whole of the old address, sent to the new one. This is the only file
+# the old Cloudflare Pages project serves.
+#
+# The project is kept rather than deleted: deleting it frees
+# dvo-reports.pages.dev for anyone to register, and that name is in links
+# people already hold, leading to a form where a citizen types their address
+# and attaches photographs of their home.
+#
+# :splat keeps the path, so a saved link to a particular page still lands on
+# the same page. 301 rather than 302 because the move is permanent and a
+# browser may remember it.
+/* https://bantaydabaw.pages.dev/:splat 301

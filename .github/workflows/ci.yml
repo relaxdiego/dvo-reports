@@ -8,8 +8,8 @@ name: ci
 # every target, told apart by the --branch given to wrangler, and the branch
 # is named after the environment:
 #
-#   staging     -> staging.dvo-reports.pages.dev
-#   production  -> dvo-reports.pages.dev
+#   staging     -> staging.bantaydabaw.pages.dev
+#   production  -> bantaydabaw.pages.dev
 #
 # The backend is a container on Fly, one app per environment, named in
 # backend/fly.<environment>.toml.
@@ -210,7 +210,7 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: >-
             pages deploy dist
-            --project-name=dvo-reports
+            --project-name=bantaydabaw
             --branch=staging
 
       - name: Say where it went
@@ -299,7 +299,7 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: >-
             pages deploy dist
-            --project-name=dvo-reports
+            --project-name=bantaydabaw
             --branch=production
 
       - name: Say where it went

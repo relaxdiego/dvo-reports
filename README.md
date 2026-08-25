@@ -10,9 +10,9 @@ Nothing is stored here.
 **This project is not run by the Davao City government.** It is community
 software. The city's site remains the system of record.
 
-- Frontend: <https://dvo-reports.pages.dev> (Preact + TypeScript, ~20 kB gzipped
+- Frontend: <https://bantaydabaw.pages.dev> (Preact + TypeScript, ~20 kB gzipped
   on first load)
-  — staging at <https://staging.dvo-reports.pages.dev>
+  — staging at <https://staging.bantaydabaw.pages.dev>
 - Backend: Go, `net/http` and nothing else — no framework, no dependencies
 
 ## Why

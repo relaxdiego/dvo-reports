@@ -4,20 +4,33 @@ Two pieces, deployed separately, in two environments.
 
 | Environment | Frontend                          | Backend                                  |
 | ----------- | --------------------------------- | ---------------------------------------- |
-| Production  | `dvo-reports.pages.dev`           | `dvo-reports-api.fly.dev`                |
-| Staging     | `staging.dvo-reports.pages.dev`   | `dvo-reports-api-staging.fly.dev`        |
+| Production  | `bantaydabaw.pages.dev`           | `dvo-reports-api.fly.dev`                |
+| Staging     | `staging.bantaydabaw.pages.dev`   | `dvo-reports-api-staging.fly.dev`        |
 
 **These are the platforms' own URLs, and that is on purpose.** There is no
-custom domain, and the name is not decided: one gets chosen once the site has
-been used by the people it is for, since a public name is easier to give out
-than to take back. Setting one up is written out under "One-time setup" below,
-and tracked as an open issue. `ALLOWED_ORIGINS` in `backend/fly.*.toml` names
-the URLs above, so it moves in the same step as the domains and not before.
+custom domain: buying one before anybody uses the site is money spent on a
+guess, so that waits until the site has been used by the people it is for.
+The app's own name is settled — Bantay Dabaw — and a Pages project name
+cannot be changed after it is created, which is why the rename needed a
+second project rather than an edit. Setting a domain up is written out under
+"One-time setup" below, and tracked as an open issue. `ALLOWED_ORIGINS` in
+`backend/fly.*.toml` names the URLs above, so it moves in the same step as
+the domains and not before.
+
+**The old address still answers.** `dvo-reports.pages.dev` was the site's
+name before the rename, and links to it are in other people's hands. Its
+Pages project is kept and now serves one file — `redirect/_redirects`, a 301
+carrying the path across to the new address. It is published by
+`.github/workflows/redirect.yml`, by hand, and through the same reviewer gate
+as production. **Do not delete that project.** Deleting it hands
+`dvo-reports.pages.dev` to whoever registers it next, and what those links
+lead to is a form where a citizen types their address and attaches
+photographs of their home.
 
 ## Frontend
 
 The static bundle goes to **Cloudflare Pages**, in one project named
-`dvo-reports`. Cloudflare serves any number of branches from a single
+`bantaydabaw`. Cloudflare serves any number of branches from a single
 project, which is why it is used here rather than GitHub Pages: Pages gives a
 repository one site and one custom domain, so a staging site would have meant
 a second repository.
@@ -130,11 +143,11 @@ it cannot reach citizens.
 
 ### One-time setup
 
-1. **Cloudflare Pages project** named `dvo-reports`, created with
+1. **Cloudflare Pages project** named `bantaydabaw`, created with
    *Direct Upload* (not the Git integration — this workflow pushes the build):
 
    ```sh
-   npx wrangler pages project create dvo-reports --production-branch=production
+   npx wrangler pages project create bantaydabaw --production-branch=production
    ```
 
    A Direct Upload project cannot be switched to Git integration later. To
@@ -169,7 +182,7 @@ it cannot reach citizens.
    The staging name points at a branch, which takes an extra step. Add it as a
    custom domain the same way, then open DNS for its zone, find the `CNAME`
    record Cloudflare created, and change its target from
-   `dvo-reports.pages.dev` to `staging.dvo-reports.pages.dev`.
+   `bantaydabaw.pages.dev` to `staging.bantaydabaw.pages.dev`.
 
    **The record must stay proxied** (orange cloud). Cloudflare's docs are
    explicit: with an unproxied record, or DNS hosted elsewhere, the custom

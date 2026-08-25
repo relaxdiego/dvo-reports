@@ -35,8 +35,8 @@ body:
     attributes:
       label: Where
       options:
-        - Production (dvo-reports.pages.dev)
-        - Staging (staging.dvo-reports.pages.dev)
+        - Production (bantaydabaw.pages.dev)
+        - Staging (staging.bantaydabaw.pages.dev)
         - A local checkout
         - Not sure
     validations:

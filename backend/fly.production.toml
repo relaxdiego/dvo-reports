@@ -14,7 +14,7 @@ primary_region = "sin"
   # Exact matches only. This is the Pages project's production alias, which
   # exists once production has been deployed by hand. It stays so until a
   # custom domain is chosen, which changes this line with it.
-  ALLOWED_ORIGINS = "https://dvo-reports.pages.dev"
+  ALLOWED_ORIGINS = "https://bantaydabaw.pages.dev,https://dvo-reports.pages.dev"
 
 [http_service]
   internal_port = 8080

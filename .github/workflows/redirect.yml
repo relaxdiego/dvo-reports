@@ -1,0 +1,41 @@
+name: redirect
+
+# Publishes the old Pages project as nothing but a 301 to the new address.
+#
+# Run by hand, because it is run once at the cutover and then only if the
+# destination changes. It is a separate workflow from `ci` on purpose: `ci`
+# builds and ships the site, and this ships a single text file to a project
+# that holds no site at all.
+#
+# It deploys to the `production` Environment, so the same reviewer gate that
+# stands between a commit and a citizen also stands in front of the moment
+# the old address stops serving the app.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  redirect:
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Publish the redirect
+        id: publish
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: >-
+            pages deploy redirect
+            --project-name=dvo-reports
+            --branch=production
+
+      - name: Say where it went
+        run: |
+          echo "Published the redirect to ${{ steps.publish.outputs.deployment-url }}" \
+            >> "$GITHUB_STEP_SUMMARY"
