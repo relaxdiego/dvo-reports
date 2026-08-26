@@ -186,20 +186,41 @@ it cannot reach citizens.
    send, and it fails. So the order is: land the `ALLOWED_ORIGINS` change,
    approve its production deploy, and only then add the domain.
 
-   Then, in the `bantaydabaw` Pages project, under *Custom domains*, add
-   `bantaydabaw.org` and let Cloudflare create the record. Add
-   `www.bantaydabaw.org` the same way if a redirect rule is not doing it.
+   `bantaydabaw.org` is the only custom domain on the Pages project. Add it
+   there (`POST /accounts/{account}/pages/projects/bantaydabaw/domains`), then
+   give the zone a `CNAME` on the apex pointing at `bantaydabaw.pages.dev`.
+   Cloudflare flattens an apex `CNAME`, so the bare name works.
 
-   `bantaydabaw.com` carries no site. Give its zone a proxied placeholder
-   record on the apex and a redirect rule sending `*` to
-   `https://bantaydabaw.org/${path}` with a 301 — a redirect rule only runs on
-   a hostname whose traffic goes through Cloudflare, which is what the
-   placeholder buys.
+   **Everything else is a 301 onto it, and none of it is a second site.**
+   `www.bantaydabaw.org`, `bantaydabaw.com` and `www.bantaydabaw.com` each get
+   a proxied `AAAA` placeholder at `100::` — the discard address, which serves
+   nothing — and the zone's `http_request_dynamic_redirect` ruleset does the
+   work. A redirect rule only runs on a hostname whose traffic goes through
+   Cloudflare, and the placeholder is what buys that.
 
-   **Any record Cloudflare creates here stays proxied** (orange cloud).
-   Cloudflare's docs are explicit: with an unproxied record, or DNS hosted
-   elsewhere, a custom domain is served the *production* branch whatever
-   branch it was attached to. That failure is silent.
+   The two rulesets are deliberately different shapes. In the `.com` zone the
+   expression is `true`: the whole domain is a redirect and nothing there is
+   ever served. In the `.org` zone it is `http.host ne "bantaydabaw.org"` —
+   anything that is not the bare apex, which covers `www` and any hostname
+   somebody mistypes into that zone later, without naming one.
+
+   `wrangler` cannot do any of this. There is no `wrangler pages domain`
+   command as of 4.126.0, and it does not touch DNS or rulesets at all, so
+   this is the REST API. A token needs three permissions: *Account ·
+   Cloudflare Pages · Edit*, *Zone · DNS · Edit*, and *Zone · Single Redirect
+   · Edit*. Listing accounts needs a fourth — read the account id off a zone
+   record instead.
+
+   **Every record here stays proxied** (orange cloud). Cloudflare's docs are
+   explicit: with an unproxied record, or DNS hosted elsewhere, a custom
+   domain is served the *production* branch whatever branch it was attached
+   to. That failure is silent.
+
+   **Writing a phase entry point replaces every rule in it.** `PUT
+   /zones/{zone}/rulesets/phases/http_request_dynamic_redirect/entrypoint` is
+   not an append. Read the phase back before writing it, and read it again
+   afterwards — Cloudflare accepts any syntactically valid expression, so a
+   mistyped hostname is stored happily and simply never matches.
 
    **Staging is not given a domain**, on purpose — see the note at the top of
    this file. If that is ever revisited, a staging name needs one extra step:
