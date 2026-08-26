@@ -91,7 +91,7 @@ export function CityNotice() {
       </div>
 
       <p class="hint">
-        Filing a report through this front end sends it to the city's site, so these terms cover it.
+        Filing a report here sends it to the city's site, so these terms cover it.
       </p>
     </section>
   )

@@ -43,7 +43,20 @@ import { join } from 'node:path'
 // instead of asking the city for a code — before it, that card sat under
 // "Reading what happened…" for the rest of the visit. Shortening the sentence
 // bought 9 bytes of the 43 needed, so the cost is the branch, not the words.
-const BUDGET = 26_000
+//
+// And again to 26.5, for the notice rather than for a feature. Four sentences
+// in sitenotice.tsx did not match the code: the draft button was said to be
+// there whenever the reporter likes when it needs a photograph first, the log
+// line was said to be written only when a report fails when every report
+// leaves one, the kept list's photographs were said to need a signal when they
+// need a signal and a live city session, and the photograph was said to carry
+// its place and its time onward when the whole GPS reading travels. Saying so
+// is longer than not saying so. Trimming the new words back bought 13 bytes of
+// the 43, which is what prose costs after gzip, so the choice was the budget or
+// the truth. If this line is ever the one in the way again, the disclaimer's
+// text is about 5.5 kB that only a reporter who opens it ever reads, and it
+// could go behind an import() the way the map does.
+const BUDGET = 26_500
 
 const dist = process.argv[2] ?? 'dist'
 const html = readFileSync(join(dist, 'index.html'), 'utf8')

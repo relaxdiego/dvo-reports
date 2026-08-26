@@ -882,8 +882,8 @@ function ReportTab({
           sentence above a blue button is read by nobody.
         */}
         <p class="terms">
-          <strong>Unofficial site, not the city government's.</strong> Sending a report means you
-          agree to the city's terms and to this site's own — see the{' '}
+          <strong>Unofficial site, not run by or connected to the city government.</strong> Sending
+          a report means you agree to the city's terms and to this site's own — see the{' '}
           <button type="button" class="linky" onClick={onDisclaimer}>
             disclaimer
           </button>

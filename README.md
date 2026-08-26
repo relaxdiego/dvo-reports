@@ -112,19 +112,21 @@ is no database. Logs record the category, the number of photos, their total
 size, how long the city took, and the resulting reference number — never the
 description, the address, or the coordinates.
 
-**One exception, and it is worth knowing.** When the city refuses a report, its
-reply is written to the log, because nothing is stored and that line is the
-only record left to find the fault in. The city's reply can quote the report's
+**One exception, and it is worth knowing.** When something goes wrong, the
+city's reply is written to the log, because nothing is stored and that line is
+the only record left to find the fault in. The city's reply can quote the report's
 title back, and that title is built from the first 100 characters of your
-description. So a report that *fails* can leave a short piece of your own words
-in a log. A report that succeeds does not. See
-[docs/upstream.md](docs/upstream.md).
+description. So a report that goes wrong can leave a short piece of your own
+words in a log. That covers a report the city refuses, and one it files without
+attaching the photos. A report that goes through cleanly leaves nothing of your
+words. See [docs/upstream.md](docs/upstream.md).
 
 **One thing is saved, and it is saved on your phone, not here.** You can save a
-report as a draft on your own phone at any point — the button sits under
-`Send report`. The site also offers it when sending fails, and the city's site
-can fail for hours at a time. A draft is the whole report — the words, the
-place, and the photos — in your browser's own storage, and nothing is saved
+report as a draft on your own phone once you have attached a photo — the button
+sits under `Send report`. The site also offers it when sending fails, and the
+city's site can fail for hours at a time. A draft is the whole report — the
+words, the place, and the photos — in your browser's own storage, and nothing is
+saved
 unless you tap the button yourself. It never leaves your phone, and this
 project's servers never see it. It survives closing the tab and restarting the
 phone, and waits under "My reports", marked as a draft, until you send it or

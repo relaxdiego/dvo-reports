@@ -48,35 +48,51 @@ export function SiteNotice() {
           <strong>Nothing stored:</strong> Your report — the words, the place, the photos, your
           contact details — passes through this site on its way to the city. It is held only long
           enough to pass it on, and then it is gone. There is no database here, and no log here
-          holds your photos, your contact details, your address, or the place your photo
-          carries. One thing is kept, and only when a report fails: if the city refuses your
-          report, this site writes down the city's own answer, so the fault can be found and
-          fixed. That answer can repeat the short title the city was given, and that title is
-          built from the first part of what you wrote. A report that goes through leaves none
-          of it. The city holds your report
-          under its own terms, and gives you a reference number. Keep that number: because nothing
-          stays here, it is your only record, and it is how you follow up with the city.
+          holds your photos, your contact details, your address, or the place your photo carries.
+          The city holds your report under its own terms, and gives you a reference number. Keep
+          that number: because nothing stays here, it is your only record, and it is how you follow
+          up with the city.
+        </p>
+        {/*
+          Its own paragraph, and directly under the one it qualifies. This used
+          to sit inside "Nothing stored", which left a reporter reading that
+          heading over a run of sentences about what is written down — and the
+          part that can carry a little of their own words arrived last, in a
+          paragraph they had been told was about nothing being kept. An
+          exception to a promise is not a detail of the promise.
+        */}
+        <p>
+          <strong>What is written down:</strong> Every report leaves one line here. It says what
+          kind of problem it was, how many photos, how big they were, how long the city took, and
+          the reference number. None of that is your words, your place, or your photos. When
+          something goes wrong, that same line also carries the city's own answer, so the fault can
+          be found and fixed. That answer can repeat the short title the city was given, and that
+          title is built from the first part of what you wrote. That happens if the city refuses
+          your report, or takes it but does not attach your photos. When it does, this site also
+          tells the people who look after it, through a service run by somebody else. That message
+          carries no part of your report — not your words, not the city's answer, only that a report
+          failed and when.
         </p>
         <p>
           <strong>What you are still writing:</strong> While you write a report, the words you have
           typed are kept in your own browser, on your own phone, so that leaving for your camera
           app does not lose them. They are not sent anywhere, and they are not kept here. Your
-          photos are not kept at this stage. What you typed goes when you send the report, and it
-          goes when you close this tab.
+          photos are not kept at this stage. What you typed is deleted when you send the
+          report, and when you close this tab.
         </p>
         <p>
-          <strong>A draft you save on your phone:</strong> You can save a report as a draft on
-          your phone whenever you like — there is a button under <strong>Send report</strong>. This
-          site also offers it when sending fails, and the city's site can fail for hours at a time.
-          Nothing is saved unless you tap the button yourself. A draft is the whole report — the
-          words, the place, and the photos — in your own browser, on your own phone. It is not sent
-          anywhere, and this site never sees it. Unlike what you are still writing, it survives
-          closing the tab and restarting the phone, and it stays until you send it or delete it.
-          You will find it under "My reports", marked as a draft. Two things to know before you
-          save one. Anyone else who uses this browser on this phone can open it and see your
-          photos, so do not save a draft on a phone you have borrowed or lent. And a phone short of storage can throw it
-          away without asking, so a saved draft is not a promise. Delete it when you no longer
-          need it.
+          <strong>A draft you save on your phone:</strong> Once you have attached a photo, you can
+          save the report as a draft on your phone — there is a button under <strong>Send
+          report</strong>. This site also offers it when sending fails, and the city's site can fail
+          for hours at a time. Nothing is saved unless you tap the button yourself. A draft is the
+          whole report — the words, the place, and the photos — in your own browser, on
+          your own phone. It is not sent anywhere, and this site never sees it. Unlike what you are
+          still writing, it survives closing the tab and restarting the phone, and it stays until
+          you send it or delete it. You will find it under "My reports", marked as a draft. Two
+          things to know before you save one. Anyone else who uses this browser on this phone can
+          open it and see your photos, so do not save a draft on a phone you have borrowed or lent.
+          And a phone short of storage can throw it away without asking, so a saved draft is not a
+          promise. Delete it when you no longer need it.
         </p>
         <p>
           <strong>Your reports, kept on this phone:</strong> Under "My reports" you can tap{' '}
@@ -85,12 +101,12 @@ export function SiteNotice() {
           gets. Keeping the list means it opens at once, and this site checks with the city for
           anything new once a day. Nothing is kept unless you tap that button. What is kept is
           what you wrote, where each report was filed, its status, and links to your photos on
-          the city's site — the photos themselves stay with the city, so they will not show
-          without a signal. It stays in this browser until you tap{' '}
+          the city's site. The photos themselves stay with the city, so they show only when you have
+          a signal and are signed in. It stays in this browser until you tap{' '}
           <strong>Stop keeping my reports on this phone</strong>, which deletes it. Two things to
           know. Anyone else who uses this browser on this phone can read your reports, so do not
           turn this on for a phone you have borrowed or lent. And a phone short of storage can
-          throw it away without asking; if that happens the list simply comes from the city
+          throw it away without asking; if that happens the list comes from the city
           again, and you lose nothing but the speed.
         </p>
         <p>
@@ -102,21 +118,22 @@ export function SiteNotice() {
         </p>
         <p>
           <strong>Your photos:</strong> Photos are made smaller in your browser before they are
-          sent, so uploads are fast. A photo can carry the place and the time it was taken. Only
-          those two things go on to the city. Everything else the camera wrote — its model, its
-          settings, the identifiers it puts on each photograph — is removed before your report
-          leaves this site. Your report is filed at the place your photo carries. If none of your
-          photos carries one, this site asks your phone where it is, and only after you tap the
-          button that says so — your browser asks your permission first. You cannot type an address
-          here, but you can move the pin on the map if it is a street out. To put a street name on
-          your report, your phone sends those coordinates — and nothing else — to OpenStreetMap.
-          OpenStreetMap therefore sees your phone and where it is connected from. The small map is
-          drawn with pictures from OpenStreetMap too, asked for by your phone at the same moment,
-          so it already knew which area you are looking at. Before you have any place at all, that
-          map shows the whole of Davao in grey, which says nothing about where you are.
+          sent, so uploads are fast. A photo can carry the place and the time it was taken. Both go
+          on to the city. So does the rest of that reading: how high, which way the camera pointed,
+          how fast it moved, and how exact it was. Everything else the camera wrote — its model, its
+          settings, the identifiers it puts on each photograph — is removed before
+          your report leaves this site. Your report is filed at the place your photo carries. If
+          none of your photos carries one, this site asks your phone where it is, and only after you
+          tap the button that says so — your browser asks your permission first. You cannot type an
+          address here, but you can move the pin on the map if it is on the wrong street. To put a
+          street name on your report, your phone sends those coordinates — and nothing else — to
+          OpenStreetMap. OpenStreetMap therefore sees your phone and where it is connected from. The
+          small map is drawn with pictures from OpenStreetMap too, asked for by your phone at the
+          same moment, so it already knew which area you are looking at. Before you have any place
+          at all, that map shows the whole of Davao in grey, which says nothing about where you are.
           When OpenStreetMap does not know the street, this site asks Microsoft's Azure Maps
-          instead. That question is sent by this site and not by your phone, so Microsoft never
-          sees your phone or where it is connected from.
+          instead. That question is sent by this site and not by your phone, so Microsoft never sees
+          your phone or where it is connected from.
         </p>
         <p>
           <strong>No promises:</strong> This site can break, go offline, or fail to deliver a

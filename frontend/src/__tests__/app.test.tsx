@@ -1567,7 +1567,7 @@ describe('the disclaimer', () => {
       (b) => b.textContent?.trim() === 'Send report',
     )!
     const terms = send.previousElementSibling!
-    expect(terms.textContent).toContain("Unofficial site, not the city government's")
+    expect(terms.textContent).toContain('Unofficial site, not run by or connected to the city government')
     expect(terms.textContent).toContain("Sending a report means you agree to the city's terms")
     // Nothing to press: this copy is not one a reporter can put away.
     expect(terms.querySelector('.dismiss')).toBeNull()
@@ -1647,14 +1647,29 @@ describe('the disclaimer', () => {
     expect(sheet.textContent).toContain('not run by the city government')
   })
 
-  // The notice and backend/internal/photo have to say the same thing. If
-  // the filter starts keeping something again, this is the sentence that
-  // becomes a lie.
-  it('says a photo carries on only its place and time', () => {
+  // The exception to "nothing stored" is the one part of this notice that
+  // can quietly stop being true: internal/api logs every submit, and the
+  // city's reply — which quotes the title back — joins that line when a
+  // submit goes wrong. If either changes, these sentences are the lie.
+  it('owns up to the log line, and to the alert it sends', () => {
     open()
 
     const sheet = root.querySelector('[role="dialog"]')!
-    expect(sheet.textContent).toContain('Only those two things go on to the city')
+    expect(sheet.textContent).toContain('Every report leaves one line')
+    expect(sheet.textContent).toContain("that same line also carries the city's own answer")
+    expect(sheet.textContent).toContain('built from the first part of what you wrote')
+    expect(sheet.textContent).toContain('through a service run by somebody else')
+    expect(sheet.textContent).toContain('carries no part of your report')
+  })
+
+  // The notice and backend/internal/photo have to say the same thing. If
+  // the filter starts keeping something again, this is the sentence that
+  // becomes a lie.
+  it('says the whole location reading travels, not only the place and the time', () => {
+    open()
+
+    const sheet = root.querySelector('[role="dialog"]')!
+    expect(sheet.textContent).toContain('So does the rest of that reading')
     expect(sheet.textContent).toContain('the identifiers it puts on each photograph — is removed')
   })
 
