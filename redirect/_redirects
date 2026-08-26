@@ -9,4 +9,4 @@
 # :splat keeps the path, so a saved link to a particular page still lands on
 # the same page. 301 rather than 302 because the move is permanent and a
 # browser may remember it.
-/* https://bantaydabaw.pages.dev/:splat 301
+/* https://bantaydabaw.org/:splat 301

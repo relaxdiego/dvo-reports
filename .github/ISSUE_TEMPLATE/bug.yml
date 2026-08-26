@@ -35,7 +35,7 @@ body:
     attributes:
       label: Where
       options:
-        - Production (bantaydabaw.pages.dev)
+        - Production (bantaydabaw.org)
         - Staging (staging.bantaydabaw.pages.dev)
         - A local checkout
         - Not sure

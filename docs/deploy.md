@@ -4,23 +4,26 @@ Two pieces, deployed separately, in two environments.
 
 | Environment | Frontend                          | Backend                                  |
 | ----------- | --------------------------------- | ---------------------------------------- |
-| Production  | `bantaydabaw.pages.dev`           | `dvo-reports-api.fly.dev`                |
+| Production  | `bantaydabaw.org`                 | `dvo-reports-api.fly.dev`                |
 | Staging     | `staging.bantaydabaw.pages.dev`   | `dvo-reports-api-staging.fly.dev`        |
 
-**These are the platforms' own URLs, and that is on purpose.** There is no
-custom domain: buying one before anybody uses the site is money spent on a
-guess, so that waits until the site has been used by the people it is for.
-The app's own name is settled — Bantay Dabaw — and a Pages project name
-cannot be changed after it is created, which is why the rename needed a
-second project rather than an edit. Setting a domain up is written out under
-"One-time setup" below, and tracked as an open issue. `ALLOWED_ORIGINS` in
-`backend/fly.*.toml` names the URLs above, so it moves in the same step as
-the domains and not before.
+**Production has a custom domain and staging deliberately does not.**
+`bantaydabaw.org` is the address citizens are given, bare — no `www`, because
+it is a name people say out loud and write on a poster. `www.bantaydabaw.org`
+and the whole of `bantaydabaw.com` are 301s onto it, so a person who guesses
+either still lands on the site. Staging keeps a `pages.dev` URL: it is for
+testers, and a test copy answering on the address citizens are told to use is
+a mistake waiting to be made. Everything else here is the platforms' own URL.
+
+`bantaydabaw.pages.dev` did not go away — a custom domain is a second name for
+the same production branch, both serve the same bytes, and links to the alias
+are in other people's hands. That is why `ALLOWED_ORIGINS` in
+`backend/fly.production.toml` names both.
 
 **The old address still answers.** `dvo-reports.pages.dev` was the site's
 name before the rename, and links to it are in other people's hands. Its
 Pages project is kept and now serves one file — `redirect/_redirects`, a 301
-carrying the path across to the new address. It is published by
+carrying the path across to `bantaydabaw.org`. It is published by
 `.github/workflows/redirect.yml`, by hand, and through the same reviewer gate
 as production. **Do not delete that project.** Deleting it hands
 `dvo-reports.pages.dev` to whoever registers it next, and what those links
@@ -170,29 +173,38 @@ it cannot reach citizens.
    page and the Cloudflare branch cannot disagree — it is not a variable to
    add. Any copy not named `production` shows a bar naming the environment.
 
-4. **Custom domains — not done, not decided, and deliberately deferred.**
-   Everything in this step is still ahead of the project, including picking
-   the names; the site runs on the Pages URLs until then. A branch alias only
-   exists once that branch has deployed at least once, so this comes after
-   both branches have deployed.
+4. **Custom domain**, done once, for production only. `bantaydabaw.org` and
+   `bantaydabaw.com` are both registered in Cloudflare. A custom domain can
+   only be attached to a branch that has already deployed, so this comes after
+   the first production deploy.
 
-   The production name is the project's production domain: add it under
-   *Custom domains* in the Pages project and let Cloudflare create the record.
+   **The backend has to allow the new origin before the domain answers.**
+   `ALLOWED_ORIGINS` in `backend/fly.production.toml` is an exact-match list.
+   The browser starts sending the new origin the moment the domain resolves,
+   and an origin that is not on that list fails *every* submission with a
+   CORS error — the reporter fills the form in, attaches photographs, presses
+   send, and it fails. So the order is: land the `ALLOWED_ORIGINS` change,
+   approve its production deploy, and only then add the domain.
 
-   The staging name points at a branch, which takes an extra step. Add it as a
-   custom domain the same way, then open DNS for its zone, find the `CNAME`
-   record Cloudflare created, and change its target from
-   `bantaydabaw.pages.dev` to `staging.bantaydabaw.pages.dev`.
+   Then, in the `bantaydabaw` Pages project, under *Custom domains*, add
+   `bantaydabaw.org` and let Cloudflare create the record. Add
+   `www.bantaydabaw.org` the same way if a redirect rule is not doing it.
 
-   **The record must stay proxied** (orange cloud). Cloudflare's docs are
-   explicit: with an unproxied record, or DNS hosted elsewhere, the custom
-   alias is served the *production* branch instead. That failure is silent —
-   staging would quietly show production.
+   `bantaydabaw.com` carries no site. Give its zone a proxied placeholder
+   record on the apex and a redirect rule sending `*` to
+   `https://bantaydabaw.org/${path}` with a 301 — a redirect rule only runs on
+   a hostname whose traffic goes through Cloudflare, which is what the
+   placeholder buys.
 
-   **Change `ALLOWED_ORIGINS` in the same step.** Both `backend/fly.*.toml`
-   name the Pages URLs today. The browser sends the new origin the moment a
-   domain answers, and an origin that is not on the list fails every
-   submission with a CORS error, so the two have to move together.
+   **Any record Cloudflare creates here stays proxied** (orange cloud).
+   Cloudflare's docs are explicit: with an unproxied record, or DNS hosted
+   elsewhere, a custom domain is served the *production* branch whatever
+   branch it was attached to. That failure is silent.
+
+   **Staging is not given a domain**, on purpose — see the note at the top of
+   this file. If that is ever revisited, a staging name needs one extra step:
+   add it as a custom domain, then edit the `CNAME` Cloudflare created to
+   point at `staging.bantaydabaw.pages.dev` rather than the production alias.
 
 The `production` environment requires a reviewer, so every deploy to it
 waits for an approval on the run. That is deliberate: it is the only thing

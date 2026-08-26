@@ -9,7 +9,7 @@ name: ci
 # is named after the environment:
 #
 #   staging     -> staging.bantaydabaw.pages.dev
-#   production  -> bantaydabaw.pages.dev
+#   production  -> bantaydabaw.pages.dev, which bantaydabaw.org names
 #
 # The backend is a container on Fly, one app per environment, named in
 # backend/fly.<environment>.toml.
