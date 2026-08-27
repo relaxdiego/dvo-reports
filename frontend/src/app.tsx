@@ -1322,9 +1322,8 @@ function CityReports({
         A moving light rather than a word, because it sits above a list the
         reporter came here to read: a sentence there is read once and then in
         the way, while something moving is understood without being read at
-        all. The words are still under the list, for whoever wants them. The
-        light goes across and comes back — there is no percentage to show,
-        since the city's site answers when it answers.
+        all. The light goes across and comes back — there is no percentage to
+        show, since the city's site answers when it answers.
 
         The sentence inside it is for a screen reader, which has no light to
         see. This is the only live region of the two, so it is heard once.
@@ -1444,10 +1443,10 @@ function KeepList({
         is already the city's newest, and a link offering to go and get it
         again is a control with nothing behind it.
 
-        While a refresh is running the line says so instead: there is no
-        button to grey out, and a link that answered with nothing visible is
-        a link pressed twice. The same words sit at the top of the list, for
-        the reporter who cannot see the foot of it.
+        While a refresh is running the light runs in the line instead: there
+        is no button to grey out, and a link that answered with nothing
+        visible is a link pressed twice. The same light is at the top of the
+        list, for the reporter who cannot see the foot of it.
       */}
       {keeping && dueAt !== undefined && (
         <p class="meta">
@@ -1496,11 +1495,14 @@ function useEndOfList(onReach: () => void, armed: boolean) {
  * that wide reads as the thing to press on a screen whose whole point is the
  * list above it — a reporter refreshing a list they had only just been given.
  *
- * Nothing is left to grey out while it runs, so the words go instead, in
- * the line the link sat in — and at the top of the list, in the same words.
+ * Nothing is left to grey out while it runs, so the light that is drawn at
+ * the top of the list is drawn here too, in the line the link sat in. The
+ * same picture in both places is one thing happening, where a picture above
+ * and a sentence below read as two. The words are said once, by the copy at
+ * the top, which is the live region; this one is a picture and nothing else.
  */
 function RefreshNow({ onClick, refreshing }: { onClick: () => void; refreshing: boolean }) {
-  if (refreshing) return <>Checking with the city…</>
+  if (refreshing) return <span class="sweep" aria-hidden="true" />
   return (
     <button class="linky" type="button" onClick={onClick}>
       Refresh now

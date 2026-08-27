@@ -963,17 +963,23 @@ button.primary.waiting .spinner {
    than to the picture it was copied from. */
 .sweep {
   --lamp: 14px; /* one dot and its share of the gap */
+  display: block;
   position: relative;
   height: 14px;
-  margin: 0 0 0.75rem;
+  margin: 0.15rem 0 0.7rem;
 }
 
+/* `space` rather than `repeat-x`, and a little room at each end. Repeating
+   lays whole tiles from the middle outwards and cuts whichever one runs off
+   the end, so the first dot and the last were sliced down their side; `space`
+   fits whole tiles only and shares the remainder out between them. The inset
+   is for the lit dot's halo, which is wider than its own tile. */
 .sweep::before,
 .sweep::after {
   content: '';
   position: absolute;
-  inset: 0;
-  background-repeat: repeat-x;
+  inset: 0 6px;
+  background-repeat: space no-repeat;
   background-position: center;
   background-size: var(--lamp) 100%;
 }
@@ -995,14 +1001,15 @@ button.primary.waiting .spinner {
   mask-size: 45% 100%;
   -webkit-mask-repeat: no-repeat;
   mask-repeat: no-repeat;
-  animation: sweep 2.8s ease-in-out infinite alternate;
+  /* Quick at the turns. An ease-in-out slowed the light to a stop at each
+     end, and a wait that stops moving reads as a wait that has stopped. */
+  animation: sweep 1.6s cubic-bezier(0.3, 0.6, 0.7, 0.4) infinite alternate;
 }
 
 /* Far enough for the light to reach the first dot and the last one. A
    percentage here positions the mask's box inside the run rather than its
    centre, so 0% and 100% would turn it round well short of both ends.
-   `alternate` and `ease-in-out` are what make it slow and turn at each end
-   rather than jumping back to the start. */
+   `alternate` is what brings it back rather than jumping to the start. */
 @keyframes sweep {
   from {
     -webkit-mask-position: -45% center;
