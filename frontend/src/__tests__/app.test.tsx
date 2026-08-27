@@ -2595,6 +2595,30 @@ describe('keeping the list on this phone', () => {
   })
 
   /*
+    The reporter who has just filed a report opens this tab to find it, and
+    what they get is yesterday's list with the refresh running behind it. The
+    foot of the list, where the refresh is otherwise said, is off the screen.
+  */
+  it('says at the top of the list that a background refresh is running', async () => {
+    await onThePhone(listOf(3), Date.now() - 2 * 24 * 60 * 60 * 1000)
+    vi.stubGlobal('fetch', vi.fn<typeof fetch>(async (input) => {
+      if (!String(input).endsWith('/api/reports')) return new Response('{}', { status: 200 })
+      // Held open, so the refresh is still running when this is read.
+      return new Promise<Response>(() => {})
+    }))
+
+    act(() => render(<App />, root))
+    click('My reports')
+    await settle()
+
+    const saying = root.querySelector('[role="status"]')
+    expect(saying?.textContent).toContain('Checking with the city')
+    // Above the list, not under it.
+    const list = root.querySelector('ul.reports')!
+    expect(saying!.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  /*
     A report just filed is not in the copy on the phone, and that copy is a
     day fresh — so without this the reporter opens their reports and does not
     find the one they just sent, until tomorrow.

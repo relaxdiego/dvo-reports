@@ -1280,6 +1280,8 @@ function CityReports({
   const more = useCallback(() => setShowing((n) => n + PAGE), [])
   const sentinel = useEndOfList(more, showing < matching.length)
 
+  const refreshing = past.at === 'ready' && past.refreshing === true
+
   if (past.at === 'loading') return <Loading step={past.step} />
   if (past.at === 'error') {
     return (
@@ -1309,6 +1311,20 @@ function CityReports({
 
   return (
     <>
+      {/*
+        A refresh running behind the list, said at the top as well as in the
+        line under it. The foot of a list this long is off the screen, and
+        the reporter most likely to be looking at a list being refreshed is
+        the one who has just filed a report and come here to find it: without
+        a word at the top, the list they are reading is one their report is
+        missing from, for no reason they can see.
+
+        The same words as the line below, because it is the same fact. It is
+        the only live region of the two, so a screen reader hears it once.
+      */}
+      {refreshing && (
+        <p class="meta" role="status">Checking with the city…</p>
+      )}
       <div class="searchbox">
         <input
           ref={box}
@@ -1419,9 +1435,10 @@ function KeepList({
         is already the city's newest, and a link offering to go and get it
         again is a control with nothing behind it.
 
-        While a refresh is running the line says so instead: it is the only
-        sign there is, now that there is no button to grey out, and a link
-        that answered with nothing visible is a link pressed twice.
+        While a refresh is running the line says so instead: there is no
+        button to grey out, and a link that answered with nothing visible is
+        a link pressed twice. The same words sit at the top of the list, for
+        the reporter who cannot see the foot of it.
       */}
       {keeping && dueAt !== undefined && (
         <p class="meta">
@@ -1470,8 +1487,8 @@ function useEndOfList(onReach: () => void, armed: boolean) {
  * that wide reads as the thing to press on a screen whose whole point is the
  * list above it — a reporter refreshing a list they had only just been given.
  *
- * Nothing is left to grey out while it runs, so the words go instead: the
- * line the link sat in is the only place the wait can be said.
+ * Nothing is left to grey out while it runs, so the words go instead, in
+ * the line the link sat in — and at the top of the list, in the same words.
  */
 function RefreshNow({ onClick, refreshing }: { onClick: () => void; refreshing: boolean }) {
   if (refreshing) return <>Checking with the city…</>
