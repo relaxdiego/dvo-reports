@@ -1624,6 +1624,13 @@ function FiledReport({ report, withSession }: { report: Filed; withSession: With
           <p>{report.description}</p>
           {report.location && <p class="hint">Where: {report.location}</p>}
           {report.photos && report.photos.length > 0 && <ReportPhotos srcs={report.photos} />}
+          {/*
+            Named the moment the card opens, before there is anything under
+            it. What the city has done to a report arrives a second after the
+            report itself, and until it does the foot of the card was a wait
+            with nothing saying what was being waited for.
+          */}
+          <h4 class="historyhead">History</h4>
           {error && !hidden && <ErrorMessage onDismiss={() => setHidden(true)}>{error}</ErrorMessage>}
           {declined && (
             <p class="hint">
@@ -1633,10 +1640,15 @@ function FiledReport({ report, withSession }: { report: Filed; withSession: With
               </button>
             </p>
           )}
+          {/*
+            The same light the list turns while it is being refreshed, rather
+            than a ring and a sentence. One picture for one kind of wait, and
+            the heading above it already says what is coming; the sentence is
+            left for a screen reader, which has no light to see.
+          */}
           {!history && !error && !declined && (
-            <p class="hint waiting" role="status">
-              <span class="spinner" aria-hidden="true" />
-              Reading what happened…
+            <p class="sweep" role="status">
+              <span>Reading what happened…</span>
             </p>
           )}
           {history && <Progress history={history} />}

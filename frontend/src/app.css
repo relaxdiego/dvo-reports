@@ -627,6 +627,24 @@ h2 {
   margin: 0.6rem 0 0;
 }
 
+/* Over what the city has done to the report, and drawn from the moment the
+   card opens rather than when the answer lands. Small: it labels a part of a
+   card, and the card's own title is already above it. */
+.historyhead {
+  font-size: 0.9rem;
+  margin: 0.9rem 0 0.4rem;
+}
+
+/* The waiting light under that heading. It is the same light the list turns
+   while it is being refreshed, in a box a good deal narrower, so it is held
+   to the card's own width — the run of lamps fits whole tiles only and the
+   inset at each end leaves room for the lit one's halo, so nothing of it
+   reaches the card's border. The margins are the heading's job here, and the
+   one underneath is small because the card's own padding follows it. */
+.reportbody .sweep {
+  margin: 0 0 0.15rem;
+}
+
 .steps {
   margin: 0.75rem 0 0;
   padding-left: 1.1rem;

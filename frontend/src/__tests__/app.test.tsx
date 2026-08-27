@@ -489,8 +489,9 @@ describe('opening one report', () => {
   }
 
   // A line of text alone reads as a page that has stopped working. The list
-  // already turns a spinner while it waits; so does this.
-  it('turns a spinner while the city is asked what happened', async () => {
+  // draws a light travelling along a run of lamps while it waits; so does
+  // this, under a heading that says what is being waited for.
+  it('draws the waiting light while the city is asked what happened', async () => {
     localStorage.setItem('dvo-reports.session', JSON.stringify({ token: 'tk-1' }))
     vi.stubGlobal(
       'fetch',
@@ -509,16 +510,18 @@ describe('opening one report', () => {
     act(() => root.querySelector<HTMLButtonElement>('.reporthead')!.click())
     await settle()
 
-    const waiting = root.querySelector('.reportbody [role="status"]')
+    const body = root.querySelector('.reportbody')!
+    expect(body.querySelector('.historyhead')?.textContent).toBe('History')
+    const waiting = body.querySelector('[role="status"]')
+    expect(waiting?.classList.contains('sweep')).toBe(true)
     expect(waiting?.textContent).toContain('Reading what happened')
-    expect(waiting?.querySelector('.spinner')).not.toBeNull()
   })
 
   /*
     The list can be read off the phone while the city's token is dead, so
     opening a report is the first thing to meet the sign-in. Closing that
     sheet is not a failure and there is nothing to apologise for — but the
-    spinner has to stop, because nothing is left running that could ever
+    light has to stop, because nothing is left running that could ever
     end it, and a report stuck on "Reading what happened…" reads as an app
     that has hung.
   */
@@ -547,7 +550,7 @@ describe('opening one report', () => {
 
     const body = root.querySelector('.reportbody')!
     expect(body.textContent).not.toContain('Reading what happened')
-    expect(body.querySelector('.spinner')).toBeNull()
+    expect(body.querySelector('.sweep')).toBeNull()
     expect(body.textContent).toContain('a code from the city')
 
     // And the way back: the same question, asked again.
