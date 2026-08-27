@@ -947,6 +947,95 @@ button.primary.waiting .spinner {
   }
 }
 
+/* A wait with no end in sight, drawn rather than written: a run of lamps
+   with a light passing along them and back.
+
+   Back as well as along, deliberately. The city's site answers when it
+   answers and there is no percentage to show, so a light that only ever
+   travelled left to right would be claiming a progress nobody can measure.
+
+   It is two copies of the same run of dots, one dim and one lit, with the
+   lit one shown only where the light is. Moving a mask rather than the dots
+   keeps them still: what travels is the light, not the lamps. The dim run
+   stays whole underneath, so the wait has a shape even at the ends of the
+   sweep. In the page's own colours — the accent for the light, the rule
+   colour for what it has not reached — so it belongs to this site rather
+   than to the picture it was copied from. */
+.sweep {
+  --lamp: 14px; /* one dot and its share of the gap */
+  position: relative;
+  height: 14px;
+  margin: 0 0 0.75rem;
+}
+
+.sweep::before,
+.sweep::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-repeat: repeat-x;
+  background-position: center;
+  background-size: var(--lamp) 100%;
+}
+
+.sweep::before {
+  background-image: radial-gradient(circle at center, var(--line) 0 2px, transparent 2.5px);
+}
+
+.sweep::after {
+  background-image: radial-gradient(
+    circle at center,
+    var(--accent) 0 3px,
+    color-mix(in srgb, var(--accent) 30%, transparent) 4px,
+    transparent 6.5px
+  );
+  -webkit-mask-image: radial-gradient(circle at center, #000 10%, transparent 70%);
+  mask-image: radial-gradient(circle at center, #000 10%, transparent 70%);
+  -webkit-mask-size: 45% 100%;
+  mask-size: 45% 100%;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  animation: sweep 2.8s ease-in-out infinite alternate;
+}
+
+/* Far enough for the light to reach the first dot and the last one. A
+   percentage here positions the mask's box inside the run rather than its
+   centre, so 0% and 100% would turn it round well short of both ends.
+   `alternate` and `ease-in-out` are what make it slow and turn at each end
+   rather than jumping back to the start. */
+@keyframes sweep {
+  from {
+    -webkit-mask-position: -45% center;
+    mask-position: -45% center;
+  }
+
+  to {
+    -webkit-mask-position: 145% center;
+    mask-position: 145% center;
+  }
+}
+
+/* The sentence a screen reader is given in place of the light. */
+.sweep span {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Asked for less motion: the whole run breathes where the light travelled,
+   using the same `pulse` the spinner falls back to. Nothing crosses the
+   screen, and the wait is still visible. */
+@media (prefers-reduced-motion: reduce) {
+  .sweep::after {
+    -webkit-mask-image: none;
+    mask-image: none;
+    animation: pulse 1.6s ease-in-out infinite;
+  }
+}
+
 /* A button that reads as a link. The city's terms are not a page anywhere,
    so what opens them cannot be an anchor, but it should not look like a
    control the reporter has to act on either. */

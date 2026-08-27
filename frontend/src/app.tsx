@@ -1312,18 +1312,27 @@ function CityReports({
   return (
     <>
       {/*
-        A refresh running behind the list, said at the top as well as in the
-        line under it. The foot of a list this long is off the screen, and
-        the reporter most likely to be looking at a list being refreshed is
-        the one who has just filed a report and come here to find it: without
-        a word at the top, the list they are reading is one their report is
-        missing from, for no reason they can see.
+        A refresh running behind the list, shown at the top as well as said
+        in the line under it. The foot of a list this long is off the screen,
+        and the reporter most likely to be looking at a list being refreshed
+        is the one who has just filed a report and come here to find it:
+        without something at the top, the list they are reading is one their
+        report is missing from, for no reason they can see.
 
-        The same words as the line below, because it is the same fact. It is
-        the only live region of the two, so a screen reader hears it once.
+        A moving light rather than a word, because it sits above a list the
+        reporter came here to read: a sentence there is read once and then in
+        the way, while something moving is understood without being read at
+        all. The words are still under the list, for whoever wants them. The
+        light goes across and comes back — there is no percentage to show,
+        since the city's site answers when it answers.
+
+        The sentence inside it is for a screen reader, which has no light to
+        see. This is the only live region of the two, so it is heard once.
       */}
       {refreshing && (
-        <p class="meta" role="status">Checking with the city…</p>
+        <p class="sweep" role="status">
+          <span>Checking with the city…</span>
+        </p>
       )}
       <div class="searchbox">
         <input
