@@ -855,10 +855,9 @@ describe('choosing what the problem is', () => {
 })
 
 /*
-  The site sends a reporter out to their camera app, because a photograph is
-  the only thing that can say where the problem is. A phone short of memory
-  throws this page away while they are gone, and what they had typed used to
-  go with it.
+  The site sends a reporter out of the page for a photograph, because a
+  report is a photograph of a problem. A phone short of memory throws this
+  page away while they are gone, and what they had typed used to go with it.
 */
 describe('a half-written report', () => {
   function typeInto(text: string) {
@@ -884,9 +883,8 @@ describe('a half-written report', () => {
     expect(root.querySelector('[aria-pressed="true"]')?.textContent).toContain('Garbage')
   })
 
-  // The photos are not kept, and do not need to be: one is only let in if it
-  // carries its own place, so it was taken in the camera app and is in the
-  // reporter's library still.
+  // The photos are not kept: a photograph of a real place does not belong in
+  // a browser's storage, and picking one again is a few taps. See draft.ts.
   it('does not keep the photos', async () => {
     await attachPhotos(jpegPhoto())
     expect(root.querySelectorAll('.photorow')).toHaveLength(1)
@@ -1000,16 +998,16 @@ describe('the photo field', () => {
     expect(root.querySelector('.photorow')?.textContent).toContain('No place recorded.')
   })
 
-  // The hint before the first photo asks for a camera-app photo rather than
-  // requiring one: that place is the problem's own, and it saves the reporter
-  // the second step below.
-  it('still asks for a camera-app photo before the first one', async () => {
+  // The hint before the first photo says what the field needs and nothing
+  // about how to take it. Where the report is filed is the location field's
+  // business, and a photo with no place of its own is an ordinary photo.
+  it('asks for a photo before the first one, and not after', async () => {
     act(() => render(<App />, root))
-    expect(root.textContent).toContain('Take the photo with your camera app first')
+    expect(root.textContent).toContain('Add at least one photo')
 
     await attach(jpegPhoto({ gps: false }))
-    // Said once. By the second photo they have done it and know how.
-    expect(root.textContent).not.toContain('Take the photo with your camera app first')
+    // Said once. By the second photo they have answered it.
+    expect(root.textContent).not.toContain('Add at least one photo')
   })
 
   // A pick of several, none of which carries a place, is now an ordinary pick.

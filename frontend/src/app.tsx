@@ -598,11 +598,10 @@ function ReportTab({
   onFiled: () => void
 }) {
   /*
-    Started from whatever was being written in this tab before. A reporter is
-    sent to their camera app to get a photograph with a place in it, and a
-    phone short of memory throws this page away while they are gone. See
-    draft.ts: the words come back, the photos do not, because the photos are
-    still in their library.
+    Started from whatever was being written in this tab before. A reporter
+    leaves the page to get a photograph, and a phone short of memory throws
+    this page away while they are gone. See draft.ts: the words come back,
+    the photos do not.
   */
   const [draft, setDraft] = useState<Draft>(() =>
     resumed ? draftOf(resumed) : { ...emptyDraft, ...savedDraft() },
@@ -2509,21 +2508,21 @@ function PhotoField({
       {photos.length < MAX_PHOTOS && (
         <>
           {/*
-            Said before the picker opens rather than after, and only for the
-            first photo: by the second they have done it once and know how.
+            What the field needs, said before the picker opens rather than
+            after, and only for the first photo: by the second the reporter
+            has answered it.
 
-            It asks rather than requires. A photo taken in the camera app
-            carries the place it was taken, and that place is the problem's
-            own — better than the one the reporter's phone gives afterwards,
-            which is only where they happen to be standing. A photo without
-            one is still accepted; it just leaves the field below with a
-            question to ask.
+            Nothing here about how to take the photograph. This used to ask
+            for one from the camera app, from the days when a photo was
+            turned away unless it carried a place — the advice was really
+            about where the report would be filed, which is the location
+            field's business, and that field asks in its own words at the
+            moment it has something to ask about. A photo out of the library
+            is an ordinary photo now, and a reporter holding one should not
+            be reading an instruction they cannot follow.
           */}
           {photos.length === 0 && (
-            <p class="hint">
-              Take the photo with your camera app first, then add it here. A photo taken that way
-              carries the place it was taken, and the report is filed there.
-            </p>
+            <p class="hint">Add at least one photo of the problem.</p>
           )}
           <input
             ref={input}

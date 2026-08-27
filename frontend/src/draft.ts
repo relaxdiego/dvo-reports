@@ -2,16 +2,20 @@
  * The half-written report, kept in this tab so an app switch does not lose
  * it.
  *
- * A reporter is told to leave for their camera app — the site cannot get a
- * photograph's place any other way. A phone short of memory throws the page
- * away while they are gone and reloads it when they come back, and what they
- * had typed went with it. This keeps the words.
+ * A reporter leaves the page to get a photograph — to the camera, or to the
+ * library. A phone short of memory throws the page away while they are gone
+ * and reloads it when they come back, and what they had typed went with it.
+ * This keeps the words.
  *
- * Only the words. The photographs are not kept, and do not need to be: a
- * photo is let in only if it carries its own place, which means it was taken
- * in the camera app, which means it is in the reporter's own library still.
- * Picking it again costs two taps. Writing photographs of a real place into
- * a browser's storage costs more than that.
+ * Only the words. Writing photographs of a real place into a browser's
+ * storage costs more than picking one again does, and picking one again is a
+ * few taps, because it is still wherever the reporter got it. This used to
+ * rest on something narrower — a photo was let in only if it carried its own
+ * place, so it had to have come from the camera app and had to be in the
+ * library still. That rule is gone and a photo from anywhere is accepted
+ * now; the reason for not keeping them never depended on it. A reporter who
+ * needs the photographs themselves to survive has `saved.ts`, which keeps
+ * the whole report and only when they ask for it.
  *
  * `sessionStorage`, not `localStorage`: it belongs to this tab, a phone
  * hands it back when it restores the tab it discarded, and it is gone when
