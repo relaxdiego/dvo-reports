@@ -620,6 +620,9 @@ describe('opening one report', () => {
     expect(steps[0].textContent).toContain('ENCODED')
     expect(steps[0].querySelector('.hint')!.textContent).toContain('Added to the city')
     expect(steps[1].querySelector('.hint')!.textContent).toContain('Sent to the office')
+    // It lands a second or two after the card opened, on a reporter already
+    // reading the report itself, so it arrives washed in colour.
+    expect(root.querySelector('.reportbody .landed .steps')).not.toBeNull()
   })
 
   // The same as the photos on the form: a thumbnail is a square crop, and the
@@ -2424,6 +2427,37 @@ describe('keeping the list on this phone', () => {
     // The city's answer replaced it, and no spinner stood in for the wait.
     expect(root.textContent).toContain('Report number 1')
     expect(root.textContent).not.toContain('Loading past reports')
+  })
+
+  /*
+    A list replaced under the reporter changed in silence: the light at the
+    top stops, and everything below it is either the same words or different
+    ones, with nothing saying which. The wash is the whole of that answer,
+    and it fades, so a list being read is not left marked up.
+  */
+  it('washes the list when the city\u2019s newest arrives behind the reporter', async () => {
+    await onThePhone(KEPT, Date.now() - 25 * 60 * 60 * 1000)
+    vi.stubGlobal('fetch', cityAnswering())
+
+    act(() => render(<App />, root))
+    click('My reports')
+    await settle()
+
+    expect(root.querySelector('.reports')!.classList.contains('landed')).toBe(true)
+  })
+
+  // Only what arrived behind them. A list they have just asked for arrived
+  // on a screen that was waiting for it, and marking that up says a change
+  // happened where none did.
+  it('does not wash the first list', async () => {
+    await onThePhone(KEPT, Date.now() - 60_000)
+    vi.stubGlobal('fetch', cityAnswering())
+
+    act(() => render(<App />, root))
+    click('My reports')
+    await settle()
+
+    expect(root.querySelector('.reports')!.classList.contains('landed')).toBe(false)
   })
 
   // A refresh behind a list must not replace it with a red sentence.

@@ -6,6 +6,8 @@
   --accent: #0b5fff;
   --accent-fg: #ffffff;
   --danger: #b3261e;
+  /* The wash over something that has just been loaded behind the reporter. */
+  --fresh: #fdf1c4;
   --radius: 10px;
 
   color-scheme: light dark;
@@ -23,6 +25,7 @@
     --accent: #8098c2;
     --accent-fg: #1f1d1d;
     --danger: #bd7570;
+    --fresh: #453c1e;
   }
 }
 

@@ -627,6 +627,36 @@ h2 {
   margin: 0.6rem 0 0;
 }
 
+/* Something that has just been loaded behind the reporter: a wash of yellow
+   over it that fades out.
+
+   It is for the two things that arrive after the screen they belong to —
+   the list being replaced by the city's newest, and what the city has done
+   to a report, which lands a moment after the card is opened. Both used to
+   appear with nothing to mark them, and a list that changes silently while
+   it is being read is a list the reporter has to re-read to trust.
+
+   The shadow is the wash again, spread a few pixels: it puts the colour
+   just outside the box rather than stopping hard at the text, and it is
+   drawn rather than laid out, so nothing on the page moves for it. Only
+   `from` is written, so both fade to what the rule already says — no colour
+   at all — and the animation runs once, on the element that arrived.
+
+   A new element animates on its own the moment a browser draws it, which is
+   the whole of the history's case; the list is a class put on and taken off
+   again, because its rows outlive the refresh. */
+.landed {
+  border-radius: var(--radius);
+  animation: land 1.2s ease-out;
+}
+
+@keyframes land {
+  from {
+    background-color: var(--fresh);
+    box-shadow: 0 0 0 5px var(--fresh);
+  }
+}
+
 /* Over what the city has done to the report, and drawn from the moment the
    card opens rather than when the answer lands. Small: it labels a part of a
    card, and the card's own title is already above it. */

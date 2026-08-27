@@ -119,7 +119,22 @@ type Past =
    * that is still good, which is why it lives here rather than replacing the
    * whole state.
    */
-  | { at: 'ready'; reports: Filed[]; dueAt?: number; refreshing?: boolean; error?: string }
+  | {
+      at: 'ready'
+      reports: Filed[]
+      dueAt?: number
+      refreshing?: boolean
+      error?: string
+      /**
+       * When the city's own answer replaced this list, and only ever set by
+       * a refresh — a list the reporter has just asked for arrived on a
+       * screen that was waiting for it. It is what the wash of colour over
+       * the list is drawn from, so the decision lives here, where the
+       * difference between the two is known, rather than in the component,
+       * which sees one list follow another either way.
+       */
+      landedAt?: number
+    }
   /** The reporter closed the sign-in. Do not keep asking. */
   | { at: 'declined' }
   | { at: 'error'; error: string }
@@ -285,7 +300,11 @@ export function App() {
           setPast((p) => (p.at === 'ready' ? { ...p, refreshing: false } : { at: 'declined' }))
           return
         }
-        setPast({ at: 'ready', reports: newestFirst(list) })
+        setPast({
+          at: 'ready',
+          reports: newestFirst(list),
+          landedAt: how === 'open' ? undefined : Date.now(),
+        })
         if (keeping) {
           try {
             const { keepList, STALE_AFTER } = await import('./mylist')
@@ -1230,6 +1249,35 @@ function DraftReport({
   )
 }
 
+/**
+ * True for a moment after the list is replaced under the reporter.
+ *
+ * The history gets its wash for nothing, because it is drawn the instant it
+ * arrives and a browser runs an animation on a new element by itself. This
+ * list is not new — the reports the city still has keep their own rows, so
+ * there is nothing inserted to animate — and it is the one the reporter is
+ * most likely to be reading while it changes underneath them.
+ *
+ * What is remembered is the moment the list landed, not the list itself: two
+ * of them can arrive in one render, and a list read off the phone that is
+ * replaced by the city's in the same breath still has to wash. Whatever it
+ * is holding when this first draws is where it starts from, so coming back
+ * to the tab does not wash a list that landed while the reporter was
+ * somewhere else.
+ */
+function useJustLoaded(at: number | undefined) {
+  const seen = useRef(at)
+  const [on, setOn] = useState(false)
+  useEffect(() => {
+    if (at === undefined || at === seen.current) return
+    seen.current = at
+    setOn(true)
+    const done = setTimeout(() => setOn(false), 1200)
+    return () => clearTimeout(done)
+  }, [at])
+  return on
+}
+
 function CityReports({
   past,
   onLoad,
@@ -1281,6 +1329,7 @@ function CityReports({
   const sentinel = useEndOfList(more, showing < matching.length)
 
   const refreshing = past.at === 'ready' && past.refreshing === true
+  const landed = useJustLoaded(past.at === 'ready' ? past.landedAt : undefined)
 
   if (past.at === 'loading') return <Loading step={past.step} />
   if (past.at === 'error') {
@@ -1357,7 +1406,7 @@ function CityReports({
           </button>
         )}
       </div>
-      <ul class="reports">
+      <ul class={landed ? 'reports landed' : 'reports'}>
         {matching.slice(0, showing).map((r) => (
           <FiledReport key={r.reference} report={r} withSession={withSession} />
         ))}
@@ -1651,7 +1700,17 @@ function FiledReport({ report, withSession }: { report: Filed; withSession: With
               <span>Reading what happened…</span>
             </p>
           )}
-          {history && <Progress history={history} />}
+          {/*
+            `landed` washes it yellow for a moment as it arrives. What the
+            city has done turns up a second or two after the card opened, by
+            which time the reporter is reading the report itself; the wash is
+            what draws the eye back to the part of the card that changed.
+          */}
+          {history && (
+            <div class="landed">
+              <Progress history={history} />
+            </div>
+          )}
         </div>
       )}
     </li>

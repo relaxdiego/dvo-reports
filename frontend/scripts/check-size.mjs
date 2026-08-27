@@ -56,7 +56,16 @@ import { join } from 'node:path'
 // the truth. If this line is ever the one in the way again, the disclaimer's
 // text is about 5.5 kB that only a reporter who opens it ever reads, and it
 // could go behind an import() the way the map does.
-const BUDGET = 26_500
+// And again to 27.0, for the wash of colour over something that has just been
+// loaded behind the reporter — the list when the city's newest replaces it,
+// and a report's history when it lands a moment after the card was opened.
+// 156 bytes measured, most of it the rule and its keyframes; the history has
+// the wash for nothing, since a browser animates a new element by itself, and
+// the bytes are the class the list needs because its rows outlive the refresh.
+// What they buy is the answer to what the light at the top of the list stops
+// without saying: a list that changes in silence while it is being read is one
+// the reporter has to read again to trust.
+const BUDGET = 27_000
 
 const dist = process.argv[2] ?? 'dist'
 const html = readFileSync(join(dist, 'index.html'), 'utf8')
