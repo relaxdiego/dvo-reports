@@ -25,6 +25,10 @@ fieldset {
   border: 0;
   padding: 0;
   margin: 0;
+  /* A fieldset is min-content wide unless it is told otherwise, whatever its
+     parent's width says. One long unbroken word inside it — a camera's file
+     name — widened the whole form and gave the page a sideways scroll. */
+  min-inline-size: 0;
 }
 
 fieldset[disabled] {

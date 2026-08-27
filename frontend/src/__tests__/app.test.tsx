@@ -985,6 +985,19 @@ describe('the photo field', () => {
     expect(rows[0].textContent).toContain('2025')
   })
 
+  // A camera's own file name is long enough to widen the whole form, and the
+  // ends of it are the part that tells one row from another.
+  it('cuts a long file name out of the middle', async () => {
+    const long = 'C90E2A17-8CFE-435C-B59F-7DEA96E44994.jpeg'
+    await attach(new File([jpegPhoto()], long, { type: 'image/jpeg' }))
+
+    const name = root.querySelector('.photoname')!.textContent!
+    expect(name).toContain('…')
+    expect(name.length).toBeLessThan(long.length)
+    expect(name.startsWith('C90E2A17')).toBe(true)
+    expect(name.endsWith('.jpeg')).toBe(true)
+  })
+
   // A photograph that says nothing about where it was taken used to be turned
   // away here, and the reporter with it: a camera with its location switched
   // off is ordinary. It is kept now, and the place is asked for below.

@@ -2577,6 +2577,24 @@ function PhotoField({
 }
 
 /**
+ * A file name short enough for a phone, cut out of the middle.
+ *
+ * A camera writes names like `C90E2A17-8CFE-435C-B59F-7DEA96E44994.jpeg`, and
+ * the reporter is only telling one row from another: the front of the name
+ * and the end of it both do that, the middle does not. CSS can only cut the
+ * end, which on names like these leaves every row looking the same. Counting
+ * characters is blind to how wide they actually are, so `.photoname` keeps
+ * its own ellipsis for whatever this lets through.
+ */
+const NAME_MAX = 32
+
+function shortName(name: string) {
+  if (name.length <= NAME_MAX) return name
+  const head = Math.ceil((NAME_MAX - 1) / 2)
+  return `${name.slice(0, head)}…${name.slice(head + 1 - NAME_MAX)}`
+}
+
+/**
  * One photo, and what it says about itself. A reporter is sending a
  * photograph of a real place to a government site, so they get to see the
  * place and the time it carries before they send it, rather than after.
@@ -2619,7 +2637,7 @@ function PhotoRow({
     <li class="photorow">
       <Thumb group={group} at={at} />
       <div class="photofacts">
-        <span class="photoname">{file.name}</span>
+        <span class="photoname">{shortName(file.name)}</span>
         {!read && <span class="meta">Reading the photo…</span>}
         {read && place && (
           <a href={osmLink(place.lat, place.lon)} target="_blank" rel="noreferrer" onClick={onCoordinates}>
