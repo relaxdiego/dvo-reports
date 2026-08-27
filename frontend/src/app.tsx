@@ -907,8 +907,17 @@ function ReportTab({
           </button>
           .
         </p>
+        {/*
+          The label moves while this is sending, for the reason the share
+          button's does: a button that looks unpressed is a button pressed
+          again. The greyed fieldset above is not enough on its own, because
+          most of it is off the screen by the time this is pressed —
+          everything from the location down is outside it and does not dim —
+          so on the screen the reporter is looking at, this button is the
+          only thing that changes.
+        */}
         <button class="primary" type="submit" disabled={sending}>
-          {sending ? 'Sending…' : 'Send report'}
+          {sending ? <>Sending<Dots /></> : 'Send report'}
         </button>
         {/*
           Keeping the report without trying to send it first, for a reporter
@@ -1561,14 +1570,48 @@ function RefreshNow({ onClick, refreshing }: { onClick: () => void; refreshing: 
 /**
  * Something moving, so that a slow reply does not read as a page that has
  * stopped working, and a line saying what is being waited for.
+ *
+ * The light rather than the dots, because this is the one wait with nothing
+ * else on the screen: the tab is these two lines and no more, and an ellipsis
+ * breathing at the end of a heading is too quiet to carry a page on its own.
+ * It goes under both lines rather than beside them — what it belongs to is
+ * the pair, and there is nothing here for it to be level with.
  */
 function Loading({ step }: { step: string }) {
   return (
     <p class="loading" role="status">
-      <span class="spinner" aria-hidden="true" />
       Loading past reports…
       <span class="step">{step}</span>
+      <span class="sweep" aria-hidden="true" />
     </p>
+  )
+}
+
+/**
+ * The three dots at the end of a label that is waiting, lit in turn.
+ *
+ * They are the ellipsis the label ended with anyway. That is the whole of
+ * why they are here: nothing appears when the wait starts and nothing has to
+ * be aligned against the words, because they *are* the words, sitting on the
+ * same baseline. The ring they replace was centred on the line box, which is
+ * a little below the middle of the capitals beside it — a pixel and a half,
+ * which is not much until it is the one thing on the screen that is supposed
+ * to be still.
+ *
+ * All three are always drawn and only their brightness moves, so the label
+ * never changes width and the button under it never twitches.
+ *
+ * Hidden from a screen reader, which has no dots to see and would otherwise
+ * be read three full stops. The word before them already says what is
+ * happening, and the live region it sits in is what announces it.
+ */
+function Dots() {
+  return (
+    <span class="dots" aria-hidden="true">
+      <span>.</span>
+      <span>.</span>
+      <span>.</span>
+    </span>
   )
 }
 
@@ -1867,19 +1910,18 @@ function SignIn({ onDone }: { onDone: (token: string | null) => void }) {
         {error && <ErrorMessage onDismiss={() => setError(null)}>{withCityLink(error)}</ErrorMessage>}
 
         {/*
-          `waiting` is the spinner the rest of the page uses for a wait that
-          sits inside something already on the screen, borrowed here so the
-          button itself says the city is being asked. It pulses instead of
-          turning for a reporter who asked for less motion.
+          The moving dots the rest of the page uses for a wait that sits
+          inside something already on the screen, so the button itself says
+          the city is being asked. They stop and stay lit for a reporter who
+          asked for less motion, where they read as the ellipsis they are.
         */}
         <button
-          class={busy ? 'primary waiting' : 'primary'}
+          class="primary"
           type="submit"
           disabled={busy || !email.trim() || (stage === 'code' && !code.trim())}
         >
-          {busy && <span class="spinner" aria-hidden="true" />}
           {busy
-            ? stage === 'email' ? 'Requesting\u2026' : 'Signing in\u2026'
+            ? stage === 'email' ? <>Requesting<Dots /></> : <>Signing in<Dots /></>
             : stage === 'email' ? 'Request a code' : 'Sign in'}
         </button>
         {stage === 'code' && (
@@ -2217,9 +2259,8 @@ function LocationField({
 
       {at && MapHere && <MapHere key={`${at.lat},${at.lon}`} at={at} />}
       {at && !MapHere && !map.failed && (
-        <p class="hint waiting" role="status">
-          <span class="spinner" aria-hidden="true" />
-          Drawing the map…
+        <p class="hint" role="status">
+          Drawing the map<Dots />
         </p>
       )}
       {/*
@@ -2266,9 +2307,8 @@ function LocationField({
         </>
       )}
       {at && naming && (
-        <p class="hint waiting" role="status">
-          <span class="spinner" aria-hidden="true" />
-          Looking up the street…
+        <p class="hint" role="status">
+          Looking up the street<Dots />
         </p>
       )}
       {/*
@@ -2355,14 +2395,8 @@ function LocationField({
  */
 function ShareButton({ sharing, onShare }: { sharing: boolean; onShare: () => void }) {
   return (
-    <button
-      type="button"
-      class={sharing ? 'primary share waiting' : 'primary share'}
-      disabled={sharing}
-      onClick={onShare}
-    >
-      {sharing && <span class="spinner" aria-hidden="true" />}
-      {sharing ? 'Finding your location…' : 'Share your location'}
+    <button type="button" class="primary share" disabled={sharing} onClick={onShare}>
+      {sharing ? <>Finding your location<Dots /></> : 'Share your location'}
     </button>
   )
 }

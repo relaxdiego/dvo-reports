@@ -923,68 +923,66 @@ h2 {
   height: 1px;
 }
 
+/* Two lines and the light under them, and nothing beside either. What was
+   here was a ring in a grid column of its own; see the note on `Loading`
+   for why the light took its place on this screen in particular. */
 .loading {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  align-items: center;
-  gap: 0.6rem;
   margin: 1.5rem 0;
   font-weight: 600;
 }
 
 .loading .step {
-  grid-column: 2;
+  display: block;
+  margin-top: 0.15rem;
   font-size: 0.85rem;
   font-weight: 400;
   color: var(--muted);
 }
 
-.spinner {
-  grid-row: span 2;
-  width: 1.4rem;
-  height: 1.4rem;
-  border: 2px solid var(--line);
-  border-top-color: var(--accent);
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
+.loading .sweep {
+  margin-top: 0.6rem;
 }
 
-@keyframes spin {
-  to {
-    transform: rotate(1turn);
+/* The dots at the end of a waiting label, lit in turn.
+
+   Only their brightness moves. Anything that changed their size or their
+   place would change the width of the label, and every one of these sits in
+   a button whose text is centred — a label that grows by a pixel is a label
+   that shuffles sideways for the whole length of the wait.
+
+   Dim rather than invisible at rest, so the ellipsis is always whole: three
+   dots appearing one after another is a sentence being typed, which is a
+   different thing from a wait. */
+.dots span {
+  opacity: 0.35;
+  animation: dot 1.4s ease-in-out infinite;
+}
+
+.dots span:nth-child(2) {
+  animation-delay: 0.18s;
+}
+
+.dots span:nth-child(3) {
+  animation-delay: 0.36s;
+}
+
+@keyframes dot {
+  30% {
+    opacity: 1;
   }
 }
 
-/* The same spinner, smaller, beside a single line of text. For a wait that
-   sits inside something already on the page rather than replacing it. */
-.waiting {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
+/* Asked for less motion: the three breathe together instead of in turn, so
+   nothing travels along the line. The delays have to be written out again —
+   the shorthand clears them, but only for the selector it is written on, and
+   the two above are the more specific.
 
-.waiting .spinner {
-  flex: none;
-  width: 0.9rem;
-  height: 0.9rem;
-}
-
-/* The same waiting line inside the button that is doing the waiting: the
-   label stays centred, and the ring is drawn in the button's own colour
-   rather than the page's, which the accent behind it would swallow. */
-button.waiting {
-  justify-content: center;
-}
-
-button.primary.waiting .spinner {
-  border-color: color-mix(in srgb, var(--accent-fg) 35%, transparent);
-  border-top-color: var(--accent-fg);
-}
-
-/* A reporter who asked for less motion still needs to see that something is
-   happening, so the spinner pulses instead of turning. */
+   `pulse` is also what the light below falls back to. It is declared here
+   because this is the first of the two to use it. */
 @media (prefers-reduced-motion: reduce) {
-  .spinner {
+  .dots span,
+  .dots span:nth-child(2),
+  .dots span:nth-child(3) {
     animation: pulse 1.6s ease-in-out infinite;
   }
 
@@ -1081,7 +1079,7 @@ button.primary.waiting .spinner {
 }
 
 /* Asked for less motion: the whole run breathes where the light travelled,
-   using the same `pulse` the spinner falls back to. Nothing crosses the
+   using the same `pulse` the dots fall back to. Nothing crosses the
    screen, and the wait is still visible. */
 @media (prefers-reduced-motion: reduce) {
   .sweep::after {
