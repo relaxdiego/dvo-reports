@@ -15,6 +15,10 @@
  * Both sets of steps are shown rather than guessing which phone this is.
  * Reading the user agent is a guess that goes wrong quietly on a browser
  * nobody thought of, and the wrong instructions are worse than two lists.
+ * That is also why the offer is made on a laptop as well: the phone the
+ * steps are for is not the machine reading them, so there is nothing to
+ * detect. The words name the phone and the reader knows which one is
+ * theirs.
  *
  * There is no "no thanks" to remember. Whoever adds the site stops being
  * asked, because the offer is hidden once the site is opened from the icon;
@@ -24,21 +28,27 @@
 /**
  * Whether to offer this at all.
  *
- * No on a laptop: every step below names something only a phone has. No
- * inside the home screen app itself, which is what the first two answers
- * are — the standalone display mode on Android and everywhere modern, and
+ * Yes on a laptop, which it did not use to be: the offer was hidden from
+ * anything without a touch screen, because every step below names something
+ * only a phone has. But somebody reading this on a laptop is exactly who has
+ * not got the site on their phone yet, and the steps keep just as well as
+ * they read — the words now say whose home screen is meant, and it is not
+ * the machine in front of them.
+ *
+ * No inside the home screen app itself, which is what both answers are — the
+ * standalone display mode on Android and everywhere modern, and
  * `navigator.standalone`, which is iOS's own older way of saying it and is
  * on no other browser.
  */
 export function offerHomeScreen(): boolean {
   if (media('(display-mode: standalone)')) return false
   if ((navigator as { standalone?: boolean }).standalone) return false
-  return media('(pointer: coarse)')
+  return true
 }
 
 // jsdom has no matchMedia at all, and the tests render the screen this sits
-// under. A test that wants the offer stubs it; the rest see no offer, which
-// is the same answer a desktop browser gives.
+// under. No matchMedia reads as not standalone, which is what any browser
+// not opened from the icon answers.
 function media(query: string): boolean {
   return typeof matchMedia === 'function' && matchMedia(query).matches
 }
@@ -47,9 +57,10 @@ export function AddToHome({ onClose }: { onClose: () => void }) {
   return (
     <div class="sheet" role="dialog" aria-modal="true" aria-label="Add to your home screen">
       <div class="sheetbody">
-        <h2>Add this to your home screen</h2>
+        <h2>Add this to your phone's home screen</h2>
         <p>
-          It then opens from an icon, like an app, and you do not have to type the address again.
+          It then opens from an icon, like an app, and you do not have to type the address again. If
+          you are reading this on a computer, open this page on your phone first.
         </p>
 
         <h3>iPhone and iPad, in Safari</h3>

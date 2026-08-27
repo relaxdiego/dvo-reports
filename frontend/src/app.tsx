@@ -958,11 +958,16 @@ function ReportTab({
         narrow phone, and the stop is what wraps — a lone dot centred under
         the link. The link reads as a call to action and needs none.
       */}
+      {/*
+        "your phone's", not "your": this is offered on a laptop too, and a
+        laptop is where somebody often meets the site first. The steps are
+        phone steps whatever is reading them, so the line says so.
+      */}
       {offerHomeScreen() && (
         <p class="offer">
           Like this app?{' '}
           <button type="button" class="linky" onClick={() => setShowAddToHome(true)}>
-            Add it to your home screen
+            Add it to your phone's home screen
           </button>
         </p>
       )}
